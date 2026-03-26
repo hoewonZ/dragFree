@@ -1,0 +1,1014 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>dragFree Config</title>
+    <style>
+      :root {
+        --bg: #f6f8fb;
+        --card: #ffffff;
+        --text: #172033;
+        --subtle: #54617a;
+        --accent: #1f6feb;
+        --ok: #1f8f4d;
+        --warn: #a46a00;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 20px;
+        min-height: 100vh;
+        font-family: "Segoe UI", "PingFang SC", sans-serif;
+        background: linear-gradient(150deg, #eef4ff 0%, var(--bg) 55%, #f9f7ff 100%);
+        color: var(--text);
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid #dfe6f4;
+        border-radius: 16px;
+        padding: 22px;
+        box-shadow: 0 12px 30px rgba(23, 32, 51, 0.08);
+        min-height: calc(100vh - 40px);
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 20px;
+      }
+
+      .top-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 2px;
+      }
+
+      .gear-btn {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        border: 1px solid #c8d6f3;
+        background: #eef3ff;
+        color: #2f4677;
+        font-size: 16px;
+        line-height: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+      }
+
+      p {
+        margin: 8px 0 0;
+        color: var(--subtle);
+        line-height: 1.5;
+      }
+
+      .section-title {
+        margin: 16px 0 8px;
+        font-size: 13px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #3d4d6b;
+      }
+
+      .status-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      .status-chip {
+        border-radius: 999px;
+        padding: 5px 10px;
+        font-size: 12px;
+        border: 1px solid #ced9f2;
+        background: #eef3ff;
+        color: #344c80;
+      }
+
+      .status-chip.done {
+        background: #e8f8ef;
+        border-color: #b7e6c9;
+        color: var(--ok);
+      }
+
+      .status-chip.current {
+        background: #fff5e8;
+        border-color: #ffd7a5;
+        color: var(--warn);
+      }
+
+      .list {
+        margin: 8px 0 0;
+        padding-left: 18px;
+        color: var(--subtle);
+        line-height: 1.5;
+      }
+
+      .list li {
+        margin: 4px 0;
+      }
+
+      .pill {
+        display: inline-block;
+        margin-top: 14px;
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 12px;
+        color: var(--accent);
+        background: #e8f0ff;
+        border: 1px solid #cadeff;
+      }
+
+      .layout {
+        display: grid;
+        gap: 18px;
+        flex: 1 1 auto;
+        min-height: 0;
+      }
+
+      .layout > .group {
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .modal-mask {
+        position: fixed;
+        inset: 0;
+        background: rgba(12, 20, 36, 0.35);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 50;
+      }
+
+      .modal-mask.show {
+        display: flex;
+      }
+
+      .modal-card {
+        width: min(560px, calc(100vw - 40px));
+        max-height: calc(100vh - 40px);
+        overflow: auto;
+        background: #fff;
+        border: 1px solid #d7e2f8;
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: 0 14px 40px rgba(18, 29, 52, 0.22);
+      }
+
+      .modal-head {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        margin-bottom: 12px;
+      }
+
+      .modal-actions {
+        margin-top: 12px;
+        display: flex;
+        justify-content: flex-end;
+      }
+
+      .group {
+        border: 1px solid #dfe6f4;
+        border-radius: 12px;
+        padding: 14px;
+        background: #fbfdff;
+      }
+
+      .group h3 {
+        margin: 0;
+        font-size: 14px;
+      }
+
+      .group-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 4px;
+      }
+
+      .title-tip {
+        display: none;
+        font-size: 11px;
+        color: #1f8f4d;
+      }
+
+      .title-tip.show {
+        display: inline;
+      }
+
+      .grid {
+        margin-top: 12px;
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-content: start;
+      }
+
+      .grid.three {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      label {
+        display: block;
+        font-size: 12px;
+        color: #435474;
+      }
+
+      .label-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .changed-tip {
+        display: none;
+        font-size: 11px;
+        color: #1f8f4d;
+      }
+
+      .changed-tip.visible {
+        display: inline;
+      }
+
+      input,
+      select {
+        margin-top: 6px;
+        width: 100%;
+        border: 1px solid #ccd8f0;
+        border-radius: 8px;
+        padding: 7px 8px;
+        font-size: 13px;
+      }
+
+      .color-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 6px;
+      }
+
+      .toggle-row {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 8px;
+        font-size: 12px;
+        color: #435474;
+      }
+
+      .toggle-row input[type="checkbox"] {
+        margin: 0;
+        width: 14px;
+        height: 14px;
+      }
+
+      #hotzone-color,
+      #hotzone-text-color {
+        margin-top: 0;
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        border-radius: 6px;
+        border: 1px solid #ccd8f0;
+        background: #fff;
+        cursor: pointer;
+      }
+
+      #hotzone-color::-webkit-color-swatch-wrapper,
+      #hotzone-text-color::-webkit-color-swatch-wrapper {
+        padding: 0;
+      }
+
+      #hotzone-color::-webkit-color-swatch,
+      #hotzone-text-color::-webkit-color-swatch {
+        border: none;
+        border-radius: 5px;
+      }
+
+      .folder-list {
+        margin-top: 12px;
+        display: grid;
+        grid-template-columns: 1fr;
+        grid-auto-rows: min-content;
+        align-content: start;
+        gap: 10px;
+        height: 320px;
+        min-height: 320px;
+        max-height: 320px;
+        overflow-y: auto;
+        padding-right: 6px;
+        padding-bottom: 2px;
+      }
+
+      .folder-item {
+        border: 1px solid #d6e0f5;
+        border-radius: 10px;
+        padding: 8px 10px;
+        background: #f8fbff;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        gap: 6px 10px;
+        min-height: 68px;
+      }
+
+      .folder-name {
+        font-size: 13px;
+        color: #1c2942;
+        font-weight: 600;
+      }
+
+      .folder-path {
+        font-size: 11px;
+        color: #6a7892;
+        grid-column: 1 / 2;
+      }
+
+      .actions {
+        display: flex;
+        gap: 6px;
+        grid-column: 2 / 3;
+        grid-row: 1 / 3;
+        align-self: center;
+      }
+
+      .icon-btn {
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+        border: 1px solid #c8d6f3;
+        background: #eef3ff;
+        color: #2f4677;
+        font-size: 12px;
+        line-height: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+      }
+
+      .actions .icon-btn {
+        padding: 0;
+      }
+
+      .icon-btn.add {
+        width: 26px;
+        height: 26px;
+        font-size: 16px;
+      }
+
+      .actions button,
+      .toolbar button,
+      .save-bar button,
+      .modal-actions button {
+        border: 1px solid #c8d6f3;
+        background: #eef3ff;
+        color: #2f4677;
+        border-radius: 8px;
+        padding: 6px 10px;
+        font-size: 12px;
+      }
+
+      .toolbar {
+        margin-top: 8px;
+      }
+
+      .muted {
+        font-size: 12px;
+        color: #5c6d8a;
+      }
+
+      #save-status {
+        min-height: 18px;
+        margin: 0;
+      }
+
+      #tile-size-wrap {
+        visibility: hidden;
+        pointer-events: none;
+      }
+
+      #tile-size-wrap.show {
+        visibility: visible;
+        pointer-events: auto;
+      }
+
+      @media (max-width: 620px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <div class="top-bar">
+        <h1>dragFree</h1>
+        <button id="open-display-config" class="gear-btn" type="button" title="显示配置" aria-label="显示配置">⚙</button>
+      </div>
+
+      <section class="layout">
+        <div class="group">
+          <div class="group-head">
+            <h3>常用文件夹 <span id="folder-added-tip" class="title-tip">已添加</span></h3>
+            <button id="add-folder" class="icon-btn add" type="button" title="添加文件夹" aria-label="添加文件夹">+</button>
+          </div>
+          <div id="folder-list" class="folder-list"></div>
+        </div>
+      </section>
+
+      <p id="save-status" class="muted"></p>
+
+      <div id="display-config-modal" class="modal-mask" role="dialog" aria-modal="true" aria-label="显示配置">
+        <div class="modal-card">
+          <div class="modal-head">
+            <h3>显示配置</h3>
+          </div>
+          <div class="grid">
+            <div>
+              <span class="label-row">
+                <span>热区颜色</span>
+                <span class="changed-tip" data-tip-for="hotzone-color">已更改</span>
+              </span>
+              <span class="color-row">
+                <input id="hotzone-color" type="color" />
+                <button id="reset-hotzone" type="button">重置热区属性</button>
+              </span>
+              <span class="label-row" style="margin-top: 8px">
+                <span>展示文本颜色</span>
+                <span class="changed-tip" data-tip-for="hotzone-text-color">已更改</span>
+              </span>
+              <span class="color-row">
+                <input id="hotzone-text-color" type="color" />
+              </span>
+              <label class="toggle-row">
+                <input id="hotzone-text-bold" type="checkbox" />
+                <span>展示文本加粗</span>
+                <span class="changed-tip" data-tip-for="hotzone-text-bold">已更改</span>
+              </label>
+            </div>
+            <label>
+              <span class="label-row">
+                <span>面包屑分隔符</span>
+                <span class="changed-tip" data-tip-for="breadcrumb-separator">已更改</span>
+              </span>
+              <select id="breadcrumb-separator">
+                <option value="/">/（默认）</option>
+                <option value=">">&gt;</option>
+              </select>
+            </label>
+            <label>
+              <span class="label-row">
+                <span>投放闪动确认时长（秒）</span>
+                <span class="changed-tip" data-tip-for="drop-pulse-confirm">已更改</span>
+              </span>
+              <input id="drop-pulse-confirm" type="number" min="0" max="1" step="0.01" />
+            </label>
+            <label>
+              <span class="label-row">
+                <span>接续查询延时（秒）</span>
+                <span class="changed-tip" data-tip-for="hover-followup-delay">已更改</span>
+              </span>
+              <input id="hover-followup-delay" type="number" min="0" max="1" step="0.01" />
+            </label>
+            <label>
+              <span class="label-row">
+                <span>默认处理方式</span>
+                <span class="changed-tip" data-tip-for="default-action">已更改</span>
+              </span>
+              <select id="default-action">
+                <option value="copy">复制</option>
+                <option value="move">移动</option>
+              </select>
+            </label>
+            <label>
+              <span class="label-row">
+                <span>面板目录样式</span>
+                <span class="changed-tip" data-tip-for="panel-view-mode">已更改</span>
+              </span>
+              <select id="panel-view-mode">
+                <option value="list">列表（推荐）</option>
+                <option value="tile">平铺</option>
+              </select>
+            </label>
+            <label id="tile-size-wrap">
+              <span class="label-row">
+                <span>平铺尺寸</span>
+                <span class="changed-tip" data-tip-for="panel-tile-size">已更改</span>
+              </span>
+              <select id="panel-tile-size">
+                <option value="large">大（3列）</option>
+                <option value="medium">中（5列）</option>
+                <option value="small">小（7列）</option>
+              </select>
+            </label>
+          </div>
+          <div class="modal-actions">
+            <button id="save-display-config" type="button">关闭</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script type="module">
+      const hotzoneColorEl = document.getElementById("hotzone-color");
+      const hotzoneTextColorEl = document.getElementById("hotzone-text-color");
+      const hotzoneTextBoldEl = document.getElementById("hotzone-text-bold");
+      const resetHotzoneEl = document.getElementById("reset-hotzone");
+      const openDisplayConfigEl = document.getElementById("open-display-config");
+      const saveDisplayConfigEl = document.getElementById("save-display-config");
+      const displayConfigModalEl = document.getElementById("display-config-modal");
+      const addFolderEl = document.getElementById("add-folder");
+      const folderAddedTipEl = document.getElementById("folder-added-tip");
+      const breadcrumbSeparatorEl = document.getElementById("breadcrumb-separator");
+      const dropPulseConfirmEl = document.getElementById("drop-pulse-confirm");
+      const hoverFollowupDelayEl = document.getElementById("hover-followup-delay");
+      const defaultActionEl = document.getElementById("default-action");
+      const panelViewModeEl = document.getElementById("panel-view-mode");
+      const panelTileSizeWrapEl = document.getElementById("tile-size-wrap");
+      const panelTileSizeEl = document.getElementById("panel-tile-size");
+      const folderListEl = document.getElementById("folder-list");
+      const saveStatusEl = document.getElementById("save-status");
+      const changedTips = Array.from(document.querySelectorAll(".changed-tip"));
+
+      let config = null;
+      let saveTimer = null;
+      let saving = false;
+      let queuedSave = false;
+      let changedFields = new Set();
+      let folderAddedTipTimer = null;
+
+      const HOTZONE_FIXED = {
+        edge: "top",
+        widthPx: 200,
+        heightPx: 300,
+        xPx: null,
+        yPx: 0,
+        opacity: 0.08
+      };
+
+      function setStatus(message) {
+        saveStatusEl.textContent = message;
+      }
+
+      function getApi() {
+        if (!window.configApi || !window.configApi.isReady || !window.configApi.isReady()) {
+          throw new Error(
+            "配置桥接未就绪（preload 未加载）。请重启应用；若仍失败，请确认 config-preload.cjs 路径正确。"
+          );
+        }
+        return window.configApi;
+      }
+
+      function normalizeColor(value, fallback) {
+        const candidate = typeof value === "string" ? value.trim() : "";
+        return /^#[0-9a-fA-F]{6}$/.test(candidate) ? candidate.toLowerCase() : fallback;
+      }
+
+      function collectHotzoneDraft(baseHotzone = null) {
+        const fallback = baseHotzone || config.hotzone || {};
+        return {
+          ...fallback,
+          edge: "top",
+          color: normalizeColor(hotzoneColorEl.value, fallback.color ?? "#467eff"),
+          displayTextColor: normalizeColor(hotzoneTextColorEl.value, fallback.displayTextColor ?? "#f5f8ff"),
+          displayTextBold: hotzoneTextBoldEl.checked,
+          cancelRegionPx: fallback.cancelRegionPx ?? 48,
+          debugVisible: fallback.debugVisible !== false
+        };
+      }
+
+      function markFieldChanged(fieldId) {
+        changedFields.add(fieldId);
+        const tip = changedTips.find((item) => item.dataset.tipFor === fieldId);
+        if (tip) {
+          tip.classList.add("visible");
+        }
+      }
+
+      function clearChangedTips() {
+        changedTips.forEach((tip) => {
+          tip.classList.remove("visible");
+        });
+      }
+
+      function openDisplayConfigModal() {
+        displayConfigModalEl.classList.add("show");
+      }
+
+      function closeDisplayConfigModal() {
+        displayConfigModalEl.classList.remove("show");
+      }
+
+      function showFolderAddedTip() {
+        folderAddedTipEl.classList.add("show");
+        if (folderAddedTipTimer !== null) {
+          clearTimeout(folderAddedTipTimer);
+        }
+        folderAddedTipTimer = setTimeout(() => {
+          folderAddedTipEl.classList.remove("show");
+          folderAddedTipTimer = null;
+        }, 1200);
+      }
+
+      function flashSavedTips(fields) {
+        if (!Array.isArray(fields) || fields.length === 0) {
+          return;
+        }
+
+        for (const fieldId of fields) {
+          const tip = changedTips.find((item) => item.dataset.tipFor === fieldId);
+          if (tip) {
+            tip.classList.add("visible");
+          }
+        }
+
+        setTimeout(() => {
+          for (const fieldId of fields) {
+            const tip = changedTips.find((item) => item.dataset.tipFor === fieldId);
+            if (tip) {
+              tip.classList.remove("visible");
+            }
+          }
+        }, 1200);
+      }
+
+      function updateSummary() {
+        return;
+      }
+
+      function syncTileSizeVisibility() {
+        panelTileSizeWrapEl.classList.toggle("show", panelViewModeEl.value === "tile");
+      }
+
+      function buildNextConfig(baseConfig) {
+        const source = baseConfig || config;
+        return {
+          ...source,
+          hotzone: {
+            ...source.hotzone,
+            ...collectHotzoneDraft(source.hotzone),
+            edge: "top"
+          },
+          behavior: {
+            ...source.behavior,
+            breadcrumbSeparator: breadcrumbSeparatorEl.value === ">" ? ">" : "/",
+            dropPulseConfirmSec: Math.min(1, Math.max(0, Number.parseFloat(dropPulseConfirmEl.value || "0.1") || 0.1)),
+            hoverFollowupDelaySec: Math.min(1, Math.max(0, Number.parseFloat(hoverFollowupDelayEl.value || "0.3") || 0.3)),
+            pulseLevel: "high",
+            defaultAction: defaultActionEl.value === "move" ? "move" : "copy",
+            panelViewMode: panelViewModeEl.value === "tile" ? "tile" : "list",
+            panelTileSize:
+              panelTileSizeEl.value === "small"
+                ? "small"
+                : panelTileSizeEl.value === "medium"
+                  ? "medium"
+                  : "large"
+          },
+          folders: Array.isArray(config?.folders) ? config.folders : source.folders
+        };
+      }
+
+      async function saveNow(options = {}) {
+        if (!config) {
+          return false;
+        }
+
+        if (saving) {
+          queuedSave = true;
+          return false;
+        }
+
+        const { silent = false } = options;
+        const pendingChangedFields = Array.from(changedFields);
+        saving = true;
+        if (!silent) {
+          setStatus("保存中...");
+        }
+
+        try {
+          const api = getApi();
+          const latest = await api.getConfig();
+          const next = buildNextConfig(latest);
+          const result = await Promise.race([
+            api.saveConfig(next),
+            new Promise((_, reject) => {
+              setTimeout(() => reject(new Error("保存超时，请重试。")), 3000);
+            })
+          ]);
+
+          if (!result || result.ok !== true) {
+            throw new Error(result?.error || "保存失败");
+          }
+
+          config = result.data;
+          changedFields = new Set();
+          bindForm();
+          flashSavedTips(pendingChangedFields);
+          if (!silent) {
+            setStatus("已保存并应用。");
+          }
+          return true;
+        } catch (error) {
+          setStatus(`保存失败：${error instanceof Error ? error.message : "未知错误"}`);
+          return false;
+        } finally {
+          saving = false;
+          if (queuedSave) {
+            queuedSave = false;
+            void saveNow({ silent: true });
+          }
+        }
+      }
+
+      async function flushPendingSave(options = {}) {
+        if (saveTimer !== null) {
+          clearTimeout(saveTimer);
+          saveTimer = null;
+        }
+        return saveNow(options);
+      }
+
+      function scheduleAutoSave() {
+        if (saveTimer !== null) {
+          clearTimeout(saveTimer);
+        }
+        saveTimer = setTimeout(() => {
+          saveTimer = null;
+          void saveNow({ silent: true });
+        }, 300);
+      }
+
+      function applyHotzoneDefaults() {
+        if (!config || !config.hotzone) {
+          return;
+        }
+        config.hotzone = {
+          ...config.hotzone,
+          ...HOTZONE_FIXED,
+          color: "#467eff",
+          displayTextColor: "#f5f8ff",
+          displayTextBold: false
+        };
+        hotzoneColorEl.value = "#467eff";
+        hotzoneTextColorEl.value = "#f5f8ff";
+        hotzoneTextBoldEl.checked = false;
+      }
+
+      function createFolderId() {
+        return `folder-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      }
+
+      function middleEllipsis(value, max = 56) {
+        if (typeof value !== "string" || value.length <= max) {
+          return value;
+        }
+        const head = Math.floor((max - 3) / 2);
+        const tail = max - 3 - head;
+        return `${value.slice(0, head)}...${value.slice(value.length - tail)}`;
+      }
+
+      function renderFolders() {
+        folderListEl.innerHTML = "";
+        if (!config.folders || config.folders.length === 0) {
+          const empty = document.createElement("div");
+          empty.className = "muted";
+          empty.textContent = "还未添加常用文件夹";
+          folderListEl.appendChild(empty);
+          return;
+        }
+
+        config.folders.forEach((folder, index) => {
+          const item = document.createElement("div");
+          item.className = "folder-item";
+
+          const name = document.createElement("div");
+          name.className = "folder-name";
+          name.textContent = `${index + 1}. ${folder.name}`;
+
+          const path = document.createElement("div");
+          path.className = "folder-path";
+          path.textContent = middleEllipsis(folder.path, 58);
+          path.title = folder.path;
+
+          const actions = document.createElement("div");
+          actions.className = "actions";
+
+          const up = document.createElement("button");
+          up.type = "button";
+          up.textContent = "↑";
+          up.className = "icon-btn";
+          up.title = "上移";
+          up.disabled = index === 0;
+          up.addEventListener("click", () => {
+            const temp = config.folders[index - 1];
+            config.folders[index - 1] = config.folders[index];
+            config.folders[index] = temp;
+            renderFolders();
+            scheduleAutoSave();
+          });
+
+          const down = document.createElement("button");
+          down.type = "button";
+          down.textContent = "↓";
+          down.className = "icon-btn";
+          down.title = "下移";
+          down.disabled = index === config.folders.length - 1;
+          down.addEventListener("click", () => {
+            const temp = config.folders[index + 1];
+            config.folders[index + 1] = config.folders[index];
+            config.folders[index] = temp;
+            renderFolders();
+            scheduleAutoSave();
+          });
+
+          const replace = document.createElement("button");
+          replace.type = "button";
+          replace.textContent = "↺";
+          replace.className = "icon-btn";
+          replace.title = "更改文件夹";
+          replace.addEventListener("click", async () => {
+            try {
+              const api = getApi();
+              const newPath = await api.pickFolder();
+              if (!newPath) {
+                return;
+              }
+
+              const duplicated = config.folders.some((item, idx) => idx !== index && item.path === newPath);
+              if (duplicated) {
+                setStatus("该文件夹已存在于常用列表。请重新选择。");
+                return;
+              }
+
+              const newName = newPath.split(/[/\\]/).filter(Boolean).pop() || newPath;
+              config.folders[index] = {
+                ...config.folders[index],
+                name: newName,
+                path: newPath
+              };
+              renderFolders();
+              setStatus("已更新文件夹路径。正在自动保存...");
+              scheduleAutoSave();
+            } catch (error) {
+              setStatus(`更新文件夹失败：${error instanceof Error ? error.message : "未知错误"}`);
+            }
+          });
+
+          const remove = document.createElement("button");
+          remove.type = "button";
+          remove.textContent = "×";
+          remove.className = "icon-btn";
+          remove.title = "删除";
+          remove.addEventListener("click", () => {
+            config.folders.splice(index, 1);
+            renderFolders();
+            scheduleAutoSave();
+          });
+
+          actions.append(up, down, replace, remove);
+          item.append(name, path, actions);
+          folderListEl.appendChild(item);
+        });
+      }
+
+      function bindForm() {
+        hotzoneColorEl.value = normalizeColor(config.hotzone.color, "#467eff");
+        hotzoneTextColorEl.value = normalizeColor(config.hotzone.displayTextColor, "#f5f8ff");
+        hotzoneTextBoldEl.checked = config.hotzone.displayTextBold === true;
+        breadcrumbSeparatorEl.value = config.behavior?.breadcrumbSeparator ?? "/";
+        dropPulseConfirmEl.value = Number(config.behavior?.dropPulseConfirmSec ?? 0.1).toFixed(2);
+        hoverFollowupDelayEl.value = Number(config.behavior?.hoverFollowupDelaySec ?? 0.3).toFixed(2);
+        defaultActionEl.value = config.behavior?.defaultAction === "move" ? "move" : "copy";
+        panelViewModeEl.value =
+          config.behavior?.panelViewMode === "tile"
+            ? "tile"
+            : "list";
+        panelTileSizeEl.value =
+          config.behavior?.panelTileSize === "small"
+            ? "small"
+            : config.behavior?.panelTileSize === "medium"
+              ? "medium"
+              : "large";
+        syncTileSizeVisibility();
+        renderFolders();
+      }
+
+      [
+        hotzoneColorEl,
+        hotzoneTextColorEl,
+        hotzoneTextBoldEl,
+        breadcrumbSeparatorEl,
+        dropPulseConfirmEl,
+        hoverFollowupDelayEl,
+        defaultActionEl,
+        panelViewModeEl,
+        panelTileSizeEl
+      ].forEach((el) => {
+        el.addEventListener("input", () => {
+          markFieldChanged(el.id);
+          if (el === panelViewModeEl) {
+            syncTileSizeVisibility();
+          }
+          scheduleAutoSave();
+        });
+        el.addEventListener("change", () => {
+          markFieldChanged(el.id);
+          if (el === panelViewModeEl) {
+            syncTileSizeVisibility();
+          }
+          if (el === defaultActionEl) {
+            void flushPendingSave({ silent: true });
+          } else {
+            scheduleAutoSave();
+          }
+        });
+      });
+
+      resetHotzoneEl.addEventListener("click", () => {
+        applyHotzoneDefaults();
+        markFieldChanged("hotzone-color");
+        markFieldChanged("hotzone-text-color");
+        markFieldChanged("hotzone-text-bold");
+        scheduleAutoSave();
+        setStatus("已恢复固定触发方式默认热区。正在自动保存...");
+      });
+
+      addFolderEl.addEventListener("click", async () => {
+        try {
+          const api = getApi();
+          const path = await api.pickFolder();
+          if (!path) {
+            setStatus("已取消选择文件夹。");
+            return;
+          }
+
+          const existing = config.folders.find((item) => item.path === path);
+          if (existing) {
+            setStatus("该文件夹已存在于常用列表。");
+            return;
+          }
+
+          const name = path.split(/[/\\]/).filter(Boolean).pop() || path;
+            config.folders.push({
+              id: createFolderId(),
+              name,
+              path
+            });
+            renderFolders();
+            showFolderAddedTip();
+            setStatus("已添加文件夹。正在自动保存...");
+            scheduleAutoSave();
+          } catch (error) {
+            setStatus(`添加文件夹失败：${error instanceof Error ? error.message : "未知错误"}`);
+          }
+        });
+
+      openDisplayConfigEl.addEventListener("click", () => {
+        openDisplayConfigModal();
+      });
+
+      saveDisplayConfigEl.addEventListener("click", async () => {
+        const ok = await flushPendingSave({ silent: false });
+        if (ok) {
+          closeDisplayConfigModal();
+        }
+      });
+
+      displayConfigModalEl.addEventListener("click", async (event) => {
+        if (event.target === displayConfigModalEl) {
+          const ok = await flushPendingSave({ silent: false });
+          if (ok) {
+            closeDisplayConfigModal();
+          }
+        }
+      });
+
+      try {
+        const api = getApi();
+        config = await api.getConfig();
+        clearChangedTips();
+        bindForm();
+      } catch (error) {
+        setStatus(`配置初始化失败：${error instanceof Error ? error.message : "未知错误"}`);
+      }
+    </script>
+  </body>
+</html>

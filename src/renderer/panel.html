@@ -1,0 +1,654 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>dragFree Panel</title>
+    <style>
+      :root {
+        --bg: rgba(12, 18, 32, 0.9);
+        --border: rgba(138, 166, 235, 0.24);
+        --text: #f4f7ff;
+        --muted: #b4c2e0;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        background: transparent;
+        font-family: "Segoe UI", "PingFang SC", sans-serif;
+      }
+
+      .panel {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        border-radius: 16px;
+        border: 1px solid var(--border);
+        background: var(--bg);
+        box-shadow: 0 14px 45px rgba(2, 6, 18, 0.45);
+        color: var(--text);
+        padding: 14px 14px 12px;
+        animation: slide-down 160ms ease-out;
+      }
+
+      .title {
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      .subtitle {
+        margin-top: 4px;
+        font-size: 12px;
+        color: var(--muted);
+        flex: 0 0 auto;
+      }
+
+      .workspace {
+        margin-top: 10px;
+        display: grid;
+        grid-template-rows: auto auto 416px auto;
+        gap: 8px;
+        flex: 1 1 auto;
+        min-height: 0;
+      }
+
+      .top-actions {
+        min-height: 34px;
+        display: flex;
+        align-items: center;
+      }
+
+      .folder-row {
+        margin-top: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .directory-list {
+        height: 100%;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: 6px 6px 6px 2px;
+        border-radius: 0;
+        border: none;
+        background: rgba(16, 24, 42, 0.28);
+      }
+
+      .directory-list::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      .directory-list::-webkit-scrollbar-track {
+        background: rgba(93, 124, 180, 0.08);
+      }
+
+      .directory-list::-webkit-scrollbar-thumb {
+        background: rgba(128, 156, 207, 0.42);
+        border: 2px solid transparent;
+        background-clip: padding-box;
+      }
+
+      .directory-list::-webkit-scrollbar-thumb:hover {
+        background: rgba(154, 180, 224, 0.56);
+        background-clip: padding-box;
+      }
+
+      .parent-actions {
+        margin-top: 0;
+      }
+
+      .breadcrumb-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+        min-height: 30px;
+        max-height: 30px;
+        overflow: hidden;
+      }
+
+      .breadcrumb-chip {
+        border: 1px solid rgba(132, 160, 214, 0.55);
+        background: rgba(86, 113, 166, 0.24);
+        border-radius: 5px;
+        padding: 6px 9px;
+        min-width: 0;
+        max-width: 148px;
+        font-size: 11px;
+        color: #e7f0ff;
+        text-decoration: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset;
+        transition: transform 120ms ease, background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+      }
+
+      .breadcrumb-chip.interactive {
+        cursor: pointer;
+      }
+
+      .breadcrumb-chip:hover {
+        background: rgba(98, 126, 186, 0.36);
+        border-color: rgba(154, 184, 241, 0.72);
+      }
+
+      .breadcrumb-sep {
+        color: rgba(211, 224, 255, 0.65);
+        font-size: 11px;
+        pointer-events: none;
+      }
+
+      .breadcrumb-ellipsis {
+        color: rgba(211, 224, 255, 0.72);
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        pointer-events: none;
+      }
+
+      .chip-icon {
+        font-size: 13px;
+        line-height: 1;
+        opacity: 0.9;
+        flex: 0 0 auto;
+      }
+
+      .chip-label {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .folder-chip,
+      .child-chip,
+      .chip {
+        border: 1px solid rgba(166, 189, 245, 0.4);
+        background: rgba(166, 189, 245, 0.12);
+        border-radius: 10px;
+        padding: 7px 10px;
+        font-size: 12px;
+        color: #f4f7ff;
+        cursor: default;
+        min-width: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        transition: transform 120ms ease, box-shadow 120ms ease, background-color 120ms ease, border-color 120ms ease;
+      }
+
+      .panel-view-list .folder-row {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 6px;
+      }
+
+      .panel-view-list .folder-chip,
+      .panel-view-list .child-chip,
+      .panel-view-list .chip {
+        width: 100%;
+        justify-content: flex-start;
+        min-height: 34px;
+      }
+
+      .panel-view-tile .folder-row {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .panel-view-tile .folder-chip,
+      .panel-view-tile .child-chip,
+      .panel-view-tile .chip {
+        width: 100%;
+        min-height: 66px;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        gap: 5px;
+        padding: 8px 6px;
+        text-align: center;
+      }
+
+      .panel-view-tile .chip-icon {
+        font-size: 16px;
+      }
+
+      .panel-view-tile .chip-label {
+        max-width: 100%;
+      }
+
+      .panel-view-tile.panel-tile-medium .folder-row {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 6px;
+      }
+
+      .panel-view-tile.panel-tile-medium .folder-chip,
+      .panel-view-tile.panel-tile-medium .child-chip,
+      .panel-view-tile.panel-tile-medium .chip {
+        min-height: 58px;
+        padding: 6px 4px;
+      }
+
+      .panel-view-tile.panel-tile-medium .chip-icon {
+        font-size: 14px;
+      }
+
+      .panel-view-tile.panel-tile-medium .chip-label {
+        font-size: 11px;
+      }
+
+      .panel-view-tile.panel-tile-small .folder-row {
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: 4px;
+      }
+
+      .panel-view-tile.panel-tile-small .folder-chip,
+      .panel-view-tile.panel-tile-small .child-chip,
+      .panel-view-tile.panel-tile-small .chip {
+        min-height: 50px;
+        padding: 4px 2px;
+      }
+
+      .panel-view-tile.panel-tile-small .chip-icon {
+        font-size: 12px;
+      }
+
+      .panel-view-tile.panel-tile-small .chip-label {
+        font-size: 10px;
+      }
+
+      .folder-chip.active,
+      .child-chip.active {
+        transform: translateY(-1px) scale(1.01);
+        border-color: rgba(255, 213, 124, 0.95);
+        background: rgba(255, 213, 124, 0.25);
+      }
+
+      .folder-chip.drag-hover,
+      .child-chip.drag-hover,
+      .breadcrumb-chip.drag-hover,
+      .chip.drag-hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(5, 10, 20, 0.32);
+      }
+
+      .folder-chip.hover-focus,
+      .child-chip.hover-focus,
+      .breadcrumb-chip.hover-focus {
+        background: rgba(126, 152, 207, 0.26);
+        border-color: rgba(166, 191, 246, 0.62);
+      }
+
+      .folder-chip.pulse-twice,
+      .child-chip.pulse-twice,
+      .breadcrumb-chip.pulse-twice {
+        animation: pulse-twice 380ms cubic-bezier(0.22, 0.61, 0.36, 1) 1;
+        box-shadow: 0 2px 10px rgba(179, 123, 22, 0.35);
+        border-color: rgba(255, 209, 112, 0.72);
+        background: linear-gradient(180deg, rgba(188, 138, 32, 0.62), rgba(143, 98, 16, 0.58));
+        color: #fff5d9;
+        transition: background-color 280ms ease, color 280ms ease, box-shadow 280ms ease, border-color 280ms ease;
+      }
+
+      .breadcrumb-chip.active {
+        color: #fff0c9;
+        border-color: rgba(255, 213, 124, 0.78);
+        background: rgba(163, 126, 58, 0.32);
+      }
+
+      .breadcrumb-chip.is-root {
+        border-style: dashed;
+      }
+
+      .create-chip {
+        border-style: dashed;
+        border-color: rgba(151, 224, 170, 0.8);
+        background: rgba(151, 224, 170, 0.2);
+        color: #e8fff0;
+      }
+
+      .directory-list.drop-ready-parent {
+        outline: 1px solid rgba(153, 226, 175, 0.85);
+        outline-offset: -1px;
+        background: rgba(52, 95, 65, 0.25);
+      }
+
+      .list-shell {
+        position: relative;
+        height: 416px;
+        min-height: 416px;
+      }
+
+      .list-frame {
+        position: relative;
+        height: 100%;
+        border: 1px solid rgba(166, 189, 245, 0.16);
+        border-radius: 0;
+        background: rgba(16, 24, 42, 0.24);
+      }
+
+      .list-body {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 22px;
+        bottom: 22px;
+        min-height: 0;
+      }
+
+      .scroll-zone {
+        position: absolute;
+        left: 8px;
+        right: 8px;
+        height: 18px;
+        border-radius: 0;
+        border: 1px solid rgba(93, 124, 180, 0.45);
+        background: rgba(40, 55, 84, 0.72);
+        color: rgba(231, 239, 255, 0.88);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        pointer-events: none;
+        visibility: hidden;
+        transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+      }
+
+      .scroll-zone.show {
+        visibility: visible;
+        pointer-events: auto;
+      }
+
+      .scroll-zone.top {
+        top: 2px;
+      }
+
+      .scroll-zone.bottom {
+        bottom: 2px;
+      }
+
+      .scroll-zone.active {
+        border-color: rgba(118, 170, 255, 0.85);
+        background: rgba(58, 86, 134, 0.86);
+        color: #f4f8ff;
+      }
+
+      .empty-drop-zone {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        position: absolute;
+        inset: 0;
+        border-radius: 10px;
+        border: 1px dashed rgba(153, 226, 175, 0.75);
+        color: #e8fff0;
+        background: rgba(52, 95, 65, 0.2);
+        font-size: 12px;
+        gap: 6px;
+      }
+
+      .empty-drop-zone::before {
+        content: "+";
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        font-size: 26px;
+        line-height: 1;
+        font-weight: 700;
+        color: rgba(236, 255, 225, 0.72);
+      }
+
+      .empty {
+        position: absolute;
+        inset: 0;
+        border: 1px dashed rgba(166, 189, 245, 0.45);
+        border-radius: 12px;
+        padding: 10px;
+        background: rgba(35, 53, 98, 0.28);
+        color: #d9e5ff;
+        display: none;
+        overflow: auto;
+      }
+
+      .empty button {
+        margin-top: 8px;
+        border: 1px solid rgba(166, 189, 245, 0.45);
+        background: rgba(166, 189, 245, 0.15);
+        color: #eff4ff;
+        border-radius: 8px;
+        padding: 6px 10px;
+      }
+
+      .meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        min-height: 18px;
+        color: var(--muted);
+        font-size: 11px;
+        gap: 8px;
+      }
+
+      .meta span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .meta span.success-tip {
+        color: #5fe18f;
+        font-weight: 600;
+      }
+
+      @keyframes slide-down {
+        from {
+          transform: translateY(-10px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+
+      @keyframes pulse-twice {
+        0% {
+          transform: translateY(-1px) scale(1.01);
+          opacity: 0.95;
+        }
+        50% {
+          transform: translateY(-2px) scale(1.03);
+          opacity: 1;
+        }
+        100% {
+          transform: translateY(-1px) scale(1.01);
+          opacity: 0.95;
+        }
+      }
+
+      @keyframes pulse-twice-medium {
+        0% {
+          transform: translateY(-1px) scale(1.015);
+          opacity: 0.94;
+        }
+        50% {
+          transform: translateY(-3px) scale(1.05);
+          opacity: 1;
+        }
+        100% {
+          transform: translateY(-1px) scale(1.015);
+          opacity: 0.94;
+        }
+      }
+
+      @keyframes pulse-twice-high {
+        0% {
+          transform: translateY(-1px) scale(1.02);
+          opacity: 0.92;
+        }
+        50% {
+          transform: translateY(-4px) scale(1.08);
+          opacity: 1;
+        }
+        100% {
+          transform: translateY(-1px) scale(1.02);
+          opacity: 0.92;
+        }
+      }
+
+      .panel.pulse-level-medium .folder-chip.pulse-twice,
+      .panel.pulse-level-medium .child-chip.pulse-twice,
+      .panel.pulse-level-medium .breadcrumb-chip.pulse-twice {
+        animation-name: pulse-twice-medium;
+      }
+
+      .panel.pulse-level-high .folder-chip.pulse-twice,
+      .panel.pulse-level-high .child-chip.pulse-twice,
+      .panel.pulse-level-high .breadcrumb-chip.pulse-twice {
+        animation-name: pulse-twice-high;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="panel">
+      <div class="title">已进入热区，目录面板已滑出</div>
+      <div class="subtitle">M4：悬停立即放大，0.5s 后自动展开一级子目录；支持直接投放到无子目录文件夹。</div>
+
+      <section class="workspace">
+        <div class="top-actions">
+          <div class="parent-actions" data-parent-actions></div>
+        </div>
+
+        <div class="breadcrumb-row" data-breadcrumbs></div>
+
+        <div class="list-shell">
+          <div class="list-frame">
+            <div class="scroll-zone top" data-scroll-zone="up">↑</div>
+            <div class="list-body">
+              <div class="directory-list" data-directory-list>
+                <div class="folder-row" data-directory-items></div>
+              </div>
+              <div class="empty-drop-zone" data-empty-drop-zone>空列表可投放区</div>
+            </div>
+            <div class="scroll-zone bottom" data-scroll-zone="down">↓</div>
+          </div>
+          <div class="empty" data-empty-state>
+            你还未配置常用文件夹，请先在配置面板添加。
+            <div>
+              <button type="button" data-open-config>打开配置</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="meta">
+          <span data-child-hint>悬停目录即展开子目录</span>
+          <span data-child-meta></span>
+        </div>
+      </section>
+    </main>
+
+    <script type="module">
+      import { createPanelController } from "./panel-controller.js";
+
+      function getDraggedPaths(dataTransfer) {
+        const files = Array.from(dataTransfer?.files ?? []);
+        return files
+          .map((file) => window.panelApi.getPathForFile(file))
+          .filter((value) => typeof value === "string" && value.length > 0);
+      }
+
+      function detectFileDrag(dataTransfer) {
+        const types = Array.from(dataTransfer?.types ?? []);
+        return types.includes("Files");
+      }
+
+      const panelController = createPanelController({
+        root: document,
+        maxVisibleChildren: 4,
+        expandDelayMs: 500
+      });
+
+      let panelEventsEnabled = false;
+
+      window.panelApi.onActive((payload) => {
+        panelEventsEnabled = Boolean(payload?.enabled);
+      });
+
+      window.panelApi.getActiveState().then((payload) => {
+        panelEventsEnabled = Boolean(payload?.enabled);
+      });
+
+      window.addEventListener("dragover", (event) => {
+        if (!panelEventsEnabled) {
+          return;
+        }
+        const result = panelController.handleWindowDragOver(event);
+        event.preventDefault();
+        if (event.dataTransfer) {
+          event.dataTransfer.dropEffect = result?.dropEffect || "none";
+        }
+        window.panelApi.emitDragPosition({
+          x: event.screenX,
+          y: event.screenY,
+          clientX: event.clientX,
+          clientY: event.clientY,
+          fileDrag: detectFileDrag(event.dataTransfer),
+          paths: getDraggedPaths(event.dataTransfer)
+        });
+      });
+
+      window.addEventListener("drop", (event) => {
+        if (!panelEventsEnabled) {
+          return;
+        }
+        const result = panelController.handleWindowDrop(event);
+        if (result?.dropped) {
+          panelController.showSuccessHint(result.action, result.sourceCount);
+          setTimeout(() => {
+            window.panelApi.emitDragEnd();
+          }, 1500);
+          return;
+        }
+        window.panelApi.emitDragEnd();
+      });
+
+      window.addEventListener("dragend", () => {
+        if (!panelEventsEnabled) {
+          return;
+        }
+        window.panelApi.emitDragEnd();
+      });
+
+      window.addEventListener("dragleave", (event) => {
+        if (!panelEventsEnabled) {
+          return;
+        }
+        if (!panelController.isLikelyOutsideWindow(event)) {
+          return;
+        }
+        panelController.handleWindowDragLeave();
+      });
+
+      window.addEventListener("contextmenu", (event) => {
+        if (!panelEventsEnabled) {
+          return;
+        }
+        event.preventDefault();
+        window.panelApi.emitDragEnd();
+      });
+    </script>
+  </body>
+</html>

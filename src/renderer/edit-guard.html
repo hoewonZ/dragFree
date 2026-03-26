@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>dragFree Edit Guard</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        background: transparent;
+        overflow: hidden;
+      }
+
+      #guard {
+        width: 100%;
+        height: 100%;
+        background: transparent;
+      }
+
+      #confirm {
+        position: fixed;
+        min-width: 220px;
+        max-width: 320px;
+        background: rgba(18, 22, 30, 0.94);
+        border: 1px solid rgba(255, 255, 255, 0.24);
+        border-radius: 10px;
+        color: #f5f8ff;
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.34);
+        padding: 12px;
+        font-family: "Segoe UI", "PingFang SC", sans-serif;
+        font-size: 12px;
+        line-height: 1.4;
+        z-index: 10;
+        display: none;
+      }
+
+      #confirm.visible {
+        display: block;
+      }
+
+      #confirm-actions {
+        margin-top: 10px;
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+
+      .confirm-btn {
+        border: 1px solid rgba(255, 255, 255, 0.24);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.08);
+        color: #f5f8ff;
+        padding: 5px 10px;
+        font-size: 12px;
+        cursor: pointer;
+      }
+
+      .confirm-btn.primary {
+        background: rgba(66, 138, 255, 0.28);
+        border-color: rgba(130, 182, 255, 0.6);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="guard"></div>
+    <div id="confirm">
+      <div id="confirm-message">当前热区修改未保存，请先点击锁定保存。</div>
+      <div id="confirm-actions">
+        <button id="continue-btn" class="confirm-btn" type="button">继续编辑</button>
+        <button id="save-btn" class="confirm-btn primary" type="button">锁定并保存</button>
+      </div>
+    </div>
+    <script>
+      let displayId = null;
+      let isConfirmVisible = false;
+      let lastPromptAt = 0;
+
+      const guard = document.getElementById("guard");
+      const confirm = document.getElementById("confirm");
+      const confirmMessage = document.getElementById("confirm-message");
+      const continueBtn = document.getElementById("continue-btn");
+      const saveBtn = document.getElementById("save-btn");
+
+      function hideConfirm() {
+        isConfirmVisible = false;
+        confirm.classList.remove("visible");
+      }
+
+      function showConfirm(payload) {
+        const now = Date.now();
+        if (now - lastPromptAt < 500 && isConfirmVisible) {
+          return;
+        }
+        lastPromptAt = now;
+
+        const message =
+          typeof payload?.message === "string" && payload.message.length > 0
+            ? payload.message
+            : "当前热区修改未保存，请先点击锁定保存。";
+        confirmMessage.textContent = message;
+
+        const x = Number(payload?.x) || 0;
+        const y = Number(payload?.y) || 0;
+        const panelWidth = 280;
+        const panelHeight = 110;
+        const margin = 12;
+        const left = Math.min(window.innerWidth - panelWidth - margin, Math.max(margin, x + 12));
+        const top = Math.min(window.innerHeight - panelHeight - margin, Math.max(margin, y + 12));
+        confirm.style.left = `${Math.round(left)}px`;
+        confirm.style.top = `${Math.round(top)}px`;
+        isConfirmVisible = true;
+        confirm.classList.add("visible");
+      }
+
+      function emitUnsavedAttempt(type) {
+        window.guardApi.emitUnsavedAttempt({
+          type,
+          displayId,
+          x: window.event?.clientX ?? 0,
+          y: window.event?.clientY ?? 0
+        });
+      }
+
+      window.guardApi.onConfig((payload) => {
+        displayId = payload?.displayId ?? displayId;
+      });
+
+      window.guardApi.onShowConfirm((payload) => {
+        showConfirm(payload);
+      });
+
+      continueBtn.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        hideConfirm();
+      });
+
+      saveBtn.addEventListener("click", async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        await window.guardApi.lockAndSave();
+        hideConfirm();
+      });
+
+      guard.addEventListener("pointerdown", () => {
+        if (isConfirmVisible) {
+          hideConfirm();
+        }
+      });
+
+      window.addEventListener(
+        "pointerdown",
+        (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          if (!isConfirmVisible) {
+            window.guardApi.emitUnsavedAttempt({
+              type: "pointerdown",
+              displayId,
+              x: event.clientX,
+              y: event.clientY
+            });
+          }
+        },
+        true
+      );
+
+      window.addEventListener(
+        "dragover",
+        (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          if (!isConfirmVisible) {
+            window.guardApi.emitUnsavedAttempt({
+              type: "dragover",
+              displayId,
+              x: event.clientX,
+              y: event.clientY
+            });
+          }
+        },
+        true
+      );
+
+      window.addEventListener(
+        "drop",
+        (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          if (!isConfirmVisible) {
+            window.guardApi.emitUnsavedAttempt({
+              type: "drop",
+              displayId,
+              x: event.clientX,
+              y: event.clientY
+            });
+          }
+        },
+        true
+      );
+    </script>
+  </body>
+</html>

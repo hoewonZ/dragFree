@@ -1,0 +1,949 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>dragFree Overlay</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        background: transparent;
+        overflow: hidden;
+      }
+
+      #hotzone {
+        position: absolute;
+        border-radius: 8px;
+        background: rgba(70, 126, 255, 0.08);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+        box-sizing: border-box;
+      }
+
+      #mode-toggle {
+        position: absolute;
+        left: 8px;
+        top: 8px;
+        z-index: 9;
+        border: none;
+        border-radius: 999px;
+        background: transparent;
+        color: #f5f8ff;
+        font-size: 15px;
+        line-height: 1;
+        padding: 4px;
+        cursor: pointer;
+        user-select: none;
+        box-shadow: none;
+      }
+
+      #mode-toggle[data-editing="true"] {
+        background: rgba(27, 58, 28, 0.72);
+        border: 1px solid rgba(201, 255, 205, 0.5);
+        padding: 5px 8px;
+      }
+
+      #debug {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 13px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(12, 18, 32, 0.58);
+        color: #eef3ff;
+        font-family: "Segoe UI", "PingFang SC", sans-serif;
+        pointer-events: none;
+        white-space: nowrap;
+        max-width: calc(100% - 24px);
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      #unsaved-toast {
+        position: fixed;
+        left: 50%;
+        bottom: 20px;
+        transform: translateX(-50%);
+        background: rgba(20, 24, 30, 0.86);
+        color: #f5f8ff;
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        border-radius: 10px;
+        padding: 8px 12px;
+        font-size: 12px;
+        line-height: 1.3;
+        font-family: "Segoe UI", "PingFang SC", sans-serif;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.12s ease;
+        z-index: 20;
+        white-space: nowrap;
+      }
+
+      #unsaved-toast.visible {
+        opacity: 1;
+      }
+
+      #unsaved-confirm {
+        position: fixed;
+        min-width: 220px;
+        max-width: 320px;
+        background: rgba(18, 22, 30, 0.94);
+        border: 1px solid rgba(255, 255, 255, 0.24);
+        border-radius: 10px;
+        color: #f5f8ff;
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.34);
+        padding: 12px;
+        font-family: "Segoe UI", "PingFang SC", sans-serif;
+        font-size: 12px;
+        line-height: 1.4;
+        z-index: 21;
+        display: none;
+      }
+
+      #unsaved-confirm.visible {
+        display: block;
+      }
+
+      #unsaved-actions {
+        margin-top: 10px;
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+
+      .unsaved-btn {
+        border: 1px solid rgba(255, 255, 255, 0.24);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.08);
+        color: #f5f8ff;
+        padding: 5px 10px;
+        font-size: 12px;
+        cursor: pointer;
+      }
+
+      .unsaved-btn.primary {
+        background: rgba(66, 138, 255, 0.28);
+        border-color: rgba(130, 182, 255, 0.6);
+      }
+
+      #editor-layer {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        transition: opacity 0.12s ease;
+        pointer-events: none;
+      }
+
+      body.editable #editor-layer,
+      body.interacting #editor-layer {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      #guide-frame {
+        position: absolute;
+        inset: 6px;
+        border: 2px dashed rgba(32, 50, 86, 0.78);
+        border-radius: 8px;
+        pointer-events: none;
+        transition: border-color 0.12s ease, box-shadow 0.12s ease;
+      }
+
+      body.editable #guide-frame,
+      body.interacting #guide-frame {
+        border-color: rgba(24, 43, 79, 0.9);
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35);
+      }
+
+      .dot-handle {
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: rgba(72, 78, 90, 0.95);
+        border: 1px solid rgba(34, 40, 50, 0.95);
+        transform: translate(-50%, -50%);
+        box-shadow: 0 1px 3px rgba(8, 15, 30, 0.22);
+        opacity: 0.75;
+        transition: opacity 0.12s ease;
+      }
+
+      body.interacting .dot-handle {
+        opacity: 0.92;
+      }
+
+      .dot-handle[data-resize="nw"] {
+        left: 6px;
+        top: 6px;
+      }
+
+      .dot-handle[data-resize="n"] {
+        left: 50%;
+        top: 6px;
+      }
+
+      .dot-handle[data-resize="ne"] {
+        left: calc(100% - 6px);
+        top: 6px;
+      }
+
+      .dot-handle[data-resize="e"] {
+        left: calc(100% - 6px);
+        top: 50%;
+      }
+
+      .dot-handle[data-resize="se"] {
+        left: calc(100% - 6px);
+        top: calc(100% - 6px);
+      }
+
+      .dot-handle[data-resize="s"] {
+        left: 50%;
+        top: calc(100% - 6px);
+      }
+
+      .dot-handle[data-resize="sw"] {
+        left: 6px;
+        top: calc(100% - 6px);
+      }
+
+      .dot-handle[data-resize="w"] {
+        left: 6px;
+        top: 50%;
+      }
+
+      .resize-hit {
+        position: absolute;
+        background: transparent;
+        border-radius: 4px;
+      }
+
+      body.editable .resize-hit,
+      body.interacting .resize-hit {
+        background: rgba(255, 255, 255, 0.06);
+      }
+
+      .resize-hit[data-resize="n"] {
+        left: 14px;
+        right: 14px;
+        top: -4px;
+        height: 24px;
+        cursor: ns-resize;
+      }
+
+      .resize-hit[data-resize="s"] {
+        left: 14px;
+        right: 14px;
+        bottom: -4px;
+        height: 24px;
+        cursor: ns-resize;
+      }
+
+      .resize-hit[data-resize="w"] {
+        left: -4px;
+        top: 14px;
+        bottom: 34px;
+        width: 24px;
+        cursor: ew-resize;
+      }
+
+      .resize-hit[data-resize="e"] {
+        right: -4px;
+        top: 14px;
+        bottom: 34px;
+        width: 24px;
+        cursor: ew-resize;
+      }
+
+      .resize-hit[data-resize="nw"] {
+        left: -4px;
+        top: -4px;
+        width: 24px;
+        height: 24px;
+        cursor: nwse-resize;
+      }
+
+      .resize-hit[data-resize="ne"] {
+        right: -4px;
+        top: -4px;
+        width: 24px;
+        height: 24px;
+        cursor: nesw-resize;
+      }
+
+      .resize-hit[data-resize="sw"] {
+        left: -4px;
+        bottom: -4px;
+        width: 24px;
+        height: 24px;
+        cursor: nesw-resize;
+      }
+
+      .resize-hit[data-resize="se"] {
+        right: -4px;
+        bottom: -4px;
+        width: 24px;
+        height: 24px;
+        cursor: nwse-resize;
+      }
+
+      #move-hit {
+        position: absolute;
+        left: 14px;
+        top: 14px;
+        right: 14px;
+        bottom: 34px;
+        border-radius: 6px;
+        cursor: move;
+      }
+
+      body.editable #move-hit,
+      body.interacting #move-hit {
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      #opacity-control {
+        position: absolute;
+        left: 14px;
+        right: 14px;
+        bottom: 8px;
+        height: 22px;
+        cursor: ew-resize;
+        opacity: 0.78;
+        transition: opacity 0.12s ease;
+      }
+
+      body.interacting #opacity-control {
+        opacity: 0.94;
+      }
+
+      #opacity-line {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 50%;
+        height: 2px;
+        transform: translateY(-50%);
+        background: rgba(46, 57, 76, 0.6);
+        transition: background 0.12s ease;
+      }
+
+      body.interacting #opacity-line {
+        background: rgba(38, 50, 72, 0.75);
+      }
+
+      #opacity-progress {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 8%;
+        background: rgba(225, 230, 236, 0.98);
+      }
+
+      #opacity-knob {
+        position: absolute;
+        left: 8%;
+        top: 50%;
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: rgba(72, 78, 90, 0.95);
+        border: 1px solid rgba(34, 40, 50, 0.95);
+        box-shadow: 0 1px 3px rgba(8, 15, 30, 0.22);
+        transform: translate(-50%, -50%);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="hotzone">
+      <button id="mode-toggle" type="button" data-editing="false" aria-label="切换编辑模式">🔒 锁定</button>
+      <div id="editor-layer">
+        <div id="guide-frame"></div>
+        <div class="dot-handle" data-resize="nw"></div>
+        <div class="dot-handle" data-resize="n"></div>
+        <div class="dot-handle" data-resize="ne"></div>
+        <div class="dot-handle" data-resize="e"></div>
+        <div class="dot-handle" data-resize="se"></div>
+        <div class="dot-handle" data-resize="s"></div>
+        <div class="dot-handle" data-resize="sw"></div>
+        <div class="dot-handle" data-resize="w"></div>
+        <div id="move-hit"></div>
+        <div class="resize-hit" data-resize="n"></div>
+        <div class="resize-hit" data-resize="s"></div>
+        <div class="resize-hit" data-resize="w"></div>
+        <div class="resize-hit" data-resize="e"></div>
+        <div class="resize-hit" data-resize="nw"></div>
+        <div class="resize-hit" data-resize="ne"></div>
+        <div class="resize-hit" data-resize="sw"></div>
+        <div class="resize-hit" data-resize="se"></div>
+        <div id="opacity-control">
+          <div id="opacity-line">
+            <div id="opacity-progress"></div>
+          </div>
+          <div id="opacity-knob"></div>
+        </div>
+      </div>
+      <div id="debug">拖动文件到这里</div>
+    </div>
+    <div id="unsaved-confirm">
+      <div id="unsaved-message">当前热区修改未保存，请先点击锁定保存。</div>
+      <div id="unsaved-actions">
+        <button id="unsaved-continue" class="unsaved-btn" type="button">继续编辑</button>
+        <button id="unsaved-save" class="unsaved-btn primary" type="button">锁定并保存</button>
+      </div>
+    </div>
+    <div id="unsaved-toast">当前热区修改未保存，请先点击锁定保存。</div>
+    <script src="./hotzone-display-editor.js"></script>
+    <script>
+      const hotzone = document.getElementById("hotzone");
+      const modeToggle = document.getElementById("mode-toggle");
+      const debug = document.getElementById("debug");
+      const moveHit = document.getElementById("move-hit");
+      const opacityControl = document.getElementById("opacity-control");
+      const opacityProgress = document.getElementById("opacity-progress");
+      const opacityKnob = document.getElementById("opacity-knob");
+      const unsavedConfirm = document.getElementById("unsaved-confirm");
+      const unsavedMessage = document.getElementById("unsaved-message");
+      const unsavedContinue = document.getElementById("unsaved-continue");
+      const unsavedSave = document.getElementById("unsaved-save");
+      const unsavedToast = document.getElementById("unsaved-toast");
+
+      const MIN_WIDTH = 80;
+      const MIN_HEIGHT = 60;
+
+      let displayBounds = { x: 0, y: 0, width: 1920, height: 1080 };
+      let virtualBounds = { x: 0, y: 0, width: 1920, height: 1080 };
+      let overlayBounds = { x: 0, y: 0, width: 1920, height: 1080 };
+      let hotzoneState = {
+        edge: "top",
+        displayId: null,
+        widthPx: 200,
+        heightPx: 300,
+        xPx: null,
+        yPx: 0,
+        opacity: 0.08,
+        color: "#467eff",
+        displayText: "拖动文件到这里，或双击这里试试",
+        displayTextColor: "#f5f8ff",
+        displayTextBold: false,
+        cancelRegionPx: 48,
+        debugVisible: true
+      };
+
+      let interaction = null;
+      let isFileDragging = false;
+      let capturedPointerTarget = null;
+      let isEditing = false;
+      let pendingEditMode = null;
+      let unsavedPromptVisible = false;
+      let lastUnsavedPromptAt = 0;
+      let unsavedToastTimer = null;
+      const displayEditor = window.createHotzoneDisplayEditor({
+        hotzoneEl: hotzone,
+        modeToggleEl: modeToggle,
+        displayEl: debug,
+        minWidth: MIN_WIDTH,
+        minHeight: MIN_HEIGHT,
+        overlayApi: window.overlayApi,
+        onSave: async (nextText) => {
+          const result = await window.overlayApi.commitHotzone({ displayText: nextText });
+          if (result?.ok && result.hotzone) {
+            hotzoneState = sanitizeHotzone(result.hotzone);
+            applyHotzoneVisual();
+            displayEditor.update({
+              text: hotzoneState.displayText,
+              locked: !isEditing,
+              enabled: hotzoneState.debugVisible,
+              widthPx: hotzoneState.widthPx,
+              heightPx: hotzoneState.heightPx,
+              color: hotzoneState.color,
+              textColor: hotzoneState.displayTextColor,
+              textBold: hotzoneState.displayTextBold
+            });
+            return { ok: true, text: hotzoneState.displayText };
+          }
+
+          return { ok: false };
+        }
+      });
+
+      function isEditorEnabled() {
+        return hotzoneState.debugVisible && !isFileDragging && isEditing;
+      }
+
+      function updateModeToggle() {
+        modeToggle.dataset.editing = isEditing ? "true" : "false";
+        modeToggle.textContent = isEditing ? "🔓 编辑中" : "🔒";
+      }
+
+      function showUnsavedToast(message) {
+        unsavedToast.textContent =
+          typeof message === "string" && message.length > 0
+            ? message
+            : "当前热区修改未保存，请先点击锁定保存。";
+        unsavedToast.classList.add("visible");
+        if (unsavedToastTimer) {
+          clearTimeout(unsavedToastTimer);
+        }
+        unsavedToastTimer = setTimeout(() => {
+          unsavedToast.classList.remove("visible");
+          unsavedToastTimer = null;
+        }, 1500);
+      }
+
+      function hideUnsavedConfirm() {
+        unsavedPromptVisible = false;
+        unsavedConfirm.classList.remove("visible");
+      }
+
+      function showUnsavedConfirm(clientX, clientY, message) {
+        const now = Date.now();
+        if (unsavedPromptVisible && now - lastUnsavedPromptAt < 350) {
+          return;
+        }
+        lastUnsavedPromptAt = now;
+
+        unsavedMessage.textContent =
+          typeof message === "string" && message.length > 0
+            ? message
+            : "当前热区修改未保存，请先点击锁定保存。";
+
+        const panelWidth = 280;
+        const panelHeight = 110;
+        const margin = 12;
+        const left = Math.min(window.innerWidth - panelWidth - margin, Math.max(margin, clientX + 12));
+        const top = Math.min(window.innerHeight - panelHeight - margin, Math.max(margin, clientY + 12));
+        unsavedConfirm.style.left = `${Math.round(left)}px`;
+        unsavedConfirm.style.top = `${Math.round(top)}px`;
+        unsavedPromptVisible = true;
+        unsavedConfirm.classList.add("visible");
+      }
+
+      function updateEditorVisibility() {
+        if (interaction) {
+          document.body.classList.add("interacting");
+        } else {
+          document.body.classList.remove("interacting");
+        }
+
+        if (isEditorEnabled()) {
+          document.body.classList.add("editable");
+        } else {
+          document.body.classList.remove("editable");
+        }
+      }
+
+      function getDraggedPaths(dataTransfer) {
+        const files = Array.from(dataTransfer?.files ?? []);
+        return files
+          .map((file) => window.overlayApi.getPathForFile(file))
+          .filter((value) => typeof value === "string" && value.length > 0);
+      }
+
+      function detectFileDrag(dataTransfer) {
+        const types = Array.from(dataTransfer?.types ?? []);
+        return types.includes("Files");
+      }
+
+      function clamp(value, min, max) {
+        return Math.min(max, Math.max(min, value));
+      }
+
+      function sanitizeHotzone(state) {
+        const maxWidth = Math.max(1, displayBounds.width);
+        const maxHeight = Math.max(1, displayBounds.height);
+        const widthPx = Math.min(maxWidth, Math.max(MIN_WIDTH, Math.round(Number(state.widthPx) || 200)));
+        const heightPx = Math.min(maxHeight, Math.max(MIN_HEIGHT, Math.round(Number(state.heightPx) || 300)));
+        const centeredX = Math.round(displayBounds.x + (displayBounds.width - widthPx) / 2);
+        const rawX = state.xPx === null || state.xPx === undefined ? centeredX : Math.round(Number(state.xPx));
+        const rawY = Number.isFinite(Number(state.yPx)) ? Math.round(Number(state.yPx)) : displayBounds.y;
+
+        const xPx = clamp(rawX, virtualBounds.x, virtualBounds.x + virtualBounds.width - widthPx);
+        const yPx = clamp(rawY, virtualBounds.y, virtualBounds.y + virtualBounds.height - heightPx);
+        const opacity = clamp(Number(state.opacity) || 0.08, 0, 1);
+        const color =
+          typeof state.color === "string" && /^#[0-9a-fA-F]{6}$/.test(state.color)
+            ? state.color.toLowerCase()
+            : "#467eff";
+
+        return {
+          ...state,
+          edge: "top",
+          widthPx,
+          heightPx,
+          xPx,
+          yPx,
+          opacity: Math.round(opacity * 100) / 100,
+          color
+        };
+      }
+
+      function applyHotzoneGeometry() {
+        const localX = hotzoneState.xPx - overlayBounds.x;
+        const localY = hotzoneState.yPx - overlayBounds.y;
+        hotzone.style.left = `${Math.round(localX)}px`;
+        hotzone.style.top = `${Math.round(localY)}px`;
+        hotzone.style.width = `${Math.max(1, Math.round(hotzoneState.widthPx))}px`;
+        hotzone.style.height = `${Math.max(1, Math.round(hotzoneState.heightPx))}px`;
+      }
+
+      function updateOpacitySlider(opacity) {
+        const pct = `${Math.round(clamp(opacity, 0, 1) * 100)}%`;
+        opacityProgress.style.width = pct;
+        opacityKnob.style.left = pct;
+      }
+
+      function hexToRgba(hex, alpha) {
+        const normalized = typeof hex === "string" ? hex.trim().replace("#", "") : "467eff";
+        const safe = /^[0-9a-fA-F]{6}$/.test(normalized) ? normalized : "467eff";
+        const r = Number.parseInt(safe.slice(0, 2), 16);
+        const g = Number.parseInt(safe.slice(2, 4), 16);
+        const b = Number.parseInt(safe.slice(4, 6), 16);
+        return `rgba(${r}, ${g}, ${b}, ${clamp(alpha, 0, 1)})`;
+      }
+
+      function applyHotzoneVisual() {
+        applyHotzoneGeometry();
+        hotzone.style.backgroundColor = hexToRgba(hotzoneState.color, hotzoneState.opacity);
+        updateOpacitySlider(hotzoneState.opacity);
+      }
+
+      function emitPreview() {
+        window.overlayApi.emitHotzonePreview(hotzoneState);
+      }
+
+      async function commitInteraction() {
+        const result = await window.overlayApi.commitHotzone(hotzoneState);
+        if (result?.ok === true && result.hotzone) {
+          hotzoneState = sanitizeHotzone(result.hotzone);
+          applyHotzoneVisual();
+        }
+      }
+
+      function beginInteraction(type, event, extra = {}) {
+        if (!isEditorEnabled()) {
+          return;
+        }
+        isFileDragging = false;
+        interaction = {
+          type,
+          startScreenX: event.screenX,
+          startScreenY: event.screenY,
+          pointerId: event.pointerId,
+          start: { ...hotzoneState },
+          ...extra
+        };
+
+        if (event.currentTarget && typeof event.currentTarget.setPointerCapture === "function") {
+          try {
+            event.currentTarget.setPointerCapture(event.pointerId);
+            capturedPointerTarget = event.currentTarget;
+          } catch {
+            capturedPointerTarget = null;
+          }
+        }
+
+        updateEditorVisibility();
+      }
+
+      function releaseCapturedPointer() {
+        if (!interaction || !capturedPointerTarget) {
+          capturedPointerTarget = null;
+          return;
+        }
+
+        if (
+          typeof capturedPointerTarget.hasPointerCapture === "function" &&
+          typeof capturedPointerTarget.releasePointerCapture === "function" &&
+          capturedPointerTarget.hasPointerCapture(interaction.pointerId)
+        ) {
+          try {
+            capturedPointerTarget.releasePointerCapture(interaction.pointerId);
+          } catch {
+            // Ignore release errors from stale pointer targets.
+          }
+        }
+
+        capturedPointerTarget = null;
+      }
+
+      function applyResize(mode, dx, dy) {
+        const next = { ...interaction.start };
+
+        if (mode.includes("e")) {
+          next.widthPx = interaction.start.widthPx + dx;
+        }
+        if (mode.includes("s")) {
+          next.heightPx = interaction.start.heightPx + dy;
+        }
+        if (mode.includes("w")) {
+          next.widthPx = interaction.start.widthPx - dx;
+          next.xPx = (interaction.start.xPx ?? 0) + dx;
+        }
+        if (mode.includes("n")) {
+          next.heightPx = interaction.start.heightPx - dy;
+          next.yPx = interaction.start.yPx + dy;
+        }
+
+        hotzoneState = sanitizeHotzone(next);
+        applyHotzoneVisual();
+        emitPreview();
+      }
+
+      function applyMove(dx, dy) {
+        const next = {
+          ...interaction.start,
+          xPx: (interaction.start.xPx ?? 0) + dx,
+          yPx: interaction.start.yPx + dy
+        };
+        hotzoneState = sanitizeHotzone(next);
+        applyHotzoneVisual();
+        emitPreview();
+      }
+
+      function applyOpacityByClientX(clientX) {
+        const barRect = opacityControl.getBoundingClientRect();
+        const width = Math.max(1, barRect.width);
+        const ratio = clamp((clientX - barRect.left) / width, 0, 1);
+        hotzoneState = sanitizeHotzone({ ...hotzoneState, opacity: ratio });
+        applyHotzoneVisual();
+        emitPreview();
+      }
+
+      document.addEventListener("pointermove", (event) => {
+        if (!interaction) {
+          return;
+        }
+
+        const dx = Math.round(event.screenX - interaction.startScreenX);
+        const dy = Math.round(event.screenY - interaction.startScreenY);
+
+        if (interaction.type === "move") {
+          applyMove(dx, dy);
+          return;
+        }
+
+        if (interaction.type === "resize") {
+          applyResize(interaction.mode, dx, dy);
+          return;
+        }
+
+        if (interaction.type === "opacity") {
+          applyOpacityByClientX(event.clientX);
+        }
+      });
+
+      document.addEventListener("pointerup", async () => {
+        if (!interaction) {
+          return;
+        }
+        releaseCapturedPointer();
+        interaction = null;
+        updateEditorVisibility();
+        await commitInteraction();
+      });
+
+      document.addEventListener("pointercancel", () => {
+        if (!interaction) {
+          return;
+        }
+        releaseCapturedPointer();
+        interaction = null;
+        updateEditorVisibility();
+      });
+
+      moveHit.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        beginInteraction("move", event);
+      });
+
+      for (const handle of document.querySelectorAll("[data-resize]")) {
+        handle.addEventListener("pointerdown", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          beginInteraction("resize", event, {
+            mode: handle.dataset.resize
+          });
+        });
+      }
+
+      opacityControl.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        beginInteraction("opacity", event);
+        applyOpacityByClientX(event.clientX);
+      });
+
+      async function setEditing(nextEditing, saveBeforeLock = true) {
+        if (nextEditing === isEditing) {
+          return;
+        }
+
+        if (!nextEditing && saveBeforeLock && interaction) {
+          releaseCapturedPointer();
+          interaction = null;
+        }
+
+        if (!nextEditing && saveBeforeLock) {
+          await commitInteraction();
+        }
+
+        pendingEditMode = nextEditing;
+
+        const result = await window.overlayApi.setEditMode(nextEditing);
+        if (result?.ok) {
+          isEditing = result.editing === true;
+          if (result.hotzone) {
+            hotzoneState = sanitizeHotzone(result.hotzone);
+          }
+          applyHotzoneVisual();
+          updateModeToggle();
+          updateEditorVisibility();
+          if (pendingEditMode === null || pendingEditMode === isEditing) {
+            pendingEditMode = null;
+          }
+          if (!isEditing) {
+            hideUnsavedConfirm();
+          }
+        } else {
+          pendingEditMode = null;
+        }
+      }
+
+      modeToggle.addEventListener("click", async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (isEditing) {
+          await setEditing(false, true);
+          return;
+        }
+        await setEditing(true, false);
+      });
+
+      unsavedContinue.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        hideUnsavedConfirm();
+      });
+
+      unsavedSave.addEventListener("click", async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        hideUnsavedConfirm();
+        await setEditing(false, true);
+      });
+
+      window.overlayApi.onConfig((payload) => {
+        displayBounds = payload.displayBounds ?? displayBounds;
+        virtualBounds = payload.virtualBounds ?? virtualBounds;
+        overlayBounds = payload.overlayBounds ?? overlayBounds;
+        isEditing = payload.editMode === true;
+        hotzoneState = sanitizeHotzone(payload.hotzone ?? hotzoneState);
+
+        if (pendingEditMode === null || pendingEditMode === isEditing) {
+          pendingEditMode = null;
+        }
+
+        if (hotzoneState.debugVisible) {
+          applyHotzoneVisual();
+          hotzone.style.pointerEvents = "auto";
+          modeToggle.style.display = "inline-flex";
+        } else {
+          hotzone.style.background = "transparent";
+          document.body.classList.remove("editable");
+          hotzone.style.pointerEvents = "auto";
+          modeToggle.style.display = "none";
+          debug.style.display = "none";
+        }
+
+        updateModeToggle();
+        updateEditorVisibility();
+        displayEditor.update({
+          text: hotzoneState.displayText,
+          locked: !isEditing,
+          enabled: hotzoneState.debugVisible,
+          widthPx: hotzoneState.widthPx,
+          heightPx: hotzoneState.heightPx,
+          color: hotzoneState.color,
+          textColor: hotzoneState.displayTextColor,
+          textBold: hotzoneState.displayTextBold
+        });
+      });
+
+      window.overlayApi.onUnsavedHint((payload) => {
+        showUnsavedToast(payload?.message);
+      });
+
+      window.addEventListener("dragover", (event) => {
+        if (isEditing) {
+          event.preventDefault();
+          if (!unsavedPromptVisible) {
+            showUnsavedConfirm(event.clientX, event.clientY);
+          }
+          return;
+        }
+        event.preventDefault();
+        isFileDragging = detectFileDrag(event.dataTransfer);
+        updateEditorVisibility();
+        window.overlayApi.emitDragPosition({
+          x: event.screenX,
+          y: event.screenY,
+          fileDrag: isFileDragging,
+          paths: getDraggedPaths(event.dataTransfer)
+        });
+      });
+
+      window.addEventListener("drop", (event) => {
+        if (isEditing) {
+          event.preventDefault();
+          if (!unsavedPromptVisible) {
+            showUnsavedConfirm(event.clientX, event.clientY);
+          }
+          return;
+        }
+        event.preventDefault();
+        isFileDragging = false;
+        updateEditorVisibility();
+        window.overlayApi.emitDragEnd();
+      });
+
+      document.addEventListener(
+        "pointerdown",
+        async (event) => {
+          if (!isEditing) {
+            return;
+          }
+
+          if (unsavedConfirm.contains(event.target) || modeToggle.contains(event.target)) {
+            return;
+          }
+
+          if (hotzone.contains(event.target)) {
+            return;
+          }
+
+          event.preventDefault();
+          event.stopPropagation();
+          showUnsavedConfirm(event.clientX, event.clientY);
+        },
+        true
+      );
+
+      window.addEventListener("dragleave", () => {
+        isFileDragging = false;
+        updateEditorVisibility();
+        return;
+      });
+
+      window.addEventListener("dragend", () => {
+        isFileDragging = false;
+        updateEditorVisibility();
+      });
+    </script>
+  </body>
+</html>

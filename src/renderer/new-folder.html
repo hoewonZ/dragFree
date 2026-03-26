@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>新建文件夹</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 16px;
+        font-family: "Segoe UI", "PingFang SC", sans-serif;
+        color: #19253d;
+        background: #f4f7fc;
+      }
+
+      .card {
+        background: #ffffff;
+        border: 1px solid #dbe4f7;
+        border-radius: 12px;
+        padding: 14px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 16px;
+      }
+
+      p {
+        margin: 8px 0 0;
+        font-size: 12px;
+        color: #51627f;
+      }
+
+      input {
+        width: 100%;
+        margin-top: 12px;
+        border: 1px solid #cad7f2;
+        border-radius: 8px;
+        padding: 8px;
+        font-size: 13px;
+      }
+
+      .error {
+        margin-top: 8px;
+        font-size: 12px;
+        color: #b42318;
+        min-height: 18px;
+      }
+
+      .actions {
+        margin-top: 12px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+
+      button {
+        border: 1px solid #cad7f2;
+        background: #eef3ff;
+        color: #2d4472;
+        border-radius: 8px;
+        padding: 6px 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>新建文件夹并保存</h1>
+      <p id="target-path">目标位置：-</p>
+      <input id="folder-name" value="New Folder" />
+      <div id="error-text" class="error"></div>
+      <div class="actions">
+        <button id="cancel-btn" type="button">取消</button>
+        <button id="create-btn" type="button">创建并保存</button>
+      </div>
+    </div>
+
+    <script>
+      const targetPath = document.getElementById("target-path");
+      const folderName = document.getElementById("folder-name");
+      const cancelBtn = document.getElementById("cancel-btn");
+      const createBtn = document.getElementById("create-btn");
+      const errorText = document.getElementById("error-text");
+
+      window.newFolderApi.onInit((payload) => {
+        targetPath.textContent = `目标位置：${payload.parentPath}`;
+        errorText.textContent = "";
+      });
+
+      window.newFolderApi.onConflict((payload) => {
+        errorText.textContent = payload?.message || "文件夹名称冲突，请修改后重试。";
+        folderName.focus();
+        folderName.select();
+      });
+
+      cancelBtn.addEventListener("click", () => {
+        window.newFolderApi.cancel();
+      });
+
+      createBtn.addEventListener("click", () => {
+        const value = folderName.value.trim();
+        if (/[/\\:*?"<>|]/.test(value)) {
+          errorText.textContent = "文件夹名称包含非法字符（/ \\ : * ? \" < > |），请修改后重试。";
+          folderName.focus();
+          folderName.select();
+          return;
+        }
+        errorText.textContent = "";
+        window.newFolderApi.submit(value.length > 0 ? value : "New Folder");
+      });
+
+      folderName.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          createBtn.click();
+        }
+        if (event.key === "Escape") {
+          event.preventDefault();
+          cancelBtn.click();
+        }
+      });
+
+      folderName.focus();
+      folderName.select();
+    </script>
+  </body>
+</html>
