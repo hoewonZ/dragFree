@@ -598,8 +598,8 @@ function createOrUpdateOverlayWindow(options = {}) {
   }
 
   activeDisplayBounds = display.bounds;
-  const overlayY = Math.max(display.bounds.y, hotzoneRect.y - HOTZONE_HEADER_HEIGHT);
-  const effectiveHeaderHeight = Math.max(0, hotzoneRect.y - overlayY);
+  const overlayY = hotzoneRect.y - HOTZONE_HEADER_HEIGHT;
+  const effectiveHeaderHeight = HOTZONE_HEADER_HEIGHT;
   const overlayHeight = overlayCollapsed ? Math.max(1, effectiveHeaderHeight) : hotzoneRect.height + effectiveHeaderHeight;
   const overlayBounds = {
     x: hotzoneRect.x,
@@ -1504,9 +1504,11 @@ ipcMain.handle("overlay:cycle-display", async () => {
   const normalizedRatioY = Math.min(1, Math.max(0, ratioY));
 
   const nextXSpan = Math.max(0, nextBounds.width - nextWidth);
-  const nextYSpan = Math.max(0, nextBounds.height - nextHeight);
+  const minNextY = Math.min(nextBounds.y + HOTZONE_HEADER_HEIGHT, nextBounds.y + Math.max(0, nextBounds.height - nextHeight));
+  const maxNextY = nextBounds.y + Math.max(0, nextBounds.height - nextHeight);
+  const nextYSpan = Math.max(0, maxNextY - minNextY);
   const nextX = Math.round(nextBounds.x + normalizedRatioX * nextXSpan);
-  const nextY = Math.round(nextBounds.y + normalizedRatioY * nextYSpan);
+  const nextY = Math.round(minNextY + normalizedRatioY * nextYSpan);
   const nextDisplayId = getDisplayId(nextDisplay);
 
   config = mergeConfig({
@@ -1524,7 +1526,7 @@ ipcMain.handle("overlay:cycle-display", async () => {
   });
   overlayHotzonePreview = config.hotzone;
   markConfigDirty("overlay_cycle_display");
-  createOrUpdateOverlayWindow({ forceRendererSync: true });
+  rebuildOverlayWindow({ forceRendererSync: true });
 
   return {
     ok: true,
