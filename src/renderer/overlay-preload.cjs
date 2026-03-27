@@ -6,11 +6,6 @@ contextBridge.exposeInMainWorld("overlayApi", {
       handler(payload);
     });
   },
-  onUnsavedHint(handler) {
-    ipcRenderer.on("overlay:unsaved-hint", (_event, payload) => {
-      handler(payload);
-    });
-  },
   emitDragPosition(point) {
     ipcRenderer.send("overlay:drag-position", point);
   },
@@ -20,11 +15,11 @@ contextBridge.exposeInMainWorld("overlayApi", {
   emitHotzonePreview(patch) {
     ipcRenderer.send("overlay:hotzone-preview", patch);
   },
+  emitDebugSnapshot(payload) {
+    ipcRenderer.send("overlay:debug-snapshot", payload);
+  },
   commitHotzone(patch) {
     return ipcRenderer.invoke("overlay:hotzone-commit", patch);
-  },
-  setEditMode(editing) {
-    return ipcRenderer.invoke("overlay:set-edit-mode", { editing });
   },
   setTextEditing(editing) {
     return ipcRenderer.invoke("overlay:set-text-editing", { editing });

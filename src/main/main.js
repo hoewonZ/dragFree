@@ -39,10 +39,6 @@ let overlayHotzonePreview = null;
 let hotzonePreviewTimer = null;
 let hotzonePreviewLastAppliedAt = 0;
 let displayTopologyTimer = null;
-let isOverlayEditMode = false;
-let editAnchorDisplayId = null;
-let lastEditDisplaySwitchAt = 0;
-const editGuardWindows = new Map();
 let startupLogFilePath = null;
 let startupStartMs = 0;
 let startupOverlayLoadedLogged = false;
@@ -52,8 +48,6 @@ const PANEL_WIDTH = 560;
 const PANEL_HEIGHT = 620;
 const HOTZONE_PREVIEW_THROTTLE_MS = 33;
 const DISPLAY_TOPOLOGY_DEBOUNCE_MS = 220;
-const EDIT_DISPLAY_SWITCH_MARGIN_PX = 36;
-const EDIT_DISPLAY_SWITCH_COOLDOWN_MS = 140;
 const HOTZONE_DEBUG_LOG_NAME = "hotzone-debug.log";
 
 async function initStartupLogger() {
@@ -462,8 +456,7 @@ function getOverlayConfigPayload(hotzone, overlayBounds) {
     displayBounds: activeDisplayBounds,
     virtualBounds: getVirtualDisplayBounds(),
     overlayBounds,
-    hotzone,
-    editMode: isOverlayEditMode
+    hotzone
   };
 }
 
@@ -480,30 +473,11 @@ function ensureWindowTopmost(windowRef) {
   windowRef.moveTop();
 }
 
-function shouldSwitchEditDisplay(centerPoint, currentDisplay, nowMs) {
-  if (nowMs - lastEditDisplaySwitchAt < EDIT_DISPLAY_SWITCH_COOLDOWN_MS) {
-    return false;
-  }
-
-  const marginX = Math.min(EDIT_DISPLAY_SWITCH_MARGIN_PX, Math.max(8, Math.floor(currentDisplay.bounds.width * 0.08)));
-  const marginY = Math.min(EDIT_DISPLAY_SWITCH_MARGIN_PX, Math.max(8, Math.floor(currentDisplay.bounds.height * 0.08)));
-  const left = currentDisplay.bounds.x + marginX;
-  const right = currentDisplay.bounds.x + currentDisplay.bounds.width - marginX;
-  const top = currentDisplay.bounds.y + marginY;
-  const bottom = currentDisplay.bounds.y + currentDisplay.bounds.height - marginY;
-
-  return centerPoint.x < left || centerPoint.x > right || centerPoint.y < top || centerPoint.y > bottom;
-}
-
 function createOrUpdateOverlayWindow(options = {}) {
   const { previewOnly = false, forceRendererSync = false, deferShowUntilReady = false } = options;
   const effectiveHotzone = overlayHotzonePreview ?? config.hotzone;
   const source = overlayHotzonePreview ? "preview" : "config";
-  let display =
-    isOverlayEditMode && editAnchorDisplayId
-      ? getDisplayById(editAnchorDisplayId) ?? resolveDisplayForHotzone(effectiveHotzone)
-      : resolveDisplayForHotzone(effectiveHotzone);
-  let displayChanged = false;
+  let display = resolveDisplayForHotzone(effectiveHotzone);
   let nextHotzone = {
     ...effectiveHotzone,
     displayId: getDisplayId(display)
@@ -543,26 +517,19 @@ function createOrUpdateOverlayWindow(options = {}) {
   }
 
   activeDisplayBounds = display.bounds;
-  const overlayBounds = isOverlayEditMode
-    ? {
-        x: display.bounds.x,
-        y: display.bounds.y,
-        width: display.bounds.width,
-        height: display.bounds.height
-      }
-    : {
-        x: hotzoneRect.x,
-        y: hotzoneRect.y,
-        width: hotzoneRect.width,
-        height: hotzoneRect.height
-      };
+  const overlayBounds = {
+    x: hotzoneRect.x,
+    y: hotzoneRect.y,
+    width: hotzoneRect.width,
+    height: hotzoneRect.height
+  };
 
   appendHotzoneDebug("overlay_window_update", {
     previewOnly,
     forceRendererSync,
     deferShowUntilReady,
     source,
-    editing: isOverlayEditMode,
+    editing: false,
     selectedDisplayId: getDisplayId(display),
     activeDisplayBounds: display.bounds,
     overlayBounds,
@@ -590,7 +557,7 @@ function createOrUpdateOverlayWindow(options = {}) {
     if (!previewOnly) {
       recreateDragController();
       overlayWindow.webContents.send("drag-config", getOverlayConfigPayload(nextHotzone, overlayBounds));
-    } else if (displayChanged || geometryChanged || forceRendererSync) {
+    } else if (geometryChanged || forceRendererSync) {
       recreateDragController();
       overlayWindow.webContents.send("drag-config", getOverlayConfigPayload(nextHotzone, overlayBounds));
     }
@@ -642,99 +609,6 @@ function createOrUpdateOverlayWindow(options = {}) {
       logStartupStep("overlay:did-finish-load");
     }
   });
-}
-
-function createEditGuardWindowForDisplay(display) {
-  const displayId = getDisplayId(display);
-  const existing = editGuardWindows.get(displayId);
-  if (existing && !existing.isDestroyed()) {
-    const bounds = existing.getBounds();
-    if (!isSameRect(bounds, display.bounds)) {
-      existing.setBounds(display.bounds);
-    }
-    ensureWindowTopmost(existing);
-    existing.showInactive();
-    return;
-  }
-
-  const guardWindow = new BrowserWindow({
-    x: display.bounds.x,
-    y: display.bounds.y,
-    width: display.bounds.width,
-    height: display.bounds.height,
-    show: false,
-    frame: false,
-    transparent: true,
-    hasShadow: false,
-    resizable: false,
-    movable: false,
-    alwaysOnTop: true,
-    focusable: false,
-    skipTaskbar: true,
-    webPreferences: {
-      contextIsolation: true,
-      nodeIntegration: false,
-      preload: join(__dirname, "../renderer/edit-guard-preload.cjs")
-    }
-  });
-
-  guardWindow.setAlwaysOnTop(true, "screen-saver");
-  guardWindow.setIgnoreMouseEvents(false, { forward: true });
-  guardWindow.loadFile(join(__dirname, "../renderer/edit-guard.html"));
-  guardWindow.webContents.on("did-finish-load", () => {
-    guardWindow.webContents.send("guard-config", { displayId });
-    guardWindow.showInactive();
-    ensureWindowTopmost(guardWindow);
-  });
-  editGuardWindows.set(displayId, guardWindow);
-}
-
-function withSuppressedUnsavedGuard(operation, restoreMode = true) {
-  const previous = isOverlayEditMode;
-  isOverlayEditMode = false;
-  destroyEditGuardWindows();
-  return Promise.resolve()
-    .then(operation)
-    .finally(() => {
-      isOverlayEditMode = restoreMode ? previous : false;
-      if (isOverlayEditMode) {
-        syncEditGuardWindows();
-      }
-    });
-}
-
-function syncEditGuardWindows() {
-  if (!isOverlayEditMode) {
-    return;
-  }
-
-  const activeEditDisplayId = editAnchorDisplayId ?? getDisplayId(resolveDisplayForHotzone(overlayHotzonePreview ?? config?.hotzone));
-
-  const activeDisplayIds = new Set(screen.getAllDisplays().map((display) => getDisplayId(display)));
-  for (const [displayId, windowRef] of editGuardWindows.entries()) {
-    if (!activeDisplayIds.has(displayId) || displayId === activeEditDisplayId || windowRef.isDestroyed()) {
-      if (!windowRef.isDestroyed()) {
-        windowRef.destroy();
-      }
-      editGuardWindows.delete(displayId);
-    }
-  }
-
-  for (const display of screen.getAllDisplays()) {
-    if (getDisplayId(display) === activeEditDisplayId) {
-      continue;
-    }
-    createEditGuardWindowForDisplay(display);
-  }
-}
-
-function destroyEditGuardWindows() {
-  for (const windowRef of editGuardWindows.values()) {
-    if (!windowRef.isDestroyed()) {
-      windowRef.destroy();
-    }
-  }
-  editGuardWindows.clear();
 }
 
 function rebuildOverlayWindow(options = {}) {
@@ -826,7 +700,6 @@ function handleDisplayTopologyChanged() {
   }
 
   createOrUpdateOverlayWindow();
-  syncEditGuardWindows();
   setHotzoneEnabled(overlayEventsEnabled);
 }
 
@@ -987,7 +860,7 @@ async function showOpenDirectoryDialogForContext({ title }) {
 }
 
 ipcMain.on("overlay:drag-position", (_event, payload) => {
-  if (!overlayEventsEnabled || isOverlayEditMode) {
+  if (!overlayEventsEnabled) {
     return;
   }
   if (!dragController) {
@@ -1000,7 +873,7 @@ ipcMain.on("overlay:drag-position", (_event, payload) => {
 });
 
 ipcMain.on("overlay:drag-end", () => {
-  if (!overlayEventsEnabled || isOverlayEditMode) {
+  if (!overlayEventsEnabled) {
     return;
   }
   if (!dragController) {
@@ -1334,73 +1207,6 @@ ipcMain.handle("overlay:hotzone-commit", async (_event, payload) => {
   }
 });
 
-ipcMain.handle("overlay:set-edit-mode", async (_event, payload) => {
-  const editing = payload?.editing === true;
-  appendHotzoneDebug("unlock_toggle_request", {
-    editing,
-    source: overlayHotzonePreview ? "preview" : "config",
-    currentHotzone: {
-      ...(overlayHotzonePreview ?? config.hotzone)
-    },
-    displays: getDisplaySummaries()
-  });
-  if (panelWindow && !panelWindow.isDestroyed() && panelWindow.isVisible()) {
-    panelWindow.hide();
-    panelWindow.webContents.send("panel-reset");
-  }
-  setPanelEventsEnabled(false);
-  stopDragMonitor();
-  currentDragPaths = [];
-  if (dragController) {
-    dragController.endDrag();
-  }
-  setHotzoneEnabled(true);
-
-  if (editing) {
-    const baseHotzone = overlayHotzonePreview ?? config.hotzone;
-    const baseWidth = Number(baseHotzone.widthPx) || 200;
-    const baseHeight = Number(baseHotzone.heightPx) || 300;
-    const centerPoint = {
-      x: Math.round((Number.isFinite(baseHotzone.xPx) ? baseHotzone.xPx : 0) + baseWidth / 2),
-      y: Math.round((Number.isFinite(baseHotzone.yPx) ? baseHotzone.yPx : 0) + baseHeight / 2)
-    };
-    const anchorDisplay = screen.getDisplayNearestPoint(centerPoint);
-    editAnchorDisplayId = getDisplayId(anchorDisplay);
-    lastEditDisplaySwitchAt = Date.now();
-  } else {
-    editAnchorDisplayId = null;
-    lastEditDisplaySwitchAt = 0;
-  }
-  isOverlayEditMode = editing;
-  appendHotzoneDebug("unlock_toggle_applied", {
-    editing: isOverlayEditMode,
-    editAnchorDisplayId,
-    source: overlayHotzonePreview ? "preview" : "config"
-  });
-  if (editing) {
-    syncEditGuardWindows();
-  } else {
-    destroyEditGuardWindows();
-  }
-  if (!editing && hotzonePreviewTimer) {
-    clearTimeout(hotzonePreviewTimer);
-    hotzonePreviewTimer = null;
-  }
-  rebuildOverlayWindow({ forceRendererSync: true });
-  appendHotzoneDebug("unlock_toggle_rebuild_done", {
-    editing: isOverlayEditMode,
-    editAnchorDisplayId,
-    resultingHotzone: {
-      ...(overlayHotzonePreview ?? config.hotzone)
-    }
-  });
-  return {
-    ok: true,
-    editing: isOverlayEditMode,
-    hotzone: overlayHotzonePreview ?? config.hotzone
-  };
-});
-
 ipcMain.handle("overlay:set-text-editing", async (_event, payload) => {
   if (!overlayWindow || overlayWindow.isDestroyed()) {
     return { ok: false };
@@ -1416,61 +1222,6 @@ ipcMain.handle("overlay:set-text-editing", async (_event, payload) => {
       overlayWindow.setIgnoreMouseEvents(false, { forward: true });
     }
     return { ok: true };
-  } catch {
-    return { ok: false };
-  }
-});
-
-ipcMain.on("overlay:unsaved-attempt", (_event, payload) => {
-  if (!isOverlayEditMode) {
-    return;
-  }
-
-  const displayId = payload?.displayId;
-  if (!displayId) {
-    return;
-  }
-
-  const guardWindow = editGuardWindows.get(String(displayId));
-  if (!guardWindow || guardWindow.isDestroyed()) {
-    return;
-  }
-
-  guardWindow.webContents.send("guard:show-confirm", {
-    x: Number(payload?.x) || 0,
-    y: Number(payload?.y) || 0,
-    type: payload?.type || "pointerdown",
-    message: "当前热区修改未保存，请先点击锁定保存。"
-  });
-});
-
-ipcMain.handle("overlay:lock-and-save", async () => {
-  if (!isOverlayEditMode || !config) {
-    return { ok: false };
-  }
-
-  try {
-    await withSuppressedUnsavedGuard(async () => {
-      if (hotzonePreviewTimer) {
-        clearTimeout(hotzonePreviewTimer);
-        hotzonePreviewTimer = null;
-      }
-
-      const latestBase = overlayHotzonePreview ?? config.hotzone;
-      const committedHotzone = buildCommittedHotzone(latestBase);
-      const merged = buildNextConfigWithHotzone(config, committedHotzone);
-      config = await writeConfigToFile(configFilePath, merged);
-      overlayHotzonePreview = null;
-      editAnchorDisplayId = null;
-      lastEditDisplaySwitchAt = 0;
-      rebuildOverlayWindow({ forceRendererSync: true });
-    }, false);
-
-    return {
-      ok: true,
-      editing: false,
-      hotzone: config.hotzone
-    };
   } catch {
     return { ok: false };
   }

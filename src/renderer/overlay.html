@@ -63,48 +63,6 @@
         text-overflow: ellipsis;
       }
 
-      #unsaved-confirm {
-        position: fixed;
-        min-width: 220px;
-        max-width: 320px;
-        background: rgba(18, 22, 30, 0.94);
-        border: 1px solid rgba(255, 255, 255, 0.24);
-        border-radius: 10px;
-        color: #f5f8ff;
-        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.34);
-        padding: 12px;
-        font-family: "Segoe UI", "PingFang SC", sans-serif;
-        font-size: 12px;
-        line-height: 1.4;
-        z-index: 21;
-        display: none;
-      }
-
-      #unsaved-confirm.visible {
-        display: block;
-      }
-
-      #unsaved-actions {
-        margin-top: 10px;
-        display: flex;
-        gap: 8px;
-        justify-content: flex-end;
-      }
-
-      .unsaved-btn {
-        border: 1px solid rgba(255, 255, 255, 0.24);
-        border-radius: 8px;
-        background: rgba(255, 255, 255, 0.08);
-        color: #f5f8ff;
-        padding: 5px 10px;
-        font-size: 12px;
-        cursor: pointer;
-      }
-
-      .unsaved-btn.primary {
-        background: rgba(66, 138, 255, 0.28);
-        border-color: rgba(130, 182, 255, 0.6);
-      }
 
       #editor-layer {
         position: absolute;
@@ -120,161 +78,12 @@
         pointer-events: auto;
       }
 
-      #guide-frame {
-        position: absolute;
-        inset: 6px;
-        border: 2px dashed rgba(32, 50, 86, 0.78);
-        border-radius: 8px;
-        pointer-events: none;
-        transition: border-color 0.12s ease, box-shadow 0.12s ease;
-      }
-
-      body.editable #guide-frame,
-      body.interacting #guide-frame {
-        border-color: rgba(24, 43, 79, 0.9);
-        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35);
-      }
-
-      .dot-handle {
-        position: absolute;
-        width: 8px;
-        height: 8px;
-        border-radius: 999px;
-        background: rgba(72, 78, 90, 0.95);
-        border: 1px solid rgba(34, 40, 50, 0.95);
-        transform: translate(-50%, -50%);
-        box-shadow: 0 1px 3px rgba(8, 15, 30, 0.22);
-        opacity: 0.75;
-        transition: opacity 0.12s ease;
-      }
-
-      body.interacting .dot-handle {
-        opacity: 0.92;
-      }
-
-      .dot-handle[data-resize="nw"] {
-        left: 6px;
-        top: 6px;
-      }
-
-      .dot-handle[data-resize="n"] {
-        left: 50%;
-        top: 6px;
-      }
-
-      .dot-handle[data-resize="ne"] {
-        left: calc(100% - 6px);
-        top: 6px;
-      }
-
-      .dot-handle[data-resize="e"] {
-        left: calc(100% - 6px);
-        top: 50%;
-      }
-
-      .dot-handle[data-resize="se"] {
-        left: calc(100% - 6px);
-        top: calc(100% - 6px);
-      }
-
-      .dot-handle[data-resize="s"] {
-        left: 50%;
-        top: calc(100% - 6px);
-      }
-
-      .dot-handle[data-resize="sw"] {
-        left: 6px;
-        top: calc(100% - 6px);
-      }
-
-      .dot-handle[data-resize="w"] {
-        left: 6px;
-        top: 50%;
-      }
-
-      .resize-hit {
-        position: absolute;
-        background: transparent;
-        border-radius: 4px;
-      }
-
-      body.editable .resize-hit,
-      body.interacting .resize-hit {
-        background: rgba(255, 255, 255, 0.06);
-      }
-
-      .resize-hit[data-resize="n"] {
-        left: 14px;
-        right: 14px;
-        top: -4px;
-        height: 24px;
-        cursor: ns-resize;
-      }
-
-      .resize-hit[data-resize="s"] {
-        left: 14px;
-        right: 14px;
-        bottom: -4px;
-        height: 24px;
-        cursor: ns-resize;
-      }
-
-      .resize-hit[data-resize="w"] {
-        left: -4px;
-        top: 14px;
-        bottom: 14px;
-        width: 24px;
-        cursor: ew-resize;
-      }
-
-      .resize-hit[data-resize="e"] {
-        right: -4px;
-        top: 14px;
-        bottom: 14px;
-        width: 24px;
-        cursor: ew-resize;
-      }
-
-      .resize-hit[data-resize="nw"] {
-        left: -4px;
-        top: -4px;
-        width: 24px;
-        height: 24px;
-        cursor: nwse-resize;
-      }
-
-      .resize-hit[data-resize="ne"] {
-        right: -4px;
-        top: -4px;
-        width: 24px;
-        height: 24px;
-        cursor: nesw-resize;
-      }
-
-      .resize-hit[data-resize="sw"] {
-        left: -4px;
-        bottom: -4px;
-        width: 24px;
-        height: 24px;
-        cursor: nesw-resize;
-      }
-
-      .resize-hit[data-resize="se"] {
-        right: -4px;
-        bottom: -4px;
-        width: 24px;
-        height: 24px;
-        cursor: nwse-resize;
-      }
-
       #move-hit {
         position: absolute;
-        left: 14px;
-        top: 14px;
-        right: 14px;
-        bottom: 14px;
+        inset: 0;
         border-radius: 6px;
         cursor: move;
+        z-index: 3;
       }
 
       body.editable #move-hit,
@@ -288,33 +97,9 @@
     <div id="hotzone">
       <button id="mode-toggle" type="button" data-editing="false" aria-label="切换编辑模式">🔒 锁定</button>
       <div id="editor-layer">
-        <div id="guide-frame"></div>
-        <div class="dot-handle" data-resize="nw"></div>
-        <div class="dot-handle" data-resize="n"></div>
-        <div class="dot-handle" data-resize="ne"></div>
-        <div class="dot-handle" data-resize="e"></div>
-        <div class="dot-handle" data-resize="se"></div>
-        <div class="dot-handle" data-resize="s"></div>
-        <div class="dot-handle" data-resize="sw"></div>
-        <div class="dot-handle" data-resize="w"></div>
         <div id="move-hit"></div>
-        <div class="resize-hit" data-resize="n"></div>
-        <div class="resize-hit" data-resize="s"></div>
-        <div class="resize-hit" data-resize="w"></div>
-        <div class="resize-hit" data-resize="e"></div>
-        <div class="resize-hit" data-resize="nw"></div>
-        <div class="resize-hit" data-resize="ne"></div>
-        <div class="resize-hit" data-resize="sw"></div>
-        <div class="resize-hit" data-resize="se"></div>
       </div>
       <div id="debug">拖动文件到这里</div>
-    </div>
-    <div id="unsaved-confirm">
-      <div id="unsaved-message">当前热区修改未保存，请先点击锁定保存。</div>
-      <div id="unsaved-actions">
-        <button id="unsaved-continue" class="unsaved-btn" type="button">继续编辑</button>
-        <button id="unsaved-save" class="unsaved-btn primary" type="button">锁定并保存</button>
-      </div>
     </div>
     <script src="./hotzone-display-editor.js"></script>
     <script>
@@ -322,10 +107,6 @@
       const modeToggle = document.getElementById("mode-toggle");
       const debug = document.getElementById("debug");
       const moveHit = document.getElementById("move-hit");
-      const unsavedConfirm = document.getElementById("unsaved-confirm");
-      const unsavedMessage = document.getElementById("unsaved-message");
-      const unsavedContinue = document.getElementById("unsaved-continue");
-      const unsavedSave = document.getElementById("unsaved-save");
 
       const MIN_WIDTH = 120;
       const MIN_HEIGHT = 96;
@@ -353,9 +134,6 @@
       let isFileDragging = false;
       let capturedPointerTarget = null;
       let isEditing = false;
-      let pendingEditMode = null;
-      let unsavedPromptVisible = false;
-      let lastUnsavedPromptAt = 0;
       let hasLoggedInvisibleDuringEditing = false;
       const displayEditor = window.createHotzoneDisplayEditor({
         hotzoneEl: hotzone,
@@ -371,7 +149,7 @@
             applyHotzoneVisual();
             displayEditor.update({
               text: hotzoneState.displayText,
-              locked: !isEditing,
+              locked: true,
               enabled: hotzoneState.debugVisible,
               widthPx: hotzoneState.widthPx,
               heightPx: hotzoneState.heightPx,
@@ -393,34 +171,6 @@
       function updateModeToggle() {
         modeToggle.dataset.editing = "false";
         modeToggle.textContent = "⇕ 调整";
-      }
-
-      function hideUnsavedConfirm() {
-        unsavedPromptVisible = false;
-        unsavedConfirm.classList.remove("visible");
-      }
-
-      function showUnsavedConfirm(clientX, clientY, message) {
-        const now = Date.now();
-        if (unsavedPromptVisible && now - lastUnsavedPromptAt < 350) {
-          return;
-        }
-        lastUnsavedPromptAt = now;
-
-        unsavedMessage.textContent =
-          typeof message === "string" && message.length > 0
-            ? message
-            : "当前热区修改未保存，请先点击锁定保存。";
-
-        const panelWidth = 280;
-        const panelHeight = 110;
-        const margin = 12;
-        const left = Math.min(window.innerWidth - panelWidth - margin, Math.max(margin, clientX + 12));
-        const top = Math.min(window.innerHeight - panelHeight - margin, Math.max(margin, clientY + 12));
-        unsavedConfirm.style.left = `${Math.round(left)}px`;
-        unsavedConfirm.style.top = `${Math.round(top)}px`;
-        unsavedPromptVisible = true;
-        unsavedConfirm.classList.add("visible");
       }
 
       function updateEditorVisibility() {
@@ -577,14 +327,6 @@
         });
       }
 
-      async function commitInteraction() {
-        const result = await window.overlayApi.commitHotzone(hotzoneState);
-        if (result?.ok === true && result.hotzone) {
-          hotzoneState = sanitizeHotzone(result.hotzone);
-          applyHotzoneVisual();
-        }
-      }
-
       function beginInteraction(type, event, extra = {}) {
         if (!isEditorEnabled()) {
           return;
@@ -632,56 +374,6 @@
         capturedPointerTarget = null;
       }
 
-      function applyResize(mode, dx, dy) {
-        const startX = interaction.start.xPx ?? 0;
-        const startY = interaction.start.yPx;
-        let left = startX;
-        let right = startX + interaction.start.widthPx;
-        let top = startY;
-        let bottom = startY + interaction.start.heightPx;
-
-        if (mode.includes("w")) {
-          left = startX + dx;
-        }
-        if (mode.includes("e")) {
-          right = startX + interaction.start.widthPx + dx;
-        }
-        if (mode.includes("n")) {
-          top = startY + dy;
-        }
-        if (mode.includes("s")) {
-          bottom = startY + interaction.start.heightPx + dy;
-        }
-
-        if (right - left < MIN_WIDTH) {
-          if (mode.includes("w") && !mode.includes("e")) {
-            left = right - MIN_WIDTH;
-          } else {
-            right = left + MIN_WIDTH;
-          }
-        }
-
-        if (bottom - top < MIN_HEIGHT) {
-          if (mode.includes("n") && !mode.includes("s")) {
-            top = bottom - MIN_HEIGHT;
-          } else {
-            bottom = top + MIN_HEIGHT;
-          }
-        }
-
-        const next = {
-          ...interaction.start,
-          xPx: left,
-          yPx: top,
-          widthPx: right - left,
-          heightPx: bottom - top
-        };
-
-        hotzoneState = sanitizeHotzone(next);
-        applyHotzoneVisual();
-        emitPreview();
-      }
-
       function applyMove(dx, dy) {
         const next = {
           ...interaction.start,
@@ -703,11 +395,6 @@
 
         if (interaction.type === "move") {
           applyMove(dx, dy);
-          return;
-        }
-
-        if (interaction.type === "resize") {
-          applyResize(interaction.mode, dx, dy);
           return;
         }
 
@@ -738,16 +425,6 @@
         beginInteraction("move", event);
       });
 
-      for (const handle of document.querySelectorAll("[data-resize]")) {
-        handle.addEventListener("pointerdown", (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          beginInteraction("resize", event, {
-            mode: handle.dataset.resize
-          });
-        });
-      }
-
       modeToggle.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -762,7 +439,6 @@
         window.overlayApi.emitDebugSnapshot({
           type: "overlay_config_applied",
           editMode: isEditing,
-          pendingEditMode,
           hotzone: {
             xPx: hotzoneState.xPx,
             yPx: hotzoneState.yPx,
@@ -775,10 +451,6 @@
           displayBounds,
           virtualBounds
         });
-
-        if (pendingEditMode === null || pendingEditMode === isEditing) {
-          pendingEditMode = null;
-        }
 
         if (hotzoneState.debugVisible) {
           applyHotzoneVisual();
