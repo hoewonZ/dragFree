@@ -13,7 +13,13 @@ import { fileURLToPath } from "node:url";
 import { basename, dirname, join } from "node:path";
 import { access, appendFile, mkdir, readdir } from "node:fs/promises";
 
-import { mergeConfig, readConfigFromFile, writeConfigToFile } from "./config-store.js";
+import {
+  HOTZONE_MIN_HEIGHT,
+  HOTZONE_MIN_WIDTH,
+  mergeConfig,
+  readConfigFromFile,
+  writeConfigToFile
+} from "./config-store.js";
 import { DragSessionController } from "./drag-session-controller.js";
 import { inferAction, routeEntries } from "./file-router.js";
 import { getHotzoneRect } from "./hotzone.js";
@@ -48,6 +54,8 @@ let configPersisted = true;
 let quitFlushInProgress = false;
 let quitFlushCompleted = false;
 let overlayCollapsed = false;
+let sessionMinWidthPx = HOTZONE_MIN_WIDTH;
+let sessionMinHeightPx = HOTZONE_MIN_HEIGHT;
 
 const PANEL_WIDTH = 560;
 const PANEL_HEIGHT = 620;
@@ -515,7 +523,9 @@ function getOverlayConfigPayload(hotzone, overlayBounds, headerHeight = HOTZONE_
     overlayBounds,
     hotzone,
     headerHeight,
-    collapsed: overlayCollapsed
+    collapsed: overlayCollapsed,
+    minWidthPx: sessionMinWidthPx,
+    minHeightPx: sessionMinHeightPx
   };
 }
 
@@ -619,7 +629,8 @@ function createOrUpdateOverlayWindow(options = {}) {
 
   if (overlayWindow && !overlayWindow.isDestroyed()) {
     const currentBounds = overlayWindow.getBounds();
-    if (!isSameRect(currentBounds, overlayBounds)) {
+    const boundsChanged = !isSameRect(currentBounds, overlayBounds);
+    if (boundsChanged) {
       overlayWindow.setBounds({
         x: overlayBounds.x,
         y: overlayBounds.y,
@@ -631,7 +642,7 @@ function createOrUpdateOverlayWindow(options = {}) {
     if (!previewOnly) {
       recreateDragController();
       overlayWindow.webContents.send("drag-config", getOverlayConfigPayload(nextHotzone, overlayBounds, effectiveHeaderHeight));
-    } else if (geometryChanged || forceRendererSync) {
+    } else if (boundsChanged || geometryChanged || forceRendererSync) {
       recreateDragController();
       overlayWindow.webContents.send("drag-config", getOverlayConfigPayload(nextHotzone, overlayBounds, effectiveHeaderHeight));
     }
@@ -716,6 +727,13 @@ function rebuildOverlayWindow(options = {}) {
 
   nextWindow.webContents.once("did-finish-load", destroyPrevious);
   setTimeout(destroyPrevious, 1500);
+}
+
+function updateSessionMinSize(configHotzone) {
+  const widthPx = Number(configHotzone?.widthPx);
+  const heightPx = Number(configHotzone?.heightPx);
+  sessionMinWidthPx = Math.max(HOTZONE_MIN_WIDTH, Number.isFinite(widthPx) ? Math.round(widthPx) : HOTZONE_MIN_WIDTH);
+  sessionMinHeightPx = Math.max(HOTZONE_MIN_HEIGHT, Number.isFinite(heightPx) ? Math.round(heightPx) : HOTZONE_MIN_HEIGHT);
 }
 
 function scheduleHotzonePreviewUpdate() {
@@ -1461,6 +1479,7 @@ async function bootstrap() {
         getDisplayId(screen.getPrimaryDisplay())
     }
   });
+  updateSessionMinSize(config.hotzone);
   markConfigPersisted("bootstrap_loaded");
   logStartupStep("bootstrap:config-merge:done");
 

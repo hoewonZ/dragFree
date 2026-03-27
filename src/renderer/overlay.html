@@ -100,6 +100,77 @@
         pointer-events: none;
       }
 
+      .resize-hit {
+        position: absolute;
+        z-index: 4;
+        background: transparent;
+        pointer-events: auto;
+      }
+
+      .resize-hit[data-resize="n"] {
+        left: 16px;
+        right: 16px;
+        top: 0;
+        height: 16px;
+        cursor: ns-resize;
+      }
+
+      .resize-hit[data-resize="s"] {
+        left: 16px;
+        right: 16px;
+        bottom: 0;
+        height: 16px;
+        cursor: ns-resize;
+      }
+
+      .resize-hit[data-resize="w"] {
+        left: 0;
+        top: 16px;
+        bottom: 16px;
+        width: 16px;
+        cursor: ew-resize;
+      }
+
+      .resize-hit[data-resize="e"] {
+        right: 0;
+        top: 16px;
+        bottom: 16px;
+        width: 16px;
+        cursor: ew-resize;
+      }
+
+      .resize-hit[data-resize="nw"] {
+        left: 0;
+        top: 0;
+        width: 22px;
+        height: 22px;
+        cursor: nwse-resize;
+      }
+
+      .resize-hit[data-resize="ne"] {
+        right: 0;
+        top: 0;
+        width: 22px;
+        height: 22px;
+        cursor: nesw-resize;
+      }
+
+      .resize-hit[data-resize="sw"] {
+        left: 0;
+        bottom: 0;
+        width: 22px;
+        height: 22px;
+        cursor: nesw-resize;
+      }
+
+      .resize-hit[data-resize="se"] {
+        right: 0;
+        bottom: 0;
+        width: 22px;
+        height: 22px;
+        cursor: nwse-resize;
+      }
+
       body.editable #editor-layer,
       body.interacting #editor-layer {
         opacity: 1;
@@ -128,6 +199,14 @@
       <button id="mode-toggle" type="button" data-editing="false" aria-label="切换编辑模式">🔒 锁定</button>
       <div id="editor-layer">
         <div id="move-hit"></div>
+        <div class="resize-hit" data-resize="n"></div>
+        <div class="resize-hit" data-resize="s"></div>
+        <div class="resize-hit" data-resize="w"></div>
+        <div class="resize-hit" data-resize="e"></div>
+        <div class="resize-hit" data-resize="nw"></div>
+        <div class="resize-hit" data-resize="ne"></div>
+        <div class="resize-hit" data-resize="sw"></div>
+        <div class="resize-hit" data-resize="se"></div>
       </div>
       <div id="debug">拖动文件到这里</div>
     </div>
@@ -147,6 +226,8 @@
       let overlayBounds = { x: 0, y: 0, width: 1920, height: 1080 };
       let headerHeight = 28;
       let collapsed = false;
+      let minWidthPx = MIN_WIDTH;
+      let minHeightPx = MIN_HEIGHT;
       let hotzoneState = {
         edge: "top",
         displayId: null,
@@ -240,8 +321,8 @@
       function sanitizeHotzone(state) {
         const maxWidth = Math.max(1, displayBounds.width);
         const maxHeight = Math.max(1, displayBounds.height);
-        const widthPx = Math.min(maxWidth, Math.max(MIN_WIDTH, Math.round(Number(state.widthPx) || 200)));
-        const heightPx = Math.min(maxHeight, Math.max(MIN_HEIGHT, Math.round(Number(state.heightPx) || 300)));
+        const widthPx = Math.min(maxWidth, Math.max(minWidthPx, Math.round(Number(state.widthPx) || 200)));
+        const heightPx = Math.min(maxHeight, Math.max(minHeightPx, Math.round(Number(state.heightPx) || 300)));
         const centeredX = Math.round(displayBounds.x + (displayBounds.width - widthPx) / 2);
         const rawX = state.xPx === null || state.xPx === undefined ? centeredX : Math.round(Number(state.xPx));
         const rawY = Number.isFinite(Number(state.yPx)) ? Math.round(Number(state.yPx)) : displayBounds.y;
@@ -435,6 +516,56 @@
         emitPreview();
       }
 
+      function applyResize(mode, dx, dy) {
+        const startX = interaction.start.xPx ?? 0;
+        const startY = interaction.start.yPx;
+        let left = startX;
+        let right = startX + interaction.start.widthPx;
+        let top = startY;
+        let bottom = startY + interaction.start.heightPx;
+
+        if (mode.includes("w")) {
+          left = startX + dx;
+        }
+        if (mode.includes("e")) {
+          right = startX + interaction.start.widthPx + dx;
+        }
+        if (mode.includes("n")) {
+          top = startY + dy;
+        }
+        if (mode.includes("s")) {
+          bottom = startY + interaction.start.heightPx + dy;
+        }
+
+        if (right - left < minWidthPx) {
+          if (mode.includes("w") && !mode.includes("e")) {
+            left = right - minWidthPx;
+          } else {
+            right = left + minWidthPx;
+          }
+        }
+
+        if (bottom - top < minHeightPx) {
+          if (mode.includes("n") && !mode.includes("s")) {
+            top = bottom - minHeightPx;
+          } else {
+            bottom = top + minHeightPx;
+          }
+        }
+
+        const next = {
+          ...interaction.start,
+          xPx: left,
+          yPx: top,
+          widthPx: right - left,
+          heightPx: bottom - top
+        };
+
+        hotzoneState = sanitizeHotzone(next);
+        applyHotzoneVisual();
+        emitPreview();
+      }
+
       document.addEventListener("pointermove", (event) => {
         if (!interaction) {
           return;
@@ -446,6 +577,10 @@
         if (interaction.type === "move") {
           applyMove(dx, dy);
           return;
+        }
+
+        if (interaction.type === "resize") {
+          applyResize(interaction.mode, dx, dy);
         }
 
       });
@@ -481,6 +616,22 @@
         beginInteraction("move", event);
       });
 
+      for (const handle of document.querySelectorAll("[data-resize]")) {
+        handle.addEventListener("pointerdown", (event) => {
+          if (collapsed) {
+            return;
+          }
+          if (!isEditorEnabled()) {
+            return;
+          }
+          event.preventDefault();
+          event.stopPropagation();
+          beginInteraction("resize", event, {
+            mode: handle.dataset.resize
+          });
+        });
+      }
+
       modeToggle.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -492,6 +643,8 @@
         overlayBounds = payload.overlayBounds ?? overlayBounds;
         headerHeight = Math.max(0, Math.round(Number(payload.headerHeight) || 0));
         collapsed = payload.collapsed === true;
+        minWidthPx = Math.max(MIN_WIDTH, Math.round(Number(payload.minWidthPx) || MIN_WIDTH));
+        minHeightPx = Math.max(MIN_HEIGHT, Math.round(Number(payload.minHeightPx) || MIN_HEIGHT));
         hotzone.style.top = `${headerHeight}px`;
         hotzone.style.height = `${Math.max(1, overlayBounds.height - headerHeight)}px`;
         document.documentElement.style.setProperty("--header-height", `${headerHeight}px`);
