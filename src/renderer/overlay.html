@@ -16,10 +16,38 @@
 
       #hotzone {
         position: absolute;
-        border-radius: 8px;
+        left: 0;
+        right: 0;
+        top: var(--header-height, 28px);
+        bottom: 0;
+        height: calc(100% - var(--header-height, 28px));
+        border-radius: 0 0 8px 8px;
         background: rgba(70, 126, 255, 0.08);
-        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+        border-left: 1px solid var(--hotzone-frame-color, rgba(255, 255, 255, 0.22));
+        border-right: 1px solid var(--hotzone-frame-color, rgba(255, 255, 255, 0.22));
+        border-bottom: 1px solid var(--hotzone-frame-color, rgba(255, 255, 255, 0.22));
+        border-top: none;
         box-sizing: border-box;
+      }
+
+      #hotzone-titlebar {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        height: var(--header-height, 28px);
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding: 0 8px;
+        box-sizing: border-box;
+        z-index: 12;
+        pointer-events: auto;
+        border-radius: 8px 8px 0 0;
+        border: 1px solid var(--hotzone-frame-color, rgba(255, 255, 255, 0.22));
+        border-bottom: 1px solid var(--hotzone-divider-color, rgba(255, 255, 255, 0.22));
+        background: rgba(12, 18, 32, 0.24);
+        cursor: move;
       }
 
       #mode-toggle {
@@ -82,8 +110,9 @@
         position: absolute;
         inset: 0;
         border-radius: 6px;
-        cursor: move;
+        cursor: default;
         z-index: 3;
+        pointer-events: none;
       }
 
       body.editable #move-hit,
@@ -94,6 +123,7 @@
     </style>
   </head>
   <body>
+    <div id="hotzone-titlebar"></div>
     <div id="hotzone">
       <button id="mode-toggle" type="button" data-editing="false" aria-label="切换编辑模式">🔒 锁定</button>
       <div id="editor-layer">
@@ -104,6 +134,7 @@
     <script src="./hotzone-display-editor.js"></script>
     <script>
       const hotzone = document.getElementById("hotzone");
+      const titlebar = document.getElementById("hotzone-titlebar");
       const modeToggle = document.getElementById("mode-toggle");
       const debug = document.getElementById("debug");
       const moveHit = document.getElementById("move-hit");
@@ -114,6 +145,7 @@
       let displayBounds = { x: 0, y: 0, width: 1920, height: 1080 };
       let virtualBounds = { x: 0, y: 0, width: 1920, height: 1080 };
       let overlayBounds = { x: 0, y: 0, width: 1920, height: 1080 };
+      let headerHeight = 28;
       let hotzoneState = {
         edge: "top",
         displayId: null,
@@ -123,6 +155,7 @@
         yPx: 0,
         opacity: 0.08,
         color: "#467eff",
+        titleBarColor: "#0c1220",
         displayText: "拖动文件到这里，或双击这里试试",
         displayTextColor: "#f5f8ff",
         displayTextBold: false,
@@ -137,7 +170,7 @@
       let hasLoggedInvisibleDuringEditing = false;
       const displayEditor = window.createHotzoneDisplayEditor({
         hotzoneEl: hotzone,
-        modeToggleEl: modeToggle,
+        titlebarEl: titlebar,
         displayEl: debug,
         minWidth: MIN_WIDTH,
         minHeight: MIN_HEIGHT,
@@ -224,6 +257,10 @@
           typeof state.color === "string" && /^#[0-9a-fA-F]{6}$/.test(state.color)
             ? state.color.toLowerCase()
             : "#467eff";
+        const titleBarColor =
+          typeof state.titleBarColor === "string" && /^#[0-9a-fA-F]{6}$/.test(state.titleBarColor)
+            ? state.titleBarColor.toLowerCase()
+            : "#0c1220";
 
         return {
           ...state,
@@ -233,15 +270,16 @@
           xPx,
           yPx,
           opacity: Math.round(opacity * 100) / 100,
-          color
+          color,
+          titleBarColor
         };
       }
 
       function applyHotzoneGeometry() {
         const localX = isEditing ? hotzoneState.xPx - overlayBounds.x : 0;
-        const localY = isEditing ? hotzoneState.yPx - overlayBounds.y : 0;
+        const localY = isEditing ? hotzoneState.yPx - overlayBounds.y - headerHeight : headerHeight;
         const renderWidth = isEditing ? hotzoneState.widthPx : overlayBounds.width;
-        const renderHeight = isEditing ? hotzoneState.heightPx : overlayBounds.height;
+        const renderHeight = isEditing ? hotzoneState.heightPx : Math.max(1, overlayBounds.height - headerHeight);
         const localRight = localX + renderWidth;
         const localBottom = localY + renderHeight;
         const isOutsideOverlay =
@@ -297,6 +335,16 @@
       function applyHotzoneVisual() {
         applyHotzoneGeometry();
         hotzone.style.backgroundColor = hexToRgba(hotzoneState.color, hotzoneState.opacity);
+        const titleAlpha = clamp(hotzoneState.opacity, 0.05, 0.92);
+        const borderAlpha = clamp(hotzoneState.opacity + 0.24, 0.12, 1);
+        const dividerAlpha = clamp(hotzoneState.opacity + 0.16, 0.1, 0.9);
+        titlebar.style.backgroundColor = hexToRgba(hotzoneState.titleBarColor, titleAlpha);
+        const frameColor = hexToRgba(hotzoneState.titleBarColor, borderAlpha);
+        const dividerColor = hexToRgba(hotzoneState.titleBarColor, dividerAlpha);
+        titlebar.style.borderColor = frameColor;
+        titlebar.style.borderBottomColor = dividerColor;
+        hotzone.style.setProperty("--hotzone-frame-color", frameColor);
+        hotzone.style.setProperty("--hotzone-divider-color", dividerColor);
       }
 
       function emitPreview() {
@@ -420,7 +468,13 @@
         updateEditorVisibility();
       });
 
-      moveHit.addEventListener("pointerdown", (event) => {
+      titlebar.addEventListener("pointerdown", (event) => {
+        if (!isEditorEnabled()) {
+          return;
+        }
+        if (event.target.closest("#hotzone-text-actions")) {
+          return;
+        }
         event.preventDefault();
         beginInteraction("move", event);
       });
@@ -434,6 +488,10 @@
         displayBounds = payload.displayBounds ?? displayBounds;
         virtualBounds = payload.virtualBounds ?? virtualBounds;
         overlayBounds = payload.overlayBounds ?? overlayBounds;
+        headerHeight = Math.max(0, Math.round(Number(payload.headerHeight) || 0));
+        hotzone.style.top = `${headerHeight}px`;
+        hotzone.style.height = `${Math.max(1, overlayBounds.height - headerHeight)}px`;
+        document.documentElement.style.setProperty("--header-height", `${headerHeight}px`);
         isEditing = false;
         hotzoneState = sanitizeHotzone(payload.hotzone ?? hotzoneState);
         window.overlayApi.emitDebugSnapshot({
@@ -480,6 +538,18 @@
 
       window.addEventListener("dragover", (event) => {
         event.preventDefault();
+        const localY = event.clientY;
+        if (localY < headerHeight) {
+          isFileDragging = false;
+          updateEditorVisibility();
+          window.overlayApi.emitDragPosition({
+            x: event.screenX,
+            y: event.screenY,
+            fileDrag: false,
+            paths: []
+          });
+          return;
+        }
         isFileDragging = detectFileDrag(event.dataTransfer);
         updateEditorVisibility();
         window.overlayApi.emitDragPosition({
@@ -492,6 +562,13 @@
 
       window.addEventListener("drop", (event) => {
         event.preventDefault();
+        const localY = event.clientY;
+        if (localY < headerHeight) {
+          isFileDragging = false;
+          updateEditorVisibility();
+          window.overlayApi.emitDragEnd();
+          return;
+        }
         isFileDragging = false;
         updateEditorVisibility();
         window.overlayApi.emitDragEnd();

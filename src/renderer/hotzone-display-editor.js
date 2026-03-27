@@ -11,22 +11,19 @@
     style.id = STYLE_ID;
     style.textContent = `
       #hotzone-header {
-        position: absolute;
-        left: 8px;
-        right: 8px;
-        top: 8px;
+        position: static;
+        width: 100%;
         height: 24px;
         display: flex;
         align-items: center;
-        justify-content: space-between;
+        justify-content: flex-end;
         gap: 8px;
-        z-index: 9;
-        pointer-events: none;
+        z-index: 13;
+        pointer-events: auto;
       }
 
       #mode-toggle {
-        position: static !important;
-        pointer-events: auto;
+        display: none !important;
       }
 
       #hotzone-text-actions {
@@ -120,7 +117,7 @@
         z-index: 10;
         box-sizing: border-box;
         border-radius: 8px;
-        border: 1px solid rgba(255, 255, 255, 0.35);
+        border: none;
         background: var(--hotzone-editor-bg, rgba(11, 15, 24, 0.32));
         color: #f5f8ff;
         font-family: "Segoe UI", "PingFang SC", sans-serif;
@@ -159,7 +156,7 @@
   function createHotzoneDisplayEditor(options) {
     ensureStyle();
 
-    const { hotzoneEl, modeToggleEl, displayEl, minWidth, minHeight, overlayApi, onSave } = options;
+    const { hotzoneEl, titlebarEl, displayEl, minWidth, minHeight, overlayApi, onSave } = options;
 
     const header = document.createElement("div");
     header.id = "hotzone-header";
@@ -193,18 +190,12 @@
       displayEl.parentNode.removeChild(displayEl);
     }
 
-    const modeParent = modeToggleEl.parentNode;
-    if (modeParent) {
-      modeParent.removeChild(modeToggleEl);
-    }
-
     actions.appendChild(saveBtn);
     actions.appendChild(cancelBtn);
-    header.appendChild(modeToggleEl);
     header.appendChild(actions);
 
     displayViewport.appendChild(displayScroll);
-    hotzoneEl.appendChild(header);
+    titlebarEl.appendChild(header);
     hotzoneEl.appendChild(displayViewport);
     hotzoneEl.appendChild(editor);
 
@@ -237,9 +228,7 @@
 
     function computeContentRect() {
       const hotzoneRect = hotzoneEl.getBoundingClientRect();
-      const toggleRect = modeToggleEl.getBoundingClientRect();
-      const lockSize = Math.max(24, Math.round(Math.max(toggleRect.width, toggleRect.height)));
-      const top = Math.round(toggleRect.bottom - hotzoneRect.top + 8);
+      const top = 8;
       const left = 8;
       const right = 8;
       const bottom = 8;
@@ -311,7 +300,7 @@
     function render() {
       const contentRect = updateLayout();
 
-      if (!state.enabled || !state.locked) {
+      if (!state.enabled) {
         hotzoneEl.dataset.textEditing = "false";
         displayViewport.style.display = "none";
         editor.style.display = "none";
@@ -377,7 +366,7 @@
     }
 
     hotzoneEl.addEventListener("dblclick", (event) => {
-      if (event.target === modeToggleEl || actions.contains(event.target)) {
+      if (actions.contains(event.target)) {
         return;
       }
       startEditing();
