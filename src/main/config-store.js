@@ -13,6 +13,7 @@ export const DEFAULT_CONFIG = {
     yPx: 0,
     opacity: 0.08,
     color: "#467eff",
+    titleBarColor: "#0c1220",
     displayText: "拖动文件到这里，或双击这里试试",
     displayTextColor: "#f5f8ff",
     displayTextBold: false,
@@ -38,6 +39,9 @@ export const DEFAULT_CONFIG = {
   folders: []
 };
 
+export const HOTZONE_MIN_WIDTH = 120;
+export const HOTZONE_MIN_HEIGHT = 96;
+
 function deepClone(value) {
   return JSON.parse(JSON.stringify(value));
 }
@@ -49,12 +53,21 @@ export function mergeConfig(partial = {}) {
     partial.hotzone?.preferredDisplayId,
     DEFAULT_CONFIG.hotzone.preferredDisplayId
   );
-  const widthPx = normalizePositiveInt(partial.hotzone?.widthPx, DEFAULT_CONFIG.hotzone.widthPx);
-  const heightPx = normalizePositiveInt(partial.hotzone?.heightPx, DEFAULT_CONFIG.hotzone.heightPx);
+  const widthPx = normalizePositiveInt(
+    partial.hotzone?.widthPx,
+    DEFAULT_CONFIG.hotzone.widthPx,
+    HOTZONE_MIN_WIDTH
+  );
+  const heightPx = normalizePositiveInt(
+    partial.hotzone?.heightPx,
+    DEFAULT_CONFIG.hotzone.heightPx,
+    HOTZONE_MIN_HEIGHT
+  );
   const xPx = normalizeOptionalNumber(partial.hotzone?.xPx, DEFAULT_CONFIG.hotzone.xPx);
   const yPx = normalizeNumber(partial.hotzone?.yPx, DEFAULT_CONFIG.hotzone.yPx);
   const opacity = normalizeUnitNumber(partial.hotzone?.opacity, DEFAULT_CONFIG.hotzone.opacity);
   const color = normalizeHexColor(partial.hotzone?.color, DEFAULT_CONFIG.hotzone.color);
+  const titleBarColor = normalizeHexColor(partial.hotzone?.titleBarColor, DEFAULT_CONFIG.hotzone.titleBarColor);
   const displayText = normalizeDisplayText(partial.hotzone?.displayText, DEFAULT_CONFIG.hotzone.displayText);
   const displayTextColor = normalizeHexColor(
     partial.hotzone?.displayTextColor,
@@ -98,6 +111,7 @@ export function mergeConfig(partial = {}) {
       yPx,
       opacity,
       color,
+      titleBarColor,
       displayText,
       displayTextColor,
       displayTextBold,
@@ -139,9 +153,9 @@ function normalizePulseLevel(value) {
   return "high";
 }
 
-function normalizePositiveInt(value, fallback) {
+function normalizePositiveInt(value, fallback, minValue = 1) {
   const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
+  if (!Number.isFinite(parsed) || parsed < minValue) {
     return fallback;
   }
   return Math.round(parsed);

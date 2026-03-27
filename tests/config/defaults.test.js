@@ -1,7 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { DEFAULT_CONFIG } from "../../src/main/config-store.js";
+import {
+  DEFAULT_CONFIG,
+  HOTZONE_MIN_HEIGHT,
+  HOTZONE_MIN_WIDTH,
+  mergeConfig
+} from "../../src/main/config-store.js";
 
 test("default config uses copy and immediate expand", () => {
   assert.equal(DEFAULT_CONFIG.behavior.defaultAction, "copy");
@@ -20,10 +25,35 @@ test("default config uses copy and immediate expand", () => {
   assert.equal(DEFAULT_CONFIG.hotzone.yPx, 0);
   assert.equal(DEFAULT_CONFIG.hotzone.opacity, 0.08);
   assert.equal(DEFAULT_CONFIG.hotzone.color, "#467eff");
+  assert.equal(DEFAULT_CONFIG.hotzone.titleBarColor, "#0c1220");
   assert.equal(DEFAULT_CONFIG.hotzone.displayText, "拖动文件到这里，或双击这里试试");
   assert.equal(DEFAULT_CONFIG.hotzone.displayTextColor, "#f5f8ff");
   assert.equal(DEFAULT_CONFIG.hotzone.displayTextBold, false);
   assert.equal(DEFAULT_CONFIG.notification.onSuccess, false);
   assert.equal(DEFAULT_CONFIG.notification.onCancelled, true);
   assert.equal(DEFAULT_CONFIG.notification.onFailed, true);
+});
+
+test("mergeConfig enforces minimum hotzone width and height", () => {
+  const merged = mergeConfig({
+    hotzone: {
+      widthPx: 80,
+      heightPx: 60
+    }
+  });
+
+  assert.equal(merged.hotzone.widthPx, DEFAULT_CONFIG.hotzone.widthPx);
+  assert.equal(merged.hotzone.heightPx, DEFAULT_CONFIG.hotzone.heightPx);
+  assert.equal(HOTZONE_MIN_WIDTH, 120);
+  assert.equal(HOTZONE_MIN_HEIGHT, 96);
+});
+
+test("mergeConfig keeps default titlebar color when missing", () => {
+  const merged = mergeConfig({
+    hotzone: {
+      color: "#123456"
+    }
+  });
+
+  assert.equal(merged.hotzone.titleBarColor, DEFAULT_CONFIG.hotzone.titleBarColor);
 });

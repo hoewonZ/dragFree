@@ -280,6 +280,7 @@
       }
 
       #hotzone-color,
+      #hotzone-titlebar-color,
       #hotzone-text-color {
         margin-top: 0;
         width: 28px;
@@ -292,11 +293,13 @@
       }
 
       #hotzone-color::-webkit-color-swatch-wrapper,
+      #hotzone-titlebar-color::-webkit-color-swatch-wrapper,
       #hotzone-text-color::-webkit-color-swatch-wrapper {
         padding: 0;
       }
 
       #hotzone-color::-webkit-color-swatch,
+      #hotzone-titlebar-color::-webkit-color-swatch,
       #hotzone-text-color::-webkit-color-swatch {
         border: none;
         border-radius: 5px;
@@ -458,6 +461,13 @@
               <span class="color-row">
                 <input id="hotzone-text-color" type="color" />
               </span>
+              <span class="label-row" style="margin-top: 8px">
+                <span>标题栏颜色</span>
+                <span class="changed-tip" data-tip-for="hotzone-titlebar-color">已更改</span>
+              </span>
+              <span class="color-row">
+                <input id="hotzone-titlebar-color" type="color" />
+              </span>
               <label class="toggle-row">
                 <input id="hotzone-text-bold" type="checkbox" />
                 <span>展示文本加粗</span>
@@ -540,6 +550,7 @@
     <script type="module">
       const hotzoneColorEl = document.getElementById("hotzone-color");
       const hotzoneTextColorEl = document.getElementById("hotzone-text-color");
+      const hotzoneTitlebarColorEl = document.getElementById("hotzone-titlebar-color");
       const hotzoneTextBoldEl = document.getElementById("hotzone-text-bold");
       const hotzoneOpacityEl = document.getElementById("hotzone-opacity");
       const hotzoneOpacityValueEl = document.getElementById("hotzone-opacity-value");
@@ -608,6 +619,7 @@
           ...fallback,
           edge: "top",
           color: normalizeColor(hotzoneColorEl.value, fallback.color ?? "#467eff"),
+          titleBarColor: normalizeColor(hotzoneTitlebarColorEl.value, fallback.titleBarColor ?? "#0c1220"),
           displayTextColor: normalizeColor(hotzoneTextColorEl.value, fallback.displayTextColor ?? "#f5f8ff"),
           displayTextBold: hotzoneTextBoldEl.checked,
           opacity: Math.round(opacity * 100) / 100,
@@ -787,10 +799,12 @@
           ...config.hotzone,
           ...HOTZONE_FIXED,
           color: "#467eff",
+          titleBarColor: "#0c1220",
           displayTextColor: "#f5f8ff",
           displayTextBold: false
         };
         hotzoneColorEl.value = "#467eff";
+        hotzoneTitlebarColorEl.value = "#0c1220";
         hotzoneTextColorEl.value = "#f5f8ff";
         hotzoneTextBoldEl.checked = false;
         hotzoneOpacityEl.value = HOTZONE_FIXED.opacity.toFixed(2);
@@ -916,6 +930,7 @@
 
       function bindForm() {
         hotzoneColorEl.value = normalizeColor(config.hotzone.color, "#467eff");
+        hotzoneTitlebarColorEl.value = normalizeColor(config.hotzone.titleBarColor, "#0c1220");
         hotzoneTextColorEl.value = normalizeColor(config.hotzone.displayTextColor, "#f5f8ff");
         hotzoneTextBoldEl.checked = config.hotzone.displayTextBold === true;
         hotzoneOpacityEl.value = Number(config.hotzone.opacity ?? 0.08).toFixed(2);
@@ -940,6 +955,7 @@
 
       [
         hotzoneColorEl,
+        hotzoneTitlebarColorEl,
         hotzoneTextColorEl,
         hotzoneTextBoldEl,
         hotzoneOpacityEl,
@@ -979,6 +995,7 @@
       resetHotzoneEl.addEventListener("click", () => {
         applyHotzoneDefaults();
         markFieldChanged("hotzone-color");
+        markFieldChanged("hotzone-titlebar-color");
         markFieldChanged("hotzone-text-color");
         markFieldChanged("hotzone-text-bold");
         markFieldChanged("hotzone-opacity");

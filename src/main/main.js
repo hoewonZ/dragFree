@@ -43,12 +43,17 @@ let startupLogFilePath = null;
 let startupStartMs = 0;
 let startupOverlayLoadedLogged = false;
 let hotzoneDebugLogFilePath = null;
+let configDirty = false;
+let configPersisted = true;
+let quitFlushInProgress = false;
+let quitFlushCompleted = false;
 
 const PANEL_WIDTH = 560;
 const PANEL_HEIGHT = 620;
 const HOTZONE_PREVIEW_THROTTLE_MS = 33;
 const DISPLAY_TOPOLOGY_DEBOUNCE_MS = 220;
 const HOTZONE_DEBUG_LOG_NAME = "hotzone-debug.log";
+const HOTZONE_HEADER_HEIGHT = 28;
 
 async function initStartupLogger() {
   try {
@@ -93,6 +98,57 @@ function getDisplaySummaries() {
     id: String(item.id),
     bounds: item.bounds
   }));
+}
+
+function getConfigStateFlags() {
+  return {
+    changed: configDirty ? 1 : 0,
+    persisted: configPersisted ? 1 : 0
+  };
+}
+
+function markConfigDirty(reason) {
+  const wasDirty = configDirty;
+  configDirty = true;
+  configPersisted = false;
+  if (!wasDirty) {
+    appendHotzoneDebug("config_state", {
+      reason,
+      ...getConfigStateFlags()
+    });
+  }
+}
+
+function markConfigPersisted(reason) {
+  const wasDirty = configDirty;
+  configDirty = false;
+  configPersisted = true;
+  if (wasDirty) {
+    appendHotzoneDebug("config_state", {
+      reason,
+      ...getConfigStateFlags()
+    });
+  }
+}
+
+async function flushRuntimeConfigToDisk(reason) {
+  if (!configDirty || !config) {
+    return {
+      ok: true,
+      skipped: true,
+      data: config,
+      state: getConfigStateFlags()
+    };
+  }
+
+  config = await writeConfigToFile(configFilePath, config);
+  markConfigPersisted(reason);
+  return {
+    ok: true,
+    skipped: false,
+    data: config,
+    state: getConfigStateFlags()
+  };
 }
 
 function logStartupStep(step, details = "") {
@@ -451,12 +507,13 @@ function getVirtualDisplayBounds() {
   };
 }
 
-function getOverlayConfigPayload(hotzone, overlayBounds) {
+function getOverlayConfigPayload(hotzone, overlayBounds, headerHeight = HOTZONE_HEADER_HEIGHT) {
   return {
     displayBounds: activeDisplayBounds,
     virtualBounds: getVirtualDisplayBounds(),
     overlayBounds,
-    hotzone
+    hotzone,
+    headerHeight
   };
 }
 
@@ -517,11 +574,13 @@ function createOrUpdateOverlayWindow(options = {}) {
   }
 
   activeDisplayBounds = display.bounds;
+  const overlayY = Math.max(display.bounds.y, hotzoneRect.y - HOTZONE_HEADER_HEIGHT);
+  const effectiveHeaderHeight = Math.max(0, hotzoneRect.y - overlayY);
   const overlayBounds = {
     x: hotzoneRect.x,
-    y: hotzoneRect.y,
+    y: overlayY,
     width: hotzoneRect.width,
-    height: hotzoneRect.height
+    height: hotzoneRect.height + effectiveHeaderHeight
   };
 
   appendHotzoneDebug("overlay_window_update", {
@@ -533,6 +592,7 @@ function createOrUpdateOverlayWindow(options = {}) {
     selectedDisplayId: getDisplayId(display),
     activeDisplayBounds: display.bounds,
     overlayBounds,
+    headerHeight: effectiveHeaderHeight,
     hotzone: {
       xPx: nextHotzone.xPx,
       yPx: nextHotzone.yPx,
@@ -556,10 +616,10 @@ function createOrUpdateOverlayWindow(options = {}) {
 
     if (!previewOnly) {
       recreateDragController();
-      overlayWindow.webContents.send("drag-config", getOverlayConfigPayload(nextHotzone, overlayBounds));
+      overlayWindow.webContents.send("drag-config", getOverlayConfigPayload(nextHotzone, overlayBounds, effectiveHeaderHeight));
     } else if (geometryChanged || forceRendererSync) {
       recreateDragController();
-      overlayWindow.webContents.send("drag-config", getOverlayConfigPayload(nextHotzone, overlayBounds));
+      overlayWindow.webContents.send("drag-config", getOverlayConfigPayload(nextHotzone, overlayBounds, effectiveHeaderHeight));
     }
     return;
   }
@@ -599,7 +659,7 @@ function createOrUpdateOverlayWindow(options = {}) {
   setPanelEventsEnabled(false);
 
   overlayWindow.webContents.on("did-finish-load", () => {
-    overlayWindow.webContents.send("drag-config", getOverlayConfigPayload(nextHotzone, overlayBounds));
+    overlayWindow.webContents.send("drag-config", getOverlayConfigPayload(nextHotzone, overlayBounds, effectiveHeaderHeight));
     if (deferShowUntilReady) {
       setHotzoneEnabled(overlayEventsEnabled);
     }
@@ -1110,7 +1170,10 @@ ipcMain.handle("panel:list-children", async (_event, folderPath) => {
   }
 });
 
-ipcMain.handle("config:get", async () => config);
+ipcMain.handle("config:get", async () => ({
+  ...config,
+  _state: getConfigStateFlags()
+}));
 
 ipcMain.handle("config:pick-folder", async () => {
   const result = await showOpenDirectoryDialogForContext({ title: "选择常用文件夹" });
@@ -1124,19 +1187,31 @@ ipcMain.handle("config:pick-folder", async () => {
 
 ipcMain.handle("config:save", async (_event, nextConfig) => {
   try {
-    nextConfig.hotzone = {
-      ...(nextConfig.hotzone ?? {}),
-      edge: "top"
-    };
-    if (!nextConfig.hotzone.preferredDisplayId && nextConfig.hotzone.displayId) {
-      nextConfig.hotzone.preferredDisplayId = nextConfig.hotzone.displayId;
-    }
-    if (!nextConfig.behavior) {
-      nextConfig.behavior = {};
-    }
-    nextConfig.behavior.expandDelayMs = 0;
-    config = await writeConfigToFile(configFilePath, nextConfig);
-    overlayHotzonePreview = null;
+    const runtimeHotzone = overlayHotzonePreview ?? config.hotzone;
+    const mergedRuntime = mergeConfig({
+      ...config,
+      ...nextConfig,
+      hotzone: {
+        ...runtimeHotzone,
+        ...(nextConfig.hotzone ?? {}),
+        edge: "top",
+        xPx: runtimeHotzone.xPx,
+        yPx: runtimeHotzone.yPx,
+        widthPx: runtimeHotzone.widthPx,
+        heightPx: runtimeHotzone.heightPx,
+        displayId: runtimeHotzone.displayId,
+        preferredDisplayId: runtimeHotzone.preferredDisplayId ?? runtimeHotzone.displayId
+      },
+      behavior: {
+        ...config.behavior,
+        ...(nextConfig.behavior ?? {}),
+        expandDelayMs: 0
+      },
+      folders: Array.isArray(nextConfig.folders) ? nextConfig.folders : config.folders
+    });
+    config = mergedRuntime;
+    overlayHotzonePreview = config.hotzone;
+    markConfigDirty("config_save_runtime");
     createOrUpdateOverlayWindow();
     if (panelWindow && !panelWindow.isDestroyed()) {
       panelWindow.webContents.send("panel-config", {
@@ -1144,7 +1219,13 @@ ipcMain.handle("config:save", async (_event, nextConfig) => {
         behavior: config.behavior
       });
     }
-    return { ok: true, data: config };
+    return {
+      ok: true,
+      data: {
+        ...config,
+        _state: getConfigStateFlags()
+      }
+    };
   } catch (error) {
     return {
       ok: false,
@@ -1159,6 +1240,8 @@ ipcMain.on("overlay:hotzone-preview", (_event, payload) => {
   }
   const merged = buildNextConfigWithHotzone(config, payload);
   overlayHotzonePreview = merged.hotzone;
+  config = merged;
+  markConfigDirty("overlay_hotzone_preview");
   scheduleHotzonePreviewUpdate();
 });
 
@@ -1191,7 +1274,12 @@ ipcMain.handle("overlay:hotzone-commit", async (_event, payload) => {
     };
     const committedHotzone = buildCommittedHotzone(latestWithPayload);
     const merged = buildNextConfigWithHotzone(config, committedHotzone);
-    config = await writeConfigToFile(configFilePath, merged);
+    config = merged;
+    markConfigDirty("overlay_hotzone_commit");
+    const flushResult = await flushRuntimeConfigToDisk("overlay_hotzone_commit_flush");
+    if (!flushResult.ok) {
+      throw new Error("flush_failed");
+    }
     appendHotzoneDebug("lock_commit_applied", {
       committedHotzone,
       configHotzone: config.hotzone
@@ -1203,6 +1291,25 @@ ipcMain.handle("overlay:hotzone-commit", async (_event, payload) => {
     return {
       ok: false,
       error: error instanceof Error ? error.message : "保存热区失败"
+    };
+  }
+});
+
+ipcMain.handle("config:flush", async () => {
+  try {
+    const result = await flushRuntimeConfigToDisk("explicit_flush");
+    return {
+      ok: true,
+      data: {
+        ...result.data,
+        _state: result.state
+      },
+      skipped: result.skipped
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "落盘失败"
     };
   }
 });
@@ -1286,6 +1393,7 @@ async function bootstrap() {
         getDisplayId(screen.getPrimaryDisplay())
     }
   });
+  markConfigPersisted("bootstrap_loaded");
   logStartupStep("bootstrap:config-merge:done");
 
   logStartupStep("bootstrap:overlay:init:start");
@@ -1339,6 +1447,19 @@ app.on("window-all-closed", (event) => {
 
 app.on("before-quit", () => {
   app.isQuiting = true;
+  if (quitFlushInProgress || quitFlushCompleted) {
+    return;
+  }
+
+  if (!configDirty) {
+    return;
+  }
+
+  quitFlushInProgress = true;
+  flushRuntimeConfigToDisk("before_quit").finally(() => {
+    quitFlushInProgress = false;
+    quitFlushCompleted = true;
+  });
 });
 
 export function getLoadedConfig() {
