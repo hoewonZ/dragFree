@@ -14,6 +14,7 @@ export const DEFAULT_CONFIG = {
     opacity: 0.08,
     color: "#467eff",
     titleBarColor: "#0c1220",
+    pinned: true,
     displayText: "拖动文件到这里，或双击这里试试",
     displayTextColor: "#f5f8ff",
     displayTextBold: false,
@@ -68,6 +69,7 @@ export function mergeConfig(partial = {}) {
   const opacity = normalizeUnitNumber(partial.hotzone?.opacity, DEFAULT_CONFIG.hotzone.opacity);
   const color = normalizeHexColor(partial.hotzone?.color, DEFAULT_CONFIG.hotzone.color);
   const titleBarColor = normalizeHexColor(partial.hotzone?.titleBarColor, DEFAULT_CONFIG.hotzone.titleBarColor);
+  const pinned = typeof partial.hotzone?.pinned === "boolean" ? partial.hotzone.pinned : DEFAULT_CONFIG.hotzone.pinned;
   const displayText = normalizeDisplayText(partial.hotzone?.displayText, DEFAULT_CONFIG.hotzone.displayText);
   const displayTextColor = normalizeHexColor(
     partial.hotzone?.displayTextColor,
@@ -99,7 +101,10 @@ export function mergeConfig(partial = {}) {
   const pulseLevel = normalizePulseLevel(partial.behavior?.pulseLevel);
   return {
     ...DEFAULT_CONFIG,
-    ...partial,
+    version:
+      typeof partial.version === "number" && Number.isFinite(partial.version)
+        ? Math.round(partial.version)
+        : DEFAULT_CONFIG.version,
     hotzone: {
       ...DEFAULT_CONFIG.hotzone,
       edge,
@@ -112,6 +117,7 @@ export function mergeConfig(partial = {}) {
       opacity,
       color,
       titleBarColor,
+      pinned,
       displayText,
       displayTextColor,
       displayTextBold,

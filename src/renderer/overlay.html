@@ -472,7 +472,7 @@
         if (!isEditorEnabled()) {
           return;
         }
-        if (event.target.closest("#hotzone-text-actions")) {
+        if (event.target.closest("[data-no-drag]")) {
           return;
         }
         event.preventDefault();
@@ -532,7 +532,8 @@
           heightPx: hotzoneState.heightPx,
           color: hotzoneState.color,
           textColor: hotzoneState.displayTextColor,
-          textBold: hotzoneState.displayTextBold
+          textBold: hotzoneState.displayTextBold,
+          pinned: hotzoneState.pinned === true
         });
       });
 

@@ -16,10 +16,33 @@
         height: 24px;
         display: flex;
         align-items: center;
-        justify-content: flex-end;
+        justify-content: space-between;
         gap: 8px;
         z-index: 13;
         pointer-events: auto;
+      }
+
+      .hotzone-header-left {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .hotzone-pin-toggle {
+        width: 20px;
+        height: 20px;
+        border: none;
+        background: transparent;
+        color: rgba(245, 248, 255, 0.88);
+        cursor: pointer;
+        padding: 0;
+        font-size: 13px;
+        line-height: 1;
+        pointer-events: auto;
+      }
+
+      .hotzone-pin-toggle[data-pinned="false"] {
+        opacity: 0.5;
       }
 
       #mode-toggle {
@@ -161,18 +184,31 @@
     const header = document.createElement("div");
     header.id = "hotzone-header";
 
+    const headerLeft = document.createElement("div");
+    headerLeft.className = "hotzone-header-left";
+
     const actions = document.createElement("div");
     actions.id = "hotzone-text-actions";
+    actions.setAttribute("data-no-drag", "true");
+
+    const pinBtn = document.createElement("button");
+    pinBtn.type = "button";
+    pinBtn.className = "hotzone-pin-toggle";
+    pinBtn.textContent = "📌";
+    pinBtn.title = "取消置顶";
+    pinBtn.setAttribute("data-no-drag", "true");
 
     const saveBtn = document.createElement("button");
     saveBtn.type = "button";
     saveBtn.className = "hotzone-text-action save";
     saveBtn.textContent = "✓";
+    saveBtn.setAttribute("data-no-drag", "true");
 
     const cancelBtn = document.createElement("button");
     cancelBtn.type = "button";
     cancelBtn.className = "hotzone-text-action cancel";
     cancelBtn.textContent = "✕";
+    cancelBtn.setAttribute("data-no-drag", "true");
 
     const displayViewport = document.createElement("div");
     displayViewport.id = "hotzone-text-display";
@@ -192,6 +228,8 @@
 
     actions.appendChild(saveBtn);
     actions.appendChild(cancelBtn);
+    headerLeft.appendChild(pinBtn);
+    header.appendChild(headerLeft);
     header.appendChild(actions);
 
     displayViewport.appendChild(displayScroll);
@@ -210,8 +248,14 @@
       textBold: false,
       editing: false,
       saving: false,
-      draft: normalizeText(initialText)
+      draft: normalizeText(initialText),
+      pinned: true
     };
+
+    function renderPinState() {
+      pinBtn.dataset.pinned = state.pinned ? "true" : "false";
+      pinBtn.title = state.pinned ? "取消置顶" : "置顶热区";
+    }
 
     function applyColorStyle() {
       const hex = state.color.replace("#", "");
@@ -305,8 +349,11 @@
         displayViewport.style.display = "none";
         editor.style.display = "none";
         actions.style.display = "none";
+        renderPinState();
         return;
       }
+
+      renderPinState();
 
       if (state.editing) {
         hotzoneEl.dataset.textEditing = "true";
@@ -378,10 +425,36 @@
       cancelEditing();
     });
 
+    cancelBtn.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+
     saveBtn.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
       saveEditing();
+    });
+
+    saveBtn.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+
+    pinBtn.addEventListener("click", async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const nextPinned = !state.pinned;
+      const result = await overlayApi.setPinned(nextPinned);
+      if (result?.ok) {
+        state.pinned = result.pinned === true;
+        renderPinState();
+      }
+    });
+
+    pinBtn.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
     });
 
     editor.addEventListener("input", () => {
@@ -405,6 +478,7 @@
             ? next.textColor.toLowerCase()
             : state.textColor;
         state.textBold = typeof next.textBold === "boolean" ? next.textBold : state.textBold;
+        state.pinned = typeof next.pinned === "boolean" ? next.pinned : state.pinned;
 
         if (!state.locked && state.editing) {
           state.editing = false;

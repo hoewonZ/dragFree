@@ -24,6 +24,9 @@ contextBridge.exposeInMainWorld("overlayApi", {
   setTextEditing(editing) {
     return ipcRenderer.invoke("overlay:set-text-editing", { editing });
   },
+  setPinned(pinned) {
+    return ipcRenderer.invoke("overlay:set-pinned", { pinned });
+  },
   getPathForFile(file) {
     try {
       return webUtils.getPathForFile(file) || "";

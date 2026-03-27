@@ -620,6 +620,7 @@
           edge: "top",
           color: normalizeColor(hotzoneColorEl.value, fallback.color ?? "#467eff"),
           titleBarColor: normalizeColor(hotzoneTitlebarColorEl.value, fallback.titleBarColor ?? "#0c1220"),
+          pinned: typeof fallback.pinned === "boolean" ? fallback.pinned : true,
           displayTextColor: normalizeColor(hotzoneTextColorEl.value, fallback.displayTextColor ?? "#f5f8ff"),
           displayTextBold: hotzoneTextBoldEl.checked,
           opacity: Math.round(opacity * 100) / 100,

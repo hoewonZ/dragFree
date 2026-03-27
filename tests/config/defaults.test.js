@@ -26,6 +26,7 @@ test("default config uses copy and immediate expand", () => {
   assert.equal(DEFAULT_CONFIG.hotzone.opacity, 0.08);
   assert.equal(DEFAULT_CONFIG.hotzone.color, "#467eff");
   assert.equal(DEFAULT_CONFIG.hotzone.titleBarColor, "#0c1220");
+  assert.equal(DEFAULT_CONFIG.hotzone.pinned, true);
   assert.equal(DEFAULT_CONFIG.hotzone.displayText, "拖动文件到这里，或双击这里试试");
   assert.equal(DEFAULT_CONFIG.hotzone.displayTextColor, "#f5f8ff");
   assert.equal(DEFAULT_CONFIG.hotzone.displayTextBold, false);

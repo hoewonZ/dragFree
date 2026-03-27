@@ -419,7 +419,7 @@ function setHotzoneEnabled(enabled) {
     if (enabled) {
       overlayWindow.showInactive();
       overlayWindow.setIgnoreMouseEvents(false, { forward: true });
-      ensureWindowTopmost(overlayWindow);
+      applyOverlayPinnedState(config?.hotzone?.pinned === true);
       return;
     }
 
@@ -525,9 +525,19 @@ function ensureWindowTopmost(windowRef) {
   if (!windowRef || windowRef.isDestroyed()) {
     return;
   }
-
-  windowRef.setAlwaysOnTop(true, "screen-saver");
   windowRef.moveTop();
+}
+
+function applyOverlayPinnedState(pinned) {
+  if (!overlayWindow || overlayWindow.isDestroyed()) {
+    return;
+  }
+
+  const nextPinned = pinned === true;
+  overlayWindow.setAlwaysOnTop(nextPinned, nextPinned ? "screen-saver" : "normal");
+  if (nextPinned) {
+    overlayWindow.moveTop();
+  }
 }
 
 function createOrUpdateOverlayWindow(options = {}) {
@@ -621,6 +631,7 @@ function createOrUpdateOverlayWindow(options = {}) {
       recreateDragController();
       overlayWindow.webContents.send("drag-config", getOverlayConfigPayload(nextHotzone, overlayBounds, effectiveHeaderHeight));
     }
+    applyOverlayPinnedState(nextHotzone.pinned === true);
     return;
   }
 
@@ -634,7 +645,7 @@ function createOrUpdateOverlayWindow(options = {}) {
     movable: false,
     transparent: true,
     hasShadow: false,
-    alwaysOnTop: true,
+    alwaysOnTop: nextHotzone.pinned === true,
     focusable: false,
     skipTaskbar: true,
     icon: getWindowIconPath(),
@@ -646,7 +657,7 @@ function createOrUpdateOverlayWindow(options = {}) {
   });
 
   overlayWindow.setIgnoreMouseEvents(false, { forward: true });
-  ensureWindowTopmost(overlayWindow);
+  applyOverlayPinnedState(nextHotzone.pinned === true);
 
   overlayWindow.loadFile(join(__dirname, "../renderer/overlay.html"));
 
@@ -663,7 +674,7 @@ function createOrUpdateOverlayWindow(options = {}) {
     if (deferShowUntilReady) {
       setHotzoneEnabled(overlayEventsEnabled);
     }
-    ensureWindowTopmost(overlayWindow);
+    applyOverlayPinnedState(nextHotzone.pinned === true);
     if (!startupOverlayLoadedLogged) {
       startupOverlayLoadedLogged = true;
       logStartupStep("overlay:did-finish-load");
@@ -792,7 +803,8 @@ function buildCommittedHotzone(baseHotzone) {
   const normalizedBase = {
     ...baseHotzone,
     displayId: resolvedDisplayId,
-    preferredDisplayId: resolvedDisplayId
+    preferredDisplayId: resolvedDisplayId,
+    pinned: baseHotzone.pinned === true
   };
   const rect = getHotzoneRect(resolvedDisplay.bounds, normalizedBase);
   return {
@@ -1200,7 +1212,11 @@ ipcMain.handle("config:save", async (_event, nextConfig) => {
         widthPx: runtimeHotzone.widthPx,
         heightPx: runtimeHotzone.heightPx,
         displayId: runtimeHotzone.displayId,
-        preferredDisplayId: runtimeHotzone.preferredDisplayId ?? runtimeHotzone.displayId
+        preferredDisplayId: runtimeHotzone.preferredDisplayId ?? runtimeHotzone.displayId,
+        pinned:
+          typeof nextConfig.hotzone?.pinned === "boolean"
+            ? nextConfig.hotzone.pinned
+            : runtimeHotzone.pinned === true
       },
       behavior: {
         ...config.behavior,
@@ -1331,6 +1347,34 @@ ipcMain.handle("overlay:set-text-editing", async (_event, payload) => {
     return { ok: true };
   } catch {
     return { ok: false };
+  }
+});
+
+ipcMain.handle("overlay:set-pinned", async (_event, payload) => {
+  const pinned = payload?.pinned === true;
+  try {
+    config = mergeConfig({
+      ...config,
+      hotzone: {
+        ...config.hotzone,
+        pinned
+      }
+    });
+    if (overlayHotzonePreview) {
+      overlayHotzonePreview = {
+        ...overlayHotzonePreview,
+        pinned
+      };
+    }
+    markConfigDirty("overlay_set_pinned");
+    applyOverlayPinnedState(pinned);
+    createOrUpdateOverlayWindow({ forceRendererSync: true });
+    return { ok: true, pinned };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "切换置顶失败"
+    };
   }
 });
 
