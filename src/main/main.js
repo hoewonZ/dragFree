@@ -6,6 +6,7 @@ import {
   Tray,
   nativeImage,
   screen,
+  shell,
   ipcMain
 } from "electron";
 import { readFileSync } from "node:fs";
@@ -1083,6 +1084,8 @@ ipcMain.on("panel:drop-target", async (_event, payload) => {
     }
   }
 
+  await openTargetFolderAfterDropIfNeeded(targetPath, result);
+
   currentDragPaths = [];
 });
 
@@ -1127,6 +1130,8 @@ ipcMain.on("new-folder:submit", async (_event, folderName) => {
         });
       }
     }
+
+    await openTargetFolderAfterDropIfNeeded(targetDirectory, result);
   } catch (error) {
     if (tray) {
       tray.displayBalloon({
@@ -1174,6 +1179,30 @@ async function verifyMoveOperation(sourcePaths, routeResult) {
     sourceRemovedCount,
     stillExistsCount
   };
+}
+
+async function openTargetFolderAfterDropIfNeeded(targetPath, routeResult) {
+  if (!config?.behavior?.openTargetFolderOnDropSuccess) {
+    return;
+  }
+
+  const succeeded = routeResult?.status === "success";
+  const partialSucceeded =
+    routeResult?.status === "partial-failed" &&
+    ((Number(routeResult?.copiedCount) || 0) + (Number(routeResult?.movedCount) || 0) > 0);
+
+  if (!succeeded && !partialSucceeded) {
+    return;
+  }
+
+  try {
+    const result = await shell.openPath(targetPath);
+    if (result) {
+      console.error(`[dragFree] open target folder failed: ${result}`);
+    }
+  } catch (error) {
+    console.error("[dragFree] open target folder failed", error);
+  }
 }
 
 ipcMain.on("panel:open-config", () => {

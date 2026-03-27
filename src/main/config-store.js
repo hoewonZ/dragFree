@@ -23,6 +23,7 @@ export const DEFAULT_CONFIG = {
   },
   behavior: {
     defaultAction: "copy",
+    openTargetFolderOnDropSuccess: false,
     expandDelayMs: 0,
     maxVisibleChildren: 8,
     breadcrumbSeparator: "/",
@@ -99,6 +100,10 @@ export function mergeConfig(partial = {}) {
   const panelViewMode = normalizePanelViewMode(partial.behavior?.panelViewMode);
   const panelTileSize = normalizePanelTileSize(partial.behavior?.panelTileSize);
   const pulseLevel = normalizePulseLevel(partial.behavior?.pulseLevel);
+  const openTargetFolderOnDropSuccess =
+    typeof partial.behavior?.openTargetFolderOnDropSuccess === "boolean"
+      ? partial.behavior.openTargetFolderOnDropSuccess
+      : DEFAULT_CONFIG.behavior.openTargetFolderOnDropSuccess;
   return {
     ...DEFAULT_CONFIG,
     version:
@@ -127,6 +132,7 @@ export function mergeConfig(partial = {}) {
     behavior: {
       ...DEFAULT_CONFIG.behavior,
       ...(partial.behavior ?? {}),
+      openTargetFolderOnDropSuccess,
       dropPulseConfirmSec,
       hoverFollowupDelaySec,
       panelViewMode,

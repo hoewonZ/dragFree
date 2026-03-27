@@ -518,6 +518,11 @@
                 <option value="move">移动</option>
               </select>
             </label>
+            <label class="toggle-row">
+              <input id="open-target-folder-on-success" type="checkbox" />
+              <span>投放成功后打开目标文件夹</span>
+              <span class="changed-tip" data-tip-for="open-target-folder-on-success">已更改</span>
+            </label>
             <label>
               <span class="label-row">
                 <span>面板目录样式</span>
@@ -564,6 +569,7 @@
       const dropPulseConfirmEl = document.getElementById("drop-pulse-confirm");
       const hoverFollowupDelayEl = document.getElementById("hover-followup-delay");
       const defaultActionEl = document.getElementById("default-action");
+      const openTargetFolderOnSuccessEl = document.getElementById("open-target-folder-on-success");
       const panelViewModeEl = document.getElementById("panel-view-mode");
       const panelTileSizeWrapEl = document.getElementById("tile-size-wrap");
       const panelTileSizeEl = document.getElementById("panel-tile-size");
@@ -710,6 +716,7 @@
             hoverFollowupDelaySec: Math.min(1, Math.max(0, Number.parseFloat(hoverFollowupDelayEl.value || "0.3") || 0.3)),
             pulseLevel: "high",
             defaultAction: defaultActionEl.value === "move" ? "move" : "copy",
+            openTargetFolderOnDropSuccess: openTargetFolderOnSuccessEl.checked,
             panelViewMode: panelViewModeEl.value === "tile" ? "tile" : "list",
             panelTileSize:
               panelTileSizeEl.value === "small"
@@ -940,6 +947,7 @@
         dropPulseConfirmEl.value = Number(config.behavior?.dropPulseConfirmSec ?? 0.1).toFixed(2);
         hoverFollowupDelayEl.value = Number(config.behavior?.hoverFollowupDelaySec ?? 0.3).toFixed(2);
         defaultActionEl.value = config.behavior?.defaultAction === "move" ? "move" : "copy";
+        openTargetFolderOnSuccessEl.checked = config.behavior?.openTargetFolderOnDropSuccess === true;
         panelViewModeEl.value =
           config.behavior?.panelViewMode === "tile"
             ? "tile"
@@ -964,6 +972,7 @@
         dropPulseConfirmEl,
         hoverFollowupDelayEl,
         defaultActionEl,
+        openTargetFolderOnSuccessEl,
         panelViewModeEl,
         panelTileSizeEl
       ].forEach((el) => {

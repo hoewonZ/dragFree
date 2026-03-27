@@ -10,6 +10,7 @@ import {
 
 test("default config uses copy and immediate expand", () => {
   assert.equal(DEFAULT_CONFIG.behavior.defaultAction, "copy");
+  assert.equal(DEFAULT_CONFIG.behavior.openTargetFolderOnDropSuccess, false);
   assert.equal(DEFAULT_CONFIG.behavior.expandDelayMs, 0);
   assert.equal(DEFAULT_CONFIG.behavior.breadcrumbSeparator, "/");
   assert.equal(DEFAULT_CONFIG.behavior.dropPulseConfirmSec, 0.1);
