@@ -526,7 +526,8 @@ function getOverlayConfigPayload(hotzone, overlayBounds, headerHeight = HOTZONE_
     headerHeight,
     collapsed: overlayCollapsed,
     minWidthPx: sessionMinWidthPx,
-    minHeightPx: sessionMinHeightPx
+    minHeightPx: sessionMinHeightPx,
+    displayCount: screen.getAllDisplays().length
   };
 }
 
@@ -1467,6 +1468,69 @@ ipcMain.handle("overlay:set-collapsed", async (_event, payload) => {
       error: error instanceof Error ? error.message : "切换折叠失败"
     };
   }
+});
+
+ipcMain.handle("overlay:cycle-display", async () => {
+  if (!config) {
+    return { ok: false };
+  }
+
+  const allDisplays = screen.getAllDisplays();
+  if (allDisplays.length <= 1) {
+    return { ok: false, reason: "single-display" };
+  }
+
+  const currentHotzone = overlayHotzonePreview ?? config.hotzone;
+  const currentDisplay = resolveDisplayForHotzone(currentHotzone);
+  const currentIndex = allDisplays.findIndex((item) => String(item.id) === String(currentDisplay.id));
+  const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % allDisplays.length : 0;
+  const nextDisplay = allDisplays[nextIndex];
+  const currentBounds = currentDisplay.bounds;
+  const nextBounds = nextDisplay.bounds;
+
+  const currentWidth = Math.max(1, Number(currentHotzone.widthPx) || 200);
+  const currentHeight = Math.max(1, Number(currentHotzone.heightPx) || 300);
+  const nextWidth = Math.min(nextBounds.width, Math.max(sessionMinWidthPx, currentWidth));
+  const nextHeight = Math.min(nextBounds.height, Math.max(sessionMinHeightPx, currentHeight));
+
+  const currentXSpan = Math.max(1, currentBounds.width - currentWidth);
+  const currentYSpan = Math.max(1, currentBounds.height - currentHeight);
+  const rawX = Number.isFinite(currentHotzone.xPx) ? currentHotzone.xPx : currentBounds.x;
+  const rawY = Number.isFinite(currentHotzone.yPx) ? currentHotzone.yPx : currentBounds.y;
+
+  const ratioX = (rawX - currentBounds.x) / currentXSpan;
+  const ratioY = (rawY - currentBounds.y) / currentYSpan;
+  const normalizedRatioX = Math.min(1, Math.max(0, ratioX));
+  const normalizedRatioY = Math.min(1, Math.max(0, ratioY));
+
+  const nextXSpan = Math.max(0, nextBounds.width - nextWidth);
+  const nextYSpan = Math.max(0, nextBounds.height - nextHeight);
+  const nextX = Math.round(nextBounds.x + normalizedRatioX * nextXSpan);
+  const nextY = Math.round(nextBounds.y + normalizedRatioY * nextYSpan);
+  const nextDisplayId = getDisplayId(nextDisplay);
+
+  config = mergeConfig({
+    ...config,
+    hotzone: {
+      ...config.hotzone,
+      ...currentHotzone,
+      displayId: nextDisplayId,
+      preferredDisplayId: nextDisplayId,
+      xPx: nextX,
+      yPx: nextY,
+      widthPx: nextWidth,
+      heightPx: nextHeight
+    }
+  });
+  overlayHotzonePreview = config.hotzone;
+  markConfigDirty("overlay_cycle_display");
+  createOrUpdateOverlayWindow({ forceRendererSync: true });
+
+  return {
+    ok: true,
+    displayId: nextDisplayId,
+    hotzone: config.hotzone
+  };
 });
 
 function showNewFolderWindow(parentPath) {

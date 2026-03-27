@@ -30,6 +30,9 @@ contextBridge.exposeInMainWorld("overlayApi", {
   setCollapsed(collapsed) {
     return ipcRenderer.invoke("overlay:set-collapsed", { collapsed });
   },
+  cycleDisplay() {
+    return ipcRenderer.invoke("overlay:cycle-display");
+  },
   getPathForFile(file) {
     try {
       return webUtils.getPathForFile(file) || "";

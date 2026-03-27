@@ -58,6 +58,24 @@
         pointer-events: auto;
       }
 
+      .hotzone-display-toggle {
+        width: 24px;
+        height: 24px;
+        border: none;
+        background: transparent;
+        color: rgba(245, 248, 255, 0.88);
+        cursor: pointer;
+        padding: 0;
+        font-size: 16px;
+        line-height: 1;
+        pointer-events: auto;
+      }
+
+      .hotzone-display-toggle[data-disabled="true"] {
+        opacity: 0.45;
+        cursor: default;
+      }
+
       #mode-toggle {
         display: none !important;
       }
@@ -218,6 +236,13 @@
     collapseBtn.title = "折叠热区";
     collapseBtn.setAttribute("data-no-drag", "true");
 
+    const displayBtn = document.createElement("button");
+    displayBtn.type = "button";
+    displayBtn.className = "hotzone-display-toggle";
+    displayBtn.textContent = "🖥";
+    displayBtn.title = "切换显示器";
+    displayBtn.setAttribute("data-no-drag", "true");
+
     const saveBtn = document.createElement("button");
     saveBtn.type = "button";
     saveBtn.className = "hotzone-text-action save";
@@ -250,6 +275,7 @@
     actions.appendChild(cancelBtn);
     headerLeft.appendChild(pinBtn);
     headerLeft.appendChild(collapseBtn);
+    headerLeft.appendChild(displayBtn);
     header.appendChild(headerLeft);
     header.appendChild(actions);
 
@@ -271,7 +297,8 @@
       saving: false,
       draft: normalizeText(initialText),
       pinned: true,
-      collapsed: false
+      collapsed: false,
+      displayCount: 1
     };
 
     function renderPinState() {
@@ -279,6 +306,9 @@
       pinBtn.title = state.pinned ? "取消置顶" : "置顶热区";
       collapseBtn.textContent = state.collapsed ? "▾" : "▴";
       collapseBtn.title = state.collapsed ? "展开热区" : "折叠热区";
+      const displaySwitchEnabled = state.displayCount > 1;
+      displayBtn.dataset.disabled = displaySwitchEnabled ? "false" : "true";
+      displayBtn.title = displaySwitchEnabled ? "切换显示器" : "仅检测到一个显示器";
     }
 
     function applyColorStyle() {
@@ -497,6 +527,20 @@
       event.stopPropagation();
     });
 
+    displayBtn.addEventListener("click", async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (state.displayCount <= 1) {
+        return;
+      }
+      await overlayApi.cycleDisplay();
+    });
+
+    displayBtn.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+
     editor.addEventListener("input", () => {
       state.draft = editor.value;
     });
@@ -520,6 +564,7 @@
         state.textBold = typeof next.textBold === "boolean" ? next.textBold : state.textBold;
         state.pinned = typeof next.pinned === "boolean" ? next.pinned : state.pinned;
         state.collapsed = typeof next.collapsed === "boolean" ? next.collapsed : state.collapsed;
+        state.displayCount = Number.isFinite(next.displayCount) ? Math.max(1, Math.round(next.displayCount)) : state.displayCount;
 
         if (!state.locked && state.editing) {
           state.editing = false;

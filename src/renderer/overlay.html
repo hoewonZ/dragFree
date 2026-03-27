@@ -690,7 +690,8 @@
           textColor: hotzoneState.displayTextColor,
           textBold: hotzoneState.displayTextBold,
           pinned: hotzoneState.pinned === true,
-          collapsed
+          collapsed,
+          displayCount: Number.isFinite(payload.displayCount) ? payload.displayCount : 1
         });
       });
 
