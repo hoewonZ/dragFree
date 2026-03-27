@@ -463,6 +463,16 @@
                 <span>展示文本加粗</span>
                 <span class="changed-tip" data-tip-for="hotzone-text-bold">已更改</span>
               </label>
+              <label style="margin-top: 8px">
+                <span class="label-row">
+                  <span>热区透明度（0-1）</span>
+                  <span class="changed-tip" data-tip-for="hotzone-opacity">已更改</span>
+                </span>
+                <span class="color-row" style="gap: 10px">
+                  <input id="hotzone-opacity" type="range" min="0" max="1" step="0.01" />
+                  <span id="hotzone-opacity-value" style="min-width: 44px; font-size: 12px; color: #435474">0.08</span>
+                </span>
+              </label>
             </div>
             <label>
               <span class="label-row">
@@ -531,6 +541,8 @@
       const hotzoneColorEl = document.getElementById("hotzone-color");
       const hotzoneTextColorEl = document.getElementById("hotzone-text-color");
       const hotzoneTextBoldEl = document.getElementById("hotzone-text-bold");
+      const hotzoneOpacityEl = document.getElementById("hotzone-opacity");
+      const hotzoneOpacityValueEl = document.getElementById("hotzone-opacity-value");
       const resetHotzoneEl = document.getElementById("reset-hotzone");
       const openDisplayConfigEl = document.getElementById("open-display-config");
       const saveDisplayConfigEl = document.getElementById("save-display-config");
@@ -584,15 +596,30 @@
 
       function collectHotzoneDraft(baseHotzone = null) {
         const fallback = baseHotzone || config.hotzone || {};
+        const opacityParsed = Number.parseFloat(hotzoneOpacityEl.value);
+        const fallbackOpacity = Number(fallback.opacity);
+        const opacity =
+          Number.isFinite(opacityParsed) && opacityParsed >= 0 && opacityParsed <= 1
+            ? opacityParsed
+            : Number.isFinite(fallbackOpacity) && fallbackOpacity >= 0 && fallbackOpacity <= 1
+              ? fallbackOpacity
+              : 0.08;
         return {
           ...fallback,
           edge: "top",
           color: normalizeColor(hotzoneColorEl.value, fallback.color ?? "#467eff"),
           displayTextColor: normalizeColor(hotzoneTextColorEl.value, fallback.displayTextColor ?? "#f5f8ff"),
           displayTextBold: hotzoneTextBoldEl.checked,
+          opacity: Math.round(opacity * 100) / 100,
           cancelRegionPx: fallback.cancelRegionPx ?? 48,
           debugVisible: fallback.debugVisible !== false
         };
+      }
+
+      function updateHotzoneOpacityLabel() {
+        const parsed = Number.parseFloat(hotzoneOpacityEl.value);
+        const safe = Number.isFinite(parsed) ? Math.min(1, Math.max(0, parsed)) : 0.08;
+        hotzoneOpacityValueEl.textContent = safe.toFixed(2);
       }
 
       function markFieldChanged(fieldId) {
@@ -648,10 +675,6 @@
             }
           }
         }, 1200);
-      }
-
-      function updateSummary() {
-        return;
       }
 
       function syncTileSizeVisibility() {
@@ -770,6 +793,8 @@
         hotzoneColorEl.value = "#467eff";
         hotzoneTextColorEl.value = "#f5f8ff";
         hotzoneTextBoldEl.checked = false;
+        hotzoneOpacityEl.value = HOTZONE_FIXED.opacity.toFixed(2);
+        updateHotzoneOpacityLabel();
       }
 
       function createFolderId() {
@@ -893,6 +918,8 @@
         hotzoneColorEl.value = normalizeColor(config.hotzone.color, "#467eff");
         hotzoneTextColorEl.value = normalizeColor(config.hotzone.displayTextColor, "#f5f8ff");
         hotzoneTextBoldEl.checked = config.hotzone.displayTextBold === true;
+        hotzoneOpacityEl.value = Number(config.hotzone.opacity ?? 0.08).toFixed(2);
+        updateHotzoneOpacityLabel();
         breadcrumbSeparatorEl.value = config.behavior?.breadcrumbSeparator ?? "/";
         dropPulseConfirmEl.value = Number(config.behavior?.dropPulseConfirmSec ?? 0.1).toFixed(2);
         hoverFollowupDelayEl.value = Number(config.behavior?.hoverFollowupDelaySec ?? 0.3).toFixed(2);
@@ -915,6 +942,7 @@
         hotzoneColorEl,
         hotzoneTextColorEl,
         hotzoneTextBoldEl,
+        hotzoneOpacityEl,
         breadcrumbSeparatorEl,
         dropPulseConfirmEl,
         hoverFollowupDelayEl,
@@ -924,6 +952,9 @@
       ].forEach((el) => {
         el.addEventListener("input", () => {
           markFieldChanged(el.id);
+          if (el === hotzoneOpacityEl) {
+            updateHotzoneOpacityLabel();
+          }
           if (el === panelViewModeEl) {
             syncTileSizeVisibility();
           }
@@ -931,6 +962,9 @@
         });
         el.addEventListener("change", () => {
           markFieldChanged(el.id);
+          if (el === hotzoneOpacityEl) {
+            updateHotzoneOpacityLabel();
+          }
           if (el === panelViewModeEl) {
             syncTileSizeVisibility();
           }
@@ -947,6 +981,7 @@
         markFieldChanged("hotzone-color");
         markFieldChanged("hotzone-text-color");
         markFieldChanged("hotzone-text-bold");
+        markFieldChanged("hotzone-opacity");
         scheduleAutoSave();
         setStatus("已恢复固定触发方式默认热区。正在自动保存...");
       });

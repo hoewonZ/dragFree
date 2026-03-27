@@ -63,30 +63,6 @@
         text-overflow: ellipsis;
       }
 
-      #unsaved-toast {
-        position: fixed;
-        left: 50%;
-        bottom: 20px;
-        transform: translateX(-50%);
-        background: rgba(20, 24, 30, 0.86);
-        color: #f5f8ff;
-        border: 1px solid rgba(255, 255, 255, 0.28);
-        border-radius: 10px;
-        padding: 8px 12px;
-        font-size: 12px;
-        line-height: 1.3;
-        font-family: "Segoe UI", "PingFang SC", sans-serif;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.12s ease;
-        z-index: 20;
-        white-space: nowrap;
-      }
-
-      #unsaved-toast.visible {
-        opacity: 1;
-      }
-
       #unsaved-confirm {
         position: fixed;
         min-width: 220px;
@@ -246,7 +222,7 @@
       .resize-hit[data-resize="w"] {
         left: -4px;
         top: 14px;
-        bottom: 34px;
+        bottom: 14px;
         width: 24px;
         cursor: ew-resize;
       }
@@ -254,7 +230,7 @@
       .resize-hit[data-resize="e"] {
         right: -4px;
         top: 14px;
-        bottom: 34px;
+        bottom: 14px;
         width: 24px;
         cursor: ew-resize;
       }
@@ -296,7 +272,7 @@
         left: 14px;
         top: 14px;
         right: 14px;
-        bottom: 34px;
+        bottom: 14px;
         border-radius: 6px;
         cursor: move;
       }
@@ -306,57 +282,6 @@
         background: rgba(255, 255, 255, 0.03);
       }
 
-      #opacity-control {
-        position: absolute;
-        left: 14px;
-        right: 14px;
-        bottom: 8px;
-        height: 22px;
-        cursor: ew-resize;
-        opacity: 0.78;
-        transition: opacity 0.12s ease;
-      }
-
-      body.interacting #opacity-control {
-        opacity: 0.94;
-      }
-
-      #opacity-line {
-        position: absolute;
-        left: 0;
-        right: 0;
-        top: 50%;
-        height: 2px;
-        transform: translateY(-50%);
-        background: rgba(46, 57, 76, 0.6);
-        transition: background 0.12s ease;
-      }
-
-      body.interacting #opacity-line {
-        background: rgba(38, 50, 72, 0.75);
-      }
-
-      #opacity-progress {
-        position: absolute;
-        left: 0;
-        top: 0;
-        bottom: 0;
-        width: 8%;
-        background: rgba(225, 230, 236, 0.98);
-      }
-
-      #opacity-knob {
-        position: absolute;
-        left: 8%;
-        top: 50%;
-        width: 10px;
-        height: 10px;
-        border-radius: 999px;
-        background: rgba(72, 78, 90, 0.95);
-        border: 1px solid rgba(34, 40, 50, 0.95);
-        box-shadow: 0 1px 3px rgba(8, 15, 30, 0.22);
-        transform: translate(-50%, -50%);
-      }
     </style>
   </head>
   <body>
@@ -381,12 +306,6 @@
         <div class="resize-hit" data-resize="ne"></div>
         <div class="resize-hit" data-resize="sw"></div>
         <div class="resize-hit" data-resize="se"></div>
-        <div id="opacity-control">
-          <div id="opacity-line">
-            <div id="opacity-progress"></div>
-          </div>
-          <div id="opacity-knob"></div>
-        </div>
       </div>
       <div id="debug">拖动文件到这里</div>
     </div>
@@ -397,24 +316,19 @@
         <button id="unsaved-save" class="unsaved-btn primary" type="button">锁定并保存</button>
       </div>
     </div>
-    <div id="unsaved-toast">当前热区修改未保存，请先点击锁定保存。</div>
     <script src="./hotzone-display-editor.js"></script>
     <script>
       const hotzone = document.getElementById("hotzone");
       const modeToggle = document.getElementById("mode-toggle");
       const debug = document.getElementById("debug");
       const moveHit = document.getElementById("move-hit");
-      const opacityControl = document.getElementById("opacity-control");
-      const opacityProgress = document.getElementById("opacity-progress");
-      const opacityKnob = document.getElementById("opacity-knob");
       const unsavedConfirm = document.getElementById("unsaved-confirm");
       const unsavedMessage = document.getElementById("unsaved-message");
       const unsavedContinue = document.getElementById("unsaved-continue");
       const unsavedSave = document.getElementById("unsaved-save");
-      const unsavedToast = document.getElementById("unsaved-toast");
 
-      const MIN_WIDTH = 80;
-      const MIN_HEIGHT = 60;
+      const MIN_WIDTH = 120;
+      const MIN_HEIGHT = 96;
 
       let displayBounds = { x: 0, y: 0, width: 1920, height: 1080 };
       let virtualBounds = { x: 0, y: 0, width: 1920, height: 1080 };
@@ -442,7 +356,7 @@
       let pendingEditMode = null;
       let unsavedPromptVisible = false;
       let lastUnsavedPromptAt = 0;
-      let unsavedToastTimer = null;
+      let hasLoggedInvisibleDuringEditing = false;
       const displayEditor = window.createHotzoneDisplayEditor({
         hotzoneEl: hotzone,
         modeToggleEl: modeToggle,
@@ -479,21 +393,6 @@
       function updateModeToggle() {
         modeToggle.dataset.editing = isEditing ? "true" : "false";
         modeToggle.textContent = isEditing ? "🔓 编辑中" : "🔒";
-      }
-
-      function showUnsavedToast(message) {
-        unsavedToast.textContent =
-          typeof message === "string" && message.length > 0
-            ? message
-            : "当前热区修改未保存，请先点击锁定保存。";
-        unsavedToast.classList.add("visible");
-        if (unsavedToastTimer) {
-          clearTimeout(unsavedToastTimer);
-        }
-        unsavedToastTimer = setTimeout(() => {
-          unsavedToast.classList.remove("visible");
-          unsavedToastTimer = null;
-        }, 1500);
       }
 
       function hideUnsavedConfirm() {
@@ -563,8 +462,17 @@
         const rawX = state.xPx === null || state.xPx === undefined ? centeredX : Math.round(Number(state.xPx));
         const rawY = Number.isFinite(Number(state.yPx)) ? Math.round(Number(state.yPx)) : displayBounds.y;
 
-        const xPx = clamp(rawX, virtualBounds.x, virtualBounds.x + virtualBounds.width - widthPx);
-        const yPx = clamp(rawY, virtualBounds.y, virtualBounds.y + virtualBounds.height - heightPx);
+        const xClampMin = isEditing ? displayBounds.x - Math.floor(widthPx / 2) : virtualBounds.x;
+        const xClampMax = isEditing
+          ? displayBounds.x + displayBounds.width - Math.ceil(widthPx / 2)
+          : virtualBounds.x + virtualBounds.width - widthPx;
+        const yClampMin = isEditing ? displayBounds.y - Math.floor(heightPx / 2) : virtualBounds.y;
+        const yClampMax = isEditing
+          ? displayBounds.y + displayBounds.height - Math.ceil(heightPx / 2)
+          : virtualBounds.y + virtualBounds.height - heightPx;
+
+        const xPx = clamp(rawX, xClampMin, xClampMax);
+        const yPx = clamp(rawY, yClampMin, yClampMax);
         const opacity = clamp(Number(state.opacity) || 0.08, 0, 1);
         const color =
           typeof state.color === "string" && /^#[0-9a-fA-F]{6}$/.test(state.color)
@@ -586,16 +494,47 @@
       function applyHotzoneGeometry() {
         const localX = hotzoneState.xPx - overlayBounds.x;
         const localY = hotzoneState.yPx - overlayBounds.y;
+        const localRight = localX + hotzoneState.widthPx;
+        const localBottom = localY + hotzoneState.heightPx;
+        const isOutsideOverlay =
+          localRight < 0 ||
+          localBottom < 0 ||
+          localX > overlayBounds.width ||
+          localY > overlayBounds.height;
+
+        if (isEditing && isOutsideOverlay && !hasLoggedInvisibleDuringEditing) {
+          hasLoggedInvisibleDuringEditing = true;
+          window.overlayApi.emitDebugSnapshot({
+            type: "invisible_detected",
+            editMode: isEditing,
+            hotzone: {
+              xPx: hotzoneState.xPx,
+              yPx: hotzoneState.yPx,
+              widthPx: hotzoneState.widthPx,
+              heightPx: hotzoneState.heightPx,
+              displayId: hotzoneState.displayId,
+              opacity: hotzoneState.opacity
+            },
+            overlayBounds,
+            displayBounds,
+            virtualBounds,
+            localRect: {
+              x: Math.round(localX),
+              y: Math.round(localY),
+              right: Math.round(localRight),
+              bottom: Math.round(localBottom)
+            }
+          });
+        }
+
+        if (!isOutsideOverlay) {
+          hasLoggedInvisibleDuringEditing = false;
+        }
+
         hotzone.style.left = `${Math.round(localX)}px`;
         hotzone.style.top = `${Math.round(localY)}px`;
         hotzone.style.width = `${Math.max(1, Math.round(hotzoneState.widthPx))}px`;
         hotzone.style.height = `${Math.max(1, Math.round(hotzoneState.heightPx))}px`;
-      }
-
-      function updateOpacitySlider(opacity) {
-        const pct = `${Math.round(clamp(opacity, 0, 1) * 100)}%`;
-        opacityProgress.style.width = pct;
-        opacityKnob.style.left = pct;
       }
 
       function hexToRgba(hex, alpha) {
@@ -610,11 +549,34 @@
       function applyHotzoneVisual() {
         applyHotzoneGeometry();
         hotzone.style.backgroundColor = hexToRgba(hotzoneState.color, hotzoneState.opacity);
-        updateOpacitySlider(hotzoneState.opacity);
       }
 
       function emitPreview() {
         window.overlayApi.emitHotzonePreview(hotzoneState);
+      }
+
+      function emitInteractionSnapshot(endedInteraction) {
+        if (!endedInteraction) {
+          return;
+        }
+
+        window.overlayApi.emitDebugSnapshot({
+          type: "interaction_end",
+          action: endedInteraction.type,
+          mode: endedInteraction.mode ?? null,
+          editMode: isEditing,
+          hotzone: {
+            xPx: hotzoneState.xPx,
+            yPx: hotzoneState.yPx,
+            widthPx: hotzoneState.widthPx,
+            heightPx: hotzoneState.heightPx,
+            displayId: hotzoneState.displayId,
+            opacity: hotzoneState.opacity
+          },
+          overlayBounds,
+          displayBounds,
+          virtualBounds
+        });
       }
 
       async function commitInteraction() {
@@ -673,22 +635,49 @@
       }
 
       function applyResize(mode, dx, dy) {
-        const next = { ...interaction.start };
+        const startX = interaction.start.xPx ?? 0;
+        const startY = interaction.start.yPx;
+        let left = startX;
+        let right = startX + interaction.start.widthPx;
+        let top = startY;
+        let bottom = startY + interaction.start.heightPx;
 
-        if (mode.includes("e")) {
-          next.widthPx = interaction.start.widthPx + dx;
-        }
-        if (mode.includes("s")) {
-          next.heightPx = interaction.start.heightPx + dy;
-        }
         if (mode.includes("w")) {
-          next.widthPx = interaction.start.widthPx - dx;
-          next.xPx = (interaction.start.xPx ?? 0) + dx;
+          left = startX + dx;
+        }
+        if (mode.includes("e")) {
+          right = startX + interaction.start.widthPx + dx;
         }
         if (mode.includes("n")) {
-          next.heightPx = interaction.start.heightPx - dy;
-          next.yPx = interaction.start.yPx + dy;
+          top = startY + dy;
         }
+        if (mode.includes("s")) {
+          bottom = startY + interaction.start.heightPx + dy;
+        }
+
+        if (right - left < MIN_WIDTH) {
+          if (mode.includes("w") && !mode.includes("e")) {
+            left = right - MIN_WIDTH;
+          } else {
+            right = left + MIN_WIDTH;
+          }
+        }
+
+        if (bottom - top < MIN_HEIGHT) {
+          if (mode.includes("n") && !mode.includes("s")) {
+            top = bottom - MIN_HEIGHT;
+          } else {
+            bottom = top + MIN_HEIGHT;
+          }
+        }
+
+        const next = {
+          ...interaction.start,
+          xPx: left,
+          yPx: top,
+          widthPx: right - left,
+          heightPx: bottom - top
+        };
 
         hotzoneState = sanitizeHotzone(next);
         applyHotzoneVisual();
@@ -702,15 +691,6 @@
           yPx: interaction.start.yPx + dy
         };
         hotzoneState = sanitizeHotzone(next);
-        applyHotzoneVisual();
-        emitPreview();
-      }
-
-      function applyOpacityByClientX(clientX) {
-        const barRect = opacityControl.getBoundingClientRect();
-        const width = Math.max(1, barRect.width);
-        const ratio = clamp((clientX - barRect.left) / width, 0, 1);
-        hotzoneState = sanitizeHotzone({ ...hotzoneState, opacity: ratio });
         applyHotzoneVisual();
         emitPreview();
       }
@@ -733,19 +713,17 @@
           return;
         }
 
-        if (interaction.type === "opacity") {
-          applyOpacityByClientX(event.clientX);
-        }
       });
 
       document.addEventListener("pointerup", async () => {
         if (!interaction) {
           return;
         }
+        const endedInteraction = { ...interaction };
         releaseCapturedPointer();
         interaction = null;
         updateEditorVisibility();
-        await commitInteraction();
+        emitInteractionSnapshot(endedInteraction);
       });
 
       document.addEventListener("pointercancel", () => {
@@ -772,13 +750,6 @@
         });
       }
 
-      opacityControl.addEventListener("pointerdown", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        beginInteraction("opacity", event);
-        applyOpacityByClientX(event.clientX);
-      });
-
       async function setEditing(nextEditing, saveBeforeLock = true) {
         if (nextEditing === isEditing) {
           return;
@@ -795,16 +766,40 @@
 
         pendingEditMode = nextEditing;
 
+        if (nextEditing) {
+          window.overlayApi.emitDebugSnapshot({
+            type: "unlock_start",
+            editMode: isEditing,
+            saveBeforeLock,
+            hotzone: {
+              xPx: hotzoneState.xPx,
+              yPx: hotzoneState.yPx,
+              widthPx: hotzoneState.widthPx,
+              heightPx: hotzoneState.heightPx,
+              displayId: hotzoneState.displayId,
+              opacity: hotzoneState.opacity
+            },
+            overlayBounds,
+            displayBounds,
+            virtualBounds
+          });
+        }
+
         const result = await window.overlayApi.setEditMode(nextEditing);
         if (result?.ok) {
           isEditing = result.editing === true;
+          if (isEditing) {
+            isFileDragging = false;
+          }
           if (result.hotzone) {
             hotzoneState = sanitizeHotzone(result.hotzone);
           }
-          applyHotzoneVisual();
           updateModeToggle();
-          updateEditorVisibility();
-          if (pendingEditMode === null || pendingEditMode === isEditing) {
+          if (pendingEditMode !== true) {
+            applyHotzoneVisual();
+            updateEditorVisibility();
+          }
+          if (pendingEditMode === null || (pendingEditMode === isEditing && pendingEditMode !== true)) {
             pendingEditMode = null;
           }
           if (!isEditing) {
@@ -839,11 +834,42 @@
       });
 
       window.overlayApi.onConfig((payload) => {
+        if (pendingEditMode === true) {
+          const nextDisplayBounds = payload.displayBounds;
+          const nextOverlayBounds = payload.overlayBounds;
+          const hasEditingBounds =
+            !!nextDisplayBounds &&
+            !!nextOverlayBounds &&
+            nextDisplayBounds.x === nextOverlayBounds.x &&
+            nextDisplayBounds.y === nextOverlayBounds.y &&
+            nextDisplayBounds.width === nextOverlayBounds.width &&
+            nextDisplayBounds.height === nextOverlayBounds.height;
+          if (!hasEditingBounds) {
+            return;
+          }
+        }
+
         displayBounds = payload.displayBounds ?? displayBounds;
         virtualBounds = payload.virtualBounds ?? virtualBounds;
         overlayBounds = payload.overlayBounds ?? overlayBounds;
         isEditing = payload.editMode === true;
         hotzoneState = sanitizeHotzone(payload.hotzone ?? hotzoneState);
+        window.overlayApi.emitDebugSnapshot({
+          type: "overlay_config_applied",
+          editMode: isEditing,
+          pendingEditMode,
+          hotzone: {
+            xPx: hotzoneState.xPx,
+            yPx: hotzoneState.yPx,
+            widthPx: hotzoneState.widthPx,
+            heightPx: hotzoneState.heightPx,
+            displayId: hotzoneState.displayId,
+            opacity: hotzoneState.opacity
+          },
+          overlayBounds,
+          displayBounds,
+          virtualBounds
+        });
 
         if (pendingEditMode === null || pendingEditMode === isEditing) {
           pendingEditMode = null;
@@ -873,10 +899,6 @@
           textColor: hotzoneState.displayTextColor,
           textBold: hotzoneState.displayTextBold
         });
-      });
-
-      window.overlayApi.onUnsavedHint((payload) => {
-        showUnsavedToast(payload?.message);
       });
 
       window.addEventListener("dragover", (event) => {
