@@ -146,6 +146,7 @@
       let virtualBounds = { x: 0, y: 0, width: 1920, height: 1080 };
       let overlayBounds = { x: 0, y: 0, width: 1920, height: 1080 };
       let headerHeight = 28;
+      let collapsed = false;
       let hotzoneState = {
         edge: "top",
         displayId: null,
@@ -213,7 +214,7 @@
           document.body.classList.remove("interacting");
         }
 
-        if (isEditorEnabled()) {
+        if (isEditorEnabled() && !collapsed) {
           document.body.classList.add("editable");
         } else {
           document.body.classList.remove("editable");
@@ -345,6 +346,7 @@
         titlebar.style.borderBottomColor = dividerColor;
         hotzone.style.setProperty("--hotzone-frame-color", frameColor);
         hotzone.style.setProperty("--hotzone-divider-color", dividerColor);
+        hotzone.style.display = collapsed ? "none" : "block";
       }
 
       function emitPreview() {
@@ -489,6 +491,7 @@
         virtualBounds = payload.virtualBounds ?? virtualBounds;
         overlayBounds = payload.overlayBounds ?? overlayBounds;
         headerHeight = Math.max(0, Math.round(Number(payload.headerHeight) || 0));
+        collapsed = payload.collapsed === true;
         hotzone.style.top = `${headerHeight}px`;
         hotzone.style.height = `${Math.max(1, overlayBounds.height - headerHeight)}px`;
         document.documentElement.style.setProperty("--header-height", `${headerHeight}px`);
@@ -533,14 +536,26 @@
           color: hotzoneState.color,
           textColor: hotzoneState.displayTextColor,
           textBold: hotzoneState.displayTextBold,
-          pinned: hotzoneState.pinned === true
+          pinned: hotzoneState.pinned === true,
+          collapsed
         });
       });
 
       window.addEventListener("dragover", (event) => {
         event.preventDefault();
+        if (collapsed) {
+          isFileDragging = false;
+          updateEditorVisibility();
+          window.overlayApi.emitDragPosition({
+            x: event.screenX,
+            y: event.screenY,
+            fileDrag: false,
+            paths: []
+          });
+          return;
+        }
         const localY = event.clientY;
-        if (localY < headerHeight) {
+        if (localY <= headerHeight) {
           isFileDragging = false;
           updateEditorVisibility();
           window.overlayApi.emitDragPosition({
@@ -563,8 +578,14 @@
 
       window.addEventListener("drop", (event) => {
         event.preventDefault();
+        if (collapsed) {
+          isFileDragging = false;
+          updateEditorVisibility();
+          window.overlayApi.emitDragEnd();
+          return;
+        }
         const localY = event.clientY;
-        if (localY < headerHeight) {
+        if (localY <= headerHeight) {
           isFileDragging = false;
           updateEditorVisibility();
           window.overlayApi.emitDragEnd();

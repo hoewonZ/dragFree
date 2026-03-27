@@ -29,20 +29,33 @@
       }
 
       .hotzone-pin-toggle {
-        width: 20px;
-        height: 20px;
+        width: 24px;
+        height: 24px;
         border: none;
         background: transparent;
         color: rgba(245, 248, 255, 0.88);
         cursor: pointer;
         padding: 0;
-        font-size: 13px;
+        font-size: 16px;
         line-height: 1;
         pointer-events: auto;
       }
 
       .hotzone-pin-toggle[data-pinned="false"] {
         opacity: 0.5;
+      }
+
+      .hotzone-collapse-toggle {
+        width: 24px;
+        height: 24px;
+        border: none;
+        background: transparent;
+        color: rgba(245, 248, 255, 0.88);
+        cursor: pointer;
+        padding: 0;
+        font-size: 16px;
+        line-height: 1;
+        pointer-events: auto;
       }
 
       #mode-toggle {
@@ -198,6 +211,13 @@
     pinBtn.title = "取消置顶";
     pinBtn.setAttribute("data-no-drag", "true");
 
+    const collapseBtn = document.createElement("button");
+    collapseBtn.type = "button";
+    collapseBtn.className = "hotzone-collapse-toggle";
+    collapseBtn.textContent = "▴";
+    collapseBtn.title = "折叠热区";
+    collapseBtn.setAttribute("data-no-drag", "true");
+
     const saveBtn = document.createElement("button");
     saveBtn.type = "button";
     saveBtn.className = "hotzone-text-action save";
@@ -229,6 +249,7 @@
     actions.appendChild(saveBtn);
     actions.appendChild(cancelBtn);
     headerLeft.appendChild(pinBtn);
+    headerLeft.appendChild(collapseBtn);
     header.appendChild(headerLeft);
     header.appendChild(actions);
 
@@ -249,12 +270,15 @@
       editing: false,
       saving: false,
       draft: normalizeText(initialText),
-      pinned: true
+      pinned: true,
+      collapsed: false
     };
 
     function renderPinState() {
       pinBtn.dataset.pinned = state.pinned ? "true" : "false";
       pinBtn.title = state.pinned ? "取消置顶" : "置顶热区";
+      collapseBtn.textContent = state.collapsed ? "▾" : "▴";
+      collapseBtn.title = state.collapsed ? "展开热区" : "折叠热区";
     }
 
     function applyColorStyle() {
@@ -457,6 +481,22 @@
       event.stopPropagation();
     });
 
+    collapseBtn.addEventListener("click", async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const nextCollapsed = !state.collapsed;
+      const result = await overlayApi.setCollapsed(nextCollapsed);
+      if (result?.ok) {
+        state.collapsed = result.collapsed === true;
+        renderPinState();
+      }
+    });
+
+    collapseBtn.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+
     editor.addEventListener("input", () => {
       state.draft = editor.value;
     });
@@ -479,6 +519,7 @@
             : state.textColor;
         state.textBold = typeof next.textBold === "boolean" ? next.textBold : state.textBold;
         state.pinned = typeof next.pinned === "boolean" ? next.pinned : state.pinned;
+        state.collapsed = typeof next.collapsed === "boolean" ? next.collapsed : state.collapsed;
 
         if (!state.locked && state.editing) {
           state.editing = false;

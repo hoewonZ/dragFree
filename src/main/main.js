@@ -47,6 +47,7 @@ let configDirty = false;
 let configPersisted = true;
 let quitFlushInProgress = false;
 let quitFlushCompleted = false;
+let overlayCollapsed = false;
 
 const PANEL_WIDTH = 560;
 const PANEL_HEIGHT = 620;
@@ -513,7 +514,8 @@ function getOverlayConfigPayload(hotzone, overlayBounds, headerHeight = HOTZONE_
     virtualBounds: getVirtualDisplayBounds(),
     overlayBounds,
     hotzone,
-    headerHeight
+    headerHeight,
+    collapsed: overlayCollapsed
   };
 }
 
@@ -586,11 +588,12 @@ function createOrUpdateOverlayWindow(options = {}) {
   activeDisplayBounds = display.bounds;
   const overlayY = Math.max(display.bounds.y, hotzoneRect.y - HOTZONE_HEADER_HEIGHT);
   const effectiveHeaderHeight = Math.max(0, hotzoneRect.y - overlayY);
+  const overlayHeight = overlayCollapsed ? Math.max(1, effectiveHeaderHeight) : hotzoneRect.height + effectiveHeaderHeight;
   const overlayBounds = {
     x: hotzoneRect.x,
     y: overlayY,
     width: hotzoneRect.width,
-    height: hotzoneRect.height + effectiveHeaderHeight
+    height: overlayHeight
   };
 
   appendHotzoneDebug("overlay_window_update", {
@@ -603,6 +606,7 @@ function createOrUpdateOverlayWindow(options = {}) {
     activeDisplayBounds: display.bounds,
     overlayBounds,
     headerHeight: effectiveHeaderHeight,
+    collapsed: overlayCollapsed,
     hotzone: {
       xPx: nextHotzone.xPx,
       yPx: nextHotzone.yPx,
@@ -1374,6 +1378,26 @@ ipcMain.handle("overlay:set-pinned", async (_event, payload) => {
     return {
       ok: false,
       error: error instanceof Error ? error.message : "切换置顶失败"
+    };
+  }
+});
+
+ipcMain.handle("overlay:set-collapsed", async (_event, payload) => {
+  overlayCollapsed = payload?.collapsed === true;
+  try {
+    if (overlayCollapsed) {
+      if (dragController) {
+        dragController.endDrag();
+      }
+      stopDragMonitor();
+      setPanelEventsEnabled(false);
+    }
+    createOrUpdateOverlayWindow({ forceRendererSync: true });
+    return { ok: true, collapsed: overlayCollapsed };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "切换折叠失败"
     };
   }
 });

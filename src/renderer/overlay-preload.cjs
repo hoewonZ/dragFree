@@ -27,6 +27,9 @@ contextBridge.exposeInMainWorld("overlayApi", {
   setPinned(pinned) {
     return ipcRenderer.invoke("overlay:set-pinned", { pinned });
   },
+  setCollapsed(collapsed) {
+    return ipcRenderer.invoke("overlay:set-collapsed", { collapsed });
+  },
   getPathForFile(file) {
     try {
       return webUtils.getPathForFile(file) || "";
