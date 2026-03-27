@@ -387,12 +387,12 @@
       });
 
       function isEditorEnabled() {
-        return hotzoneState.debugVisible && !isFileDragging && isEditing;
+        return hotzoneState.debugVisible && !isFileDragging;
       }
 
       function updateModeToggle() {
-        modeToggle.dataset.editing = isEditing ? "true" : "false";
-        modeToggle.textContent = isEditing ? "🔓 编辑中" : "🔒";
+        modeToggle.dataset.editing = "false";
+        modeToggle.textContent = "⇕ 调整";
       }
 
       function hideUnsavedConfirm() {
@@ -462,14 +462,10 @@
         const rawX = state.xPx === null || state.xPx === undefined ? centeredX : Math.round(Number(state.xPx));
         const rawY = Number.isFinite(Number(state.yPx)) ? Math.round(Number(state.yPx)) : displayBounds.y;
 
-        const xClampMin = isEditing ? displayBounds.x - Math.floor(widthPx / 2) : virtualBounds.x;
-        const xClampMax = isEditing
-          ? displayBounds.x + displayBounds.width - Math.ceil(widthPx / 2)
-          : virtualBounds.x + virtualBounds.width - widthPx;
-        const yClampMin = isEditing ? displayBounds.y - Math.floor(heightPx / 2) : virtualBounds.y;
-        const yClampMax = isEditing
-          ? displayBounds.y + displayBounds.height - Math.ceil(heightPx / 2)
-          : virtualBounds.y + virtualBounds.height - heightPx;
+        const xClampMin = displayBounds.x;
+        const xClampMax = displayBounds.x + displayBounds.width - widthPx;
+        const yClampMin = displayBounds.y;
+        const yClampMax = displayBounds.y + displayBounds.height - heightPx;
 
         const xPx = clamp(rawX, xClampMin, xClampMax);
         const yPx = clamp(rawY, yClampMin, yClampMax);
@@ -492,10 +488,12 @@
       }
 
       function applyHotzoneGeometry() {
-        const localX = hotzoneState.xPx - overlayBounds.x;
-        const localY = hotzoneState.yPx - overlayBounds.y;
-        const localRight = localX + hotzoneState.widthPx;
-        const localBottom = localY + hotzoneState.heightPx;
+        const localX = isEditing ? hotzoneState.xPx - overlayBounds.x : 0;
+        const localY = isEditing ? hotzoneState.yPx - overlayBounds.y : 0;
+        const renderWidth = isEditing ? hotzoneState.widthPx : overlayBounds.width;
+        const renderHeight = isEditing ? hotzoneState.heightPx : overlayBounds.height;
+        const localRight = localX + renderWidth;
+        const localBottom = localY + renderHeight;
         const isOutsideOverlay =
           localRight < 0 ||
           localBottom < 0 ||
@@ -533,8 +531,8 @@
 
         hotzone.style.left = `${Math.round(localX)}px`;
         hotzone.style.top = `${Math.round(localY)}px`;
-        hotzone.style.width = `${Math.max(1, Math.round(hotzoneState.widthPx))}px`;
-        hotzone.style.height = `${Math.max(1, Math.round(hotzoneState.heightPx))}px`;
+        hotzone.style.width = `${Math.max(1, Math.round(renderWidth))}px`;
+        hotzone.style.height = `${Math.max(1, Math.round(renderHeight))}px`;
       }
 
       function hexToRgba(hex, alpha) {
@@ -750,109 +748,16 @@
         });
       }
 
-      async function setEditing(nextEditing, saveBeforeLock = true) {
-        if (nextEditing === isEditing) {
-          return;
-        }
-
-        if (!nextEditing && saveBeforeLock && interaction) {
-          releaseCapturedPointer();
-          interaction = null;
-        }
-
-        if (!nextEditing && saveBeforeLock) {
-          await commitInteraction();
-        }
-
-        pendingEditMode = nextEditing;
-
-        if (nextEditing) {
-          window.overlayApi.emitDebugSnapshot({
-            type: "unlock_start",
-            editMode: isEditing,
-            saveBeforeLock,
-            hotzone: {
-              xPx: hotzoneState.xPx,
-              yPx: hotzoneState.yPx,
-              widthPx: hotzoneState.widthPx,
-              heightPx: hotzoneState.heightPx,
-              displayId: hotzoneState.displayId,
-              opacity: hotzoneState.opacity
-            },
-            overlayBounds,
-            displayBounds,
-            virtualBounds
-          });
-        }
-
-        const result = await window.overlayApi.setEditMode(nextEditing);
-        if (result?.ok) {
-          isEditing = result.editing === true;
-          if (isEditing) {
-            isFileDragging = false;
-          }
-          if (result.hotzone) {
-            hotzoneState = sanitizeHotzone(result.hotzone);
-          }
-          updateModeToggle();
-          if (pendingEditMode !== true) {
-            applyHotzoneVisual();
-            updateEditorVisibility();
-          }
-          if (pendingEditMode === null || (pendingEditMode === isEditing && pendingEditMode !== true)) {
-            pendingEditMode = null;
-          }
-          if (!isEditing) {
-            hideUnsavedConfirm();
-          }
-        } else {
-          pendingEditMode = null;
-        }
-      }
-
-      modeToggle.addEventListener("click", async (event) => {
+      modeToggle.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
-        if (isEditing) {
-          await setEditing(false, true);
-          return;
-        }
-        await setEditing(true, false);
-      });
-
-      unsavedContinue.addEventListener("click", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        hideUnsavedConfirm();
-      });
-
-      unsavedSave.addEventListener("click", async (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        hideUnsavedConfirm();
-        await setEditing(false, true);
       });
 
       window.overlayApi.onConfig((payload) => {
-        if (pendingEditMode === true) {
-          const nextDisplayBounds = payload.displayBounds;
-          const nextOverlayBounds = payload.overlayBounds;
-          const hasEditingBounds =
-            !!nextDisplayBounds &&
-            !!nextOverlayBounds &&
-            nextDisplayBounds.x === nextOverlayBounds.x &&
-            nextDisplayBounds.y === nextOverlayBounds.y &&
-            nextDisplayBounds.width === nextOverlayBounds.width &&
-            nextDisplayBounds.height === nextOverlayBounds.height;
-          if (!hasEditingBounds) {
-            return;
-          }
-        }
-
         displayBounds = payload.displayBounds ?? displayBounds;
         virtualBounds = payload.virtualBounds ?? virtualBounds;
         overlayBounds = payload.overlayBounds ?? overlayBounds;
-        isEditing = payload.editMode === true;
+        isEditing = false;
         hotzoneState = sanitizeHotzone(payload.hotzone ?? hotzoneState);
         window.overlayApi.emitDebugSnapshot({
           type: "overlay_config_applied",
@@ -878,7 +783,7 @@
         if (hotzoneState.debugVisible) {
           applyHotzoneVisual();
           hotzone.style.pointerEvents = "auto";
-          modeToggle.style.display = "inline-flex";
+          modeToggle.style.display = "none";
         } else {
           hotzone.style.background = "transparent";
           document.body.classList.remove("editable");
@@ -891,7 +796,7 @@
         updateEditorVisibility();
         displayEditor.update({
           text: hotzoneState.displayText,
-          locked: !isEditing,
+          locked: true,
           enabled: hotzoneState.debugVisible,
           widthPx: hotzoneState.widthPx,
           heightPx: hotzoneState.heightPx,
@@ -902,13 +807,6 @@
       });
 
       window.addEventListener("dragover", (event) => {
-        if (isEditing) {
-          event.preventDefault();
-          if (!unsavedPromptVisible) {
-            showUnsavedConfirm(event.clientX, event.clientY);
-          }
-          return;
-        }
         event.preventDefault();
         isFileDragging = detectFileDrag(event.dataTransfer);
         updateEditorVisibility();
@@ -921,40 +819,11 @@
       });
 
       window.addEventListener("drop", (event) => {
-        if (isEditing) {
-          event.preventDefault();
-          if (!unsavedPromptVisible) {
-            showUnsavedConfirm(event.clientX, event.clientY);
-          }
-          return;
-        }
         event.preventDefault();
         isFileDragging = false;
         updateEditorVisibility();
         window.overlayApi.emitDragEnd();
       });
-
-      document.addEventListener(
-        "pointerdown",
-        async (event) => {
-          if (!isEditing) {
-            return;
-          }
-
-          if (unsavedConfirm.contains(event.target) || modeToggle.contains(event.target)) {
-            return;
-          }
-
-          if (hotzone.contains(event.target)) {
-            return;
-          }
-
-          event.preventDefault();
-          event.stopPropagation();
-          showUnsavedConfirm(event.clientX, event.clientY);
-        },
-        true
-      );
 
       window.addEventListener("dragleave", () => {
         isFileDragging = false;
