@@ -535,6 +535,16 @@ function isSameRect(a, b) {
   return a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height;
 }
 
+function clampHotzoneRectForHeader(displayBounds, hotzoneRect) {
+  const maxY = displayBounds.y + Math.max(0, displayBounds.height - hotzoneRect.height);
+  const minY = Math.min(displayBounds.y + HOTZONE_HEADER_HEIGHT, maxY);
+  const nextY = Math.round(Math.min(maxY, Math.max(minY, hotzoneRect.y)));
+  return {
+    ...hotzoneRect,
+    y: nextY
+  };
+}
+
 function ensureWindowTopmost(windowRef) {
   if (!windowRef || windowRef.isDestroyed()) {
     return;
@@ -563,10 +573,10 @@ function createOrUpdateOverlayWindow(options = {}) {
     ...effectiveHotzone,
     displayId: getDisplayId(display)
   };
-  let hotzoneRect = getHotzoneRect(display.bounds, nextHotzone);
+  let hotzoneRect = clampHotzoneRectForHeader(display.bounds, getHotzoneRect(display.bounds, nextHotzone));
 
   if (previewOnly) {
-    hotzoneRect = getHotzoneRect(display.bounds, nextHotzone);
+    hotzoneRect = clampHotzoneRectForHeader(display.bounds, getHotzoneRect(display.bounds, nextHotzone));
   }
 
   nextHotzone = {
