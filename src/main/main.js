@@ -1084,9 +1084,8 @@ ipcMain.on("panel:drop-target", async (_event, payload) => {
     }
   }
 
-  await openTargetFolderAfterDropIfNeeded(targetPath, result);
-
-  currentDragPaths = [];
+  finalizeDropUiState();
+  await settleUiThenOpenTargetFolder(targetPath, result);
 });
 
 ipcMain.on("new-folder:cancel", () => {
@@ -1112,6 +1111,8 @@ ipcMain.on("new-folder:submit", async (_event, folderName) => {
     return;
   }
 
+  let dropResult = null;
+  let shouldOpenTarget = false;
   try {
     await mkdir(targetDirectory, { recursive: true });
 
@@ -1120,6 +1121,8 @@ ipcMain.on("new-folder:submit", async (_event, folderName) => {
       targetDirectory,
       action: inferAction(config.behavior.defaultAction)
     });
+    dropResult = result;
+    shouldOpenTarget = true;
 
     if (result.status === "failed" || result.status === "partial-failed") {
       if (tray) {
@@ -1131,7 +1134,6 @@ ipcMain.on("new-folder:submit", async (_event, folderName) => {
       }
     }
 
-    await openTargetFolderAfterDropIfNeeded(targetDirectory, result);
   } catch (error) {
     if (tray) {
       tray.displayBalloon({
@@ -1141,13 +1143,10 @@ ipcMain.on("new-folder:submit", async (_event, folderName) => {
       });
     }
   } finally {
-    closeNewFolderWindow();
-    pendingCreateFolderContext = null;
-    if (dragController) {
-      dragController.endDrag();
+    finalizeDropUiState({ closeFolderWindow: true });
+    if (shouldOpenTarget && dropResult) {
+      await settleUiThenOpenTargetFolder(targetDirectory, dropResult);
     }
-    stopDragMonitor();
-    currentDragPaths = [];
   }
 });
 
@@ -1203,6 +1202,27 @@ async function openTargetFolderAfterDropIfNeeded(targetPath, routeResult) {
   } catch (error) {
     console.error("[dragFree] open target folder failed", error);
   }
+}
+
+async function settleUiThenOpenTargetFolder(targetPath, routeResult) {
+  await new Promise((resolve) => {
+    setTimeout(resolve, 80);
+  });
+  await openTargetFolderAfterDropIfNeeded(targetPath, routeResult);
+}
+
+function finalizeDropUiState({ closeFolderWindow = false } = {}) {
+  if (closeFolderWindow) {
+    closeNewFolderWindow();
+  }
+  pendingCreateFolderContext = null;
+  if (dragController) {
+    dragController.endDrag();
+  }
+  stopDragMonitor();
+  currentDragPaths = [];
+  setPanelEventsEnabled(false);
+  setHotzoneEnabled(true);
 }
 
 ipcMain.on("panel:open-config", () => {
@@ -1464,6 +1484,7 @@ function showNewFolderWindow(parentPath) {
     show: false,
     resizable: false,
     autoHideMenuBar: true,
+    alwaysOnTop: true,
     modal: true,
     parent: configWindow,
     icon: getWindowIconPath(),
@@ -1474,9 +1495,14 @@ function showNewFolderWindow(parentPath) {
     }
   });
 
+  newFolderWindow.setAlwaysOnTop(true, "screen-saver");
+  newFolderWindow.moveTop();
+
   newFolderWindow.loadFile(join(__dirname, "../renderer/new-folder.html"));
   newFolderWindow.once("ready-to-show", () => {
     newFolderWindow.show();
+    newFolderWindow.focus();
+    newFolderWindow.moveTop();
     newFolderWindow.webContents.send("new-folder:init", { parentPath });
   });
 }
