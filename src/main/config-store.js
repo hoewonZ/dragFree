@@ -18,6 +18,7 @@ export const DEFAULT_CONFIG = {
     displayText: "拖动文件到这里，或双击这里试试",
     displayTextColor: "#f5f8ff",
     displayTextBold: false,
+    displayTextSizeLevel: 0,
     cancelRegionPx: 48,
     debugVisible: true
   },
@@ -80,6 +81,10 @@ export function mergeConfig(partial = {}) {
     typeof partial.hotzone?.displayTextBold === "boolean"
       ? partial.hotzone.displayTextBold
       : DEFAULT_CONFIG.hotzone.displayTextBold;
+  const displayTextSizeLevel = normalizeDisplayTextSizeLevel(
+    partial.hotzone?.displayTextSizeLevel,
+    DEFAULT_CONFIG.hotzone.displayTextSizeLevel
+  );
   const cancelRegionPx = normalizePositiveInt(
     partial.hotzone?.cancelRegionPx,
     DEFAULT_CONFIG.hotzone.cancelRegionPx
@@ -126,6 +131,7 @@ export function mergeConfig(partial = {}) {
       displayText,
       displayTextColor,
       displayTextBold,
+      displayTextSizeLevel,
       cancelRegionPx,
       debugVisible
     },
@@ -233,6 +239,15 @@ function normalizeDisplayText(value, fallback) {
   }
 
   return trimmed.slice(0, 500);
+}
+
+function normalizeDisplayTextSizeLevel(value, fallback) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+
+  return Math.min(9, Math.max(0, Math.round(parsed)));
 }
 
 function normalizeDropPulseConfirmSec(value) {

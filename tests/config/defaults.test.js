@@ -31,6 +31,7 @@ test("default config uses copy and immediate expand", () => {
   assert.equal(DEFAULT_CONFIG.hotzone.displayText, "拖动文件到这里，或双击这里试试");
   assert.equal(DEFAULT_CONFIG.hotzone.displayTextColor, "#f5f8ff");
   assert.equal(DEFAULT_CONFIG.hotzone.displayTextBold, false);
+  assert.equal(DEFAULT_CONFIG.hotzone.displayTextSizeLevel, 0);
   assert.equal(DEFAULT_CONFIG.notification.onSuccess, false);
   assert.equal(DEFAULT_CONFIG.notification.onCancelled, true);
   assert.equal(DEFAULT_CONFIG.notification.onFailed, true);
@@ -58,4 +59,20 @@ test("mergeConfig keeps default titlebar color when missing", () => {
   });
 
   assert.equal(merged.hotzone.titleBarColor, DEFAULT_CONFIG.hotzone.titleBarColor);
+});
+
+test("mergeConfig clamps display text size level", () => {
+  const mergedTooSmall = mergeConfig({
+    hotzone: {
+      displayTextSizeLevel: -2
+    }
+  });
+  const mergedTooLarge = mergeConfig({
+    hotzone: {
+      displayTextSizeLevel: 9
+    }
+  });
+
+  assert.equal(mergedTooSmall.hotzone.displayTextSizeLevel, 0);
+  assert.equal(mergedTooLarge.hotzone.displayTextSizeLevel, 9);
 });

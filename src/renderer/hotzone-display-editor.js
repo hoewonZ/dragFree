@@ -1,6 +1,9 @@
 (function () {
   const STYLE_ID = "hotzone-display-editor-style";
   const DEFAULT_TEXT = "拖动文件到这里，或双击这里试试";
+  const TEXT_SIZE_MIN_PX = 12;
+  const TEXT_SIZE_STEP_PX = 4;
+  const TEXT_SIZE_LEVEL_COUNT = 10;
 
   function ensureStyle() {
     if (document.getElementById(STYLE_ID)) {
@@ -72,6 +75,24 @@
       }
 
       .hotzone-display-toggle[data-disabled="true"] {
+        opacity: 0.45;
+        cursor: default;
+      }
+
+      .hotzone-text-size-toggle {
+        width: 24px;
+        height: 24px;
+        border: none;
+        background: transparent;
+        color: rgba(245, 248, 255, 0.88);
+        cursor: pointer;
+        padding: 0;
+        font-size: 13px;
+        line-height: 1;
+        pointer-events: auto;
+      }
+
+      .hotzone-text-size-toggle[data-disabled="true"] {
         opacity: 0.45;
         cursor: default;
       }
@@ -207,6 +228,21 @@
     return normalized.slice(0, 500);
   }
 
+  function normalizeTextSizeLevel(input) {
+    const parsed = Number(input);
+    if (!Number.isFinite(parsed)) {
+      return 0;
+    }
+    return Math.min(TEXT_SIZE_LEVEL_COUNT - 1, Math.max(0, Math.round(parsed)));
+  }
+
+  function getTextSizeStyle(level) {
+    const normalizedLevel = normalizeTextSizeLevel(level);
+    const fontSize = TEXT_SIZE_MIN_PX + normalizedLevel * TEXT_SIZE_STEP_PX;
+    const lineHeight = 1.4;
+    return { fontSize, lineHeight };
+  }
+
   function createHotzoneDisplayEditor(options) {
     ensureStyle();
 
@@ -243,6 +279,20 @@
     displayBtn.title = "切换显示器";
     displayBtn.setAttribute("data-no-drag", "true");
 
+    const textSizeDownBtn = document.createElement("button");
+    textSizeDownBtn.type = "button";
+    textSizeDownBtn.className = "hotzone-text-size-toggle";
+    textSizeDownBtn.textContent = "A-";
+    textSizeDownBtn.title = "减小文本";
+    textSizeDownBtn.setAttribute("data-no-drag", "true");
+
+    const textSizeUpBtn = document.createElement("button");
+    textSizeUpBtn.type = "button";
+    textSizeUpBtn.className = "hotzone-text-size-toggle";
+    textSizeUpBtn.textContent = "A+";
+    textSizeUpBtn.title = "增大文本";
+    textSizeUpBtn.setAttribute("data-no-drag", "true");
+
     const saveBtn = document.createElement("button");
     saveBtn.type = "button";
     saveBtn.className = "hotzone-text-action save";
@@ -276,6 +326,8 @@
     headerLeft.appendChild(pinBtn);
     headerLeft.appendChild(collapseBtn);
     headerLeft.appendChild(displayBtn);
+    headerLeft.appendChild(textSizeDownBtn);
+    headerLeft.appendChild(textSizeUpBtn);
     header.appendChild(headerLeft);
     header.appendChild(actions);
 
@@ -298,7 +350,8 @@
       draft: normalizeText(initialText),
       pinned: true,
       collapsed: false,
-      displayCount: 1
+      displayCount: 1,
+      textSizeLevel: 0
     };
 
     function renderPinState() {
@@ -309,6 +362,12 @@
       const displaySwitchEnabled = state.displayCount > 1;
       displayBtn.dataset.disabled = displaySwitchEnabled ? "false" : "true";
       displayBtn.title = displaySwitchEnabled ? "切换显示器" : "仅检测到一个显示器";
+      const minLevel = 0;
+      const maxLevel = TEXT_SIZE_LEVEL_COUNT - 1;
+      const canDecrease = state.textSizeLevel > minLevel;
+      const canIncrease = state.textSizeLevel < maxLevel;
+      textSizeDownBtn.dataset.disabled = canDecrease ? "false" : "true";
+      textSizeUpBtn.dataset.disabled = canIncrease ? "false" : "true";
     }
 
     function applyColorStyle() {
@@ -322,6 +381,14 @@
       editor.style.setProperty("--hotzone-editor-bg", `rgba(${r}, ${g}, ${b}, 0.2)`);
       displayScroll.style.setProperty("--hotzone-text-color", state.textColor);
       displayScroll.style.setProperty("--hotzone-text-weight", state.textBold ? "700" : "400");
+    }
+
+    function applyTextSizeStyle() {
+      const style = getTextSizeStyle(state.textSizeLevel);
+      displayScroll.style.fontSize = `${style.fontSize}px`;
+      displayScroll.style.lineHeight = String(style.lineHeight);
+      editor.style.fontSize = `${style.fontSize}px`;
+      editor.style.lineHeight = String(style.lineHeight);
     }
 
     function computeContentRect() {
@@ -392,6 +459,7 @@
       const rect = computeContentRect();
       applyContentRect(rect);
       applyColorStyle();
+      applyTextSizeStyle();
       return rect;
     }
 
@@ -464,6 +532,21 @@
       }
 
       await stopEditing();
+    }
+
+    async function saveTextSizeLevel(nextLevel) {
+      const normalizedLevel = normalizeTextSizeLevel(nextLevel);
+      if (normalizedLevel === state.textSizeLevel || state.saving) {
+        return;
+      }
+
+      state.saving = true;
+      const result = await overlayApi.commitHotzone({ displayTextSizeLevel: normalizedLevel });
+      state.saving = false;
+      if (result?.ok && result.hotzone) {
+        state.textSizeLevel = normalizeTextSizeLevel(result.hotzone.displayTextSizeLevel);
+        render();
+      }
     }
 
     hotzoneEl.addEventListener("dblclick", (event) => {
@@ -541,6 +624,34 @@
       event.stopPropagation();
     });
 
+    textSizeDownBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (textSizeDownBtn.dataset.disabled === "true") {
+        return;
+      }
+      saveTextSizeLevel(state.textSizeLevel - 1);
+    });
+
+    textSizeDownBtn.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+
+    textSizeUpBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (textSizeUpBtn.dataset.disabled === "true") {
+        return;
+      }
+      saveTextSizeLevel(state.textSizeLevel + 1);
+    });
+
+    textSizeUpBtn.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+
     editor.addEventListener("input", () => {
       state.draft = editor.value;
     });
@@ -562,6 +673,7 @@
             ? next.textColor.toLowerCase()
             : state.textColor;
         state.textBold = typeof next.textBold === "boolean" ? next.textBold : state.textBold;
+        state.textSizeLevel = normalizeTextSizeLevel(next.textSizeLevel ?? state.textSizeLevel);
         state.pinned = typeof next.pinned === "boolean" ? next.pinned : state.pinned;
         state.collapsed = typeof next.collapsed === "boolean" ? next.collapsed : state.collapsed;
         state.displayCount = Number.isFinite(next.displayCount) ? Math.max(1, Math.round(next.displayCount)) : state.displayCount;

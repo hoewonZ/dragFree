@@ -241,6 +241,7 @@
         displayText: "拖动文件到这里，或双击这里试试",
         displayTextColor: "#f5f8ff",
         displayTextBold: false,
+        displayTextSizeLevel: 0,
         cancelRegionPx: 48,
         debugVisible: true
       };
@@ -270,7 +271,8 @@
               heightPx: hotzoneState.heightPx,
               color: hotzoneState.color,
               textColor: hotzoneState.displayTextColor,
-              textBold: hotzoneState.displayTextBold
+              textBold: hotzoneState.displayTextBold,
+              textSizeLevel: hotzoneState.displayTextSizeLevel
             });
             return { ok: true, text: hotzoneState.displayText };
           }
@@ -343,6 +345,10 @@
           typeof state.titleBarColor === "string" && /^#[0-9a-fA-F]{6}$/.test(state.titleBarColor)
             ? state.titleBarColor.toLowerCase()
             : "#0c1220";
+        const rawTextSizeLevel = Number(state.displayTextSizeLevel);
+        const displayTextSizeLevel = Number.isFinite(rawTextSizeLevel)
+          ? clamp(Math.round(rawTextSizeLevel), 0, 9)
+          : 0;
 
         return {
           ...state,
@@ -353,7 +359,8 @@
           yPx,
           opacity: Math.round(opacity * 100) / 100,
           color,
-          titleBarColor
+          titleBarColor,
+          displayTextSizeLevel
         };
       }
 
@@ -689,6 +696,7 @@
           color: hotzoneState.color,
           textColor: hotzoneState.displayTextColor,
           textBold: hotzoneState.displayTextBold,
+          textSizeLevel: hotzoneState.displayTextSizeLevel,
           pinned: hotzoneState.pinned === true,
           collapsed,
           displayCount: Number.isFinite(payload.displayCount) ? payload.displayCount : 1
