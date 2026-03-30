@@ -52,7 +52,7 @@
       .workspace {
         margin-top: 10px;
         display: grid;
-        grid-template-rows: auto 1fr auto;
+        grid-template-rows: auto 350px auto;
         gap: 8px;
         flex: 1 1 auto;
         min-height: 0;
@@ -66,6 +66,27 @@
         min-height: 30px;
         max-height: 30px;
         overflow: hidden;
+      }
+
+      .list-shell {
+        position: relative;
+        height: 350px;
+        min-height: 350px;
+      }
+
+      .list-frame {
+        position: relative;
+        height: 100%;
+        background: rgba(16, 52, 48, 0.24);
+      }
+
+      .list-body {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 22px;
+        bottom: 22px;
+        min-height: 0;
       }
 
       .breadcrumb-chip {
@@ -92,7 +113,8 @@
         overflow-x: hidden;
         padding: 6px 6px 6px 2px;
         background: rgba(16, 52, 48, 0.32);
-        border-radius: 10px;
+        border-radius: 0;
+        border: none;
       }
 
       .folder-row {
@@ -152,34 +174,41 @@
       }
 
       .scroll-zone {
-        display: none;
         position: absolute;
-        left: 10px;
-        right: 10px;
-        height: 32px;
-        line-height: 32px;
-        text-align: center;
-        font-size: 18px;
-        color: rgba(144, 236, 216, 0.7);
+        left: 8px;
+        right: 8px;
+        height: 18px;
+        border-radius: 6px;
+        border: 1px solid rgba(96, 214, 186, 0.45);
+        background: rgba(40, 85, 75, 0.72);
+        color: rgba(184, 239, 225, 0.88);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
         cursor: pointer;
-        border-radius: 8px;
         z-index: 10;
+        visibility: hidden;
+        pointer-events: none;
+        transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
       }
 
       .scroll-zone.show {
-        display: block;
+        visibility: visible;
+        pointer-events: auto;
       }
 
       .scroll-zone.top {
-        top: 68px;
+        top: 2px;
       }
 
       .scroll-zone.bottom {
-        bottom: 38px;
+        bottom: 2px;
       }
 
       .scroll-zone.active {
-        background: rgba(96, 214, 186, 0.22);
+        border-color: rgba(121, 234, 187, 0.85);
+        background: rgba(56, 130, 110, 0.86);
         color: #d8fff0;
       }
     </style>
@@ -191,18 +220,23 @@
 
       <section class="workspace">
         <div class="breadcrumb-row" data-breadcrumbs></div>
-        <div class="scroll-zone top" data-scroll-zone="up">↑</div>
-        <div class="directory-list" data-directory-list>
-          <div class="folder-row" data-directory-items></div>
+        <div class="list-shell">
+          <div class="list-frame">
+            <div class="scroll-zone top" data-scroll-zone="up">↑</div>
+            <div class="list-body">
+              <div class="directory-list" data-directory-list>
+                <div class="folder-row" data-directory-items></div>
+              </div>
+              <div class="empty" data-empty-state>暂无可展示目录</div>
+            </div>
+            <div class="scroll-zone bottom" data-scroll-zone="down">↓</div>
+          </div>
         </div>
-        <div class="scroll-zone bottom" data-scroll-zone="down">↓</div>
-        <div class="empty" data-empty-state>暂无可展示目录</div>
+        <div class="meta">
+          <span data-child-hint></span>
+          <span data-child-meta></span>
+        </div>
       </section>
-
-      <div class="meta">
-        <span data-child-hint>悬停目录 220ms 后查询下一层</span>
-        <span data-child-meta></span>
-      </div>
     </main>
 
     <script type="module">
@@ -256,7 +290,8 @@
 
       const controller = createQuickOpenController({ root: document });
 
-      document.body.addEventListener("mouseleave", () => {
+      const panelEl = document.querySelector(".panel");
+      panelEl.addEventListener("mouseleave", () => {
         controller.close();
       });
 
