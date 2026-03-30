@@ -2,6 +2,7 @@ import {
   app,
   BrowserWindow,
   dialog,
+  globalShortcut,
   Menu,
   Tray,
   nativeImage,
@@ -57,6 +58,8 @@ let quitFlushCompleted = false;
 let overlayCollapsed = false;
 let sessionMinWidthPx = HOTZONE_MIN_WIDTH;
 let sessionMinHeightPx = HOTZONE_MIN_HEIGHT;
+let dragSessionDropAction = null;
+let panelTabShortcutRegistered = false;
 
 const PANEL_WIDTH = 560;
 const PANEL_HEIGHT = 620;
@@ -64,6 +67,7 @@ const HOTZONE_PREVIEW_THROTTLE_MS = 33;
 const DISPLAY_TOPOLOGY_DEBOUNCE_MS = 220;
 const HOTZONE_DEBUG_LOG_NAME = "hotzone-debug.log";
 const HOTZONE_HEADER_HEIGHT = 28;
+const DROP_SUCCESS_CLOSE_DELAY_MS = 1500;
 
 async function initStartupLogger() {
   try {
@@ -355,6 +359,7 @@ function ensurePanelWindow() {
       behavior: config.behavior
     });
     panelWindow.webContents.send("panel-active", { enabled: panelEventsEnabled });
+    panelWindow.webContents.send("panel-drop-action", { action: getActiveDropAction() });
   });
 
   return panelWindow;
@@ -385,6 +390,7 @@ function positionPanelForCurrentEdge(displayBounds, cursorX = null) {
 function handleDragEvent(event) {
   if (event.type === "panel-open") {
     const panel = ensurePanelWindow();
+    setDragSessionDropAction(config.behavior.defaultAction);
     setHotzoneEnabled(false);
     setPanelEventsEnabled(true);
 
@@ -440,9 +446,54 @@ function setHotzoneEnabled(enabled) {
 
 function setPanelEventsEnabled(enabled) {
   panelEventsEnabled = enabled;
+  if (enabled) {
+    registerPanelTabShortcut();
+  } else {
+    unregisterPanelTabShortcut();
+  }
   if (panelWindow && !panelWindow.isDestroyed()) {
     panelWindow.webContents.send("panel-active", { enabled });
+    panelWindow.webContents.send("panel-drop-action", { action: getActiveDropAction() });
   }
+}
+
+function getActiveDropAction() {
+  return inferAction(dragSessionDropAction ?? config?.behavior?.defaultAction);
+}
+
+function setDragSessionDropAction(action) {
+  dragSessionDropAction = inferAction(action);
+  if (panelWindow && !panelWindow.isDestroyed()) {
+    panelWindow.webContents.send("panel-drop-action", { action: dragSessionDropAction });
+  }
+}
+
+function resetDragSessionDropAction() {
+  dragSessionDropAction = null;
+  if (panelWindow && !panelWindow.isDestroyed()) {
+    panelWindow.webContents.send("panel-drop-action", { action: getActiveDropAction() });
+  }
+}
+
+function registerPanelTabShortcut() {
+  if (panelTabShortcutRegistered) {
+    return;
+  }
+  panelTabShortcutRegistered = globalShortcut.register("Tab", () => {
+    if (!panelEventsEnabled) {
+      return;
+    }
+    const currentAction = getActiveDropAction();
+    setDragSessionDropAction(currentAction === "move" ? "copy" : "move");
+  });
+}
+
+function unregisterPanelTabShortcut() {
+  if (!panelTabShortcutRegistered) {
+    return;
+  }
+  globalShortcut.unregister("Tab");
+  panelTabShortcutRegistered = false;
 }
 
 function startDragMonitor() {
@@ -1004,12 +1055,7 @@ ipcMain.on("panel:drag-position", (_event, payload) => {
 });
 
 ipcMain.on("panel:drag-end", () => {
-  if (!dragController) {
-    return;
-  }
-  dragController.endDrag();
-  stopDragMonitor();
-  currentDragPaths = [];
+  finalizeDropUiState();
 });
 
 ipcMain.on("panel:drop-target", async (_event, payload) => {
@@ -1030,7 +1076,8 @@ ipcMain.on("panel:drop-target", async (_event, payload) => {
 
     pendingCreateFolderContext = {
       parentPath: result.filePaths[0],
-      sourcePaths: sourcePathsForCreate
+      sourcePaths: sourcePathsForCreate,
+      action: inferAction(payload?.action ?? getActiveDropAction())
     };
     showNewFolderWindow(result.filePaths[0]);
     return;
@@ -1045,7 +1092,7 @@ ipcMain.on("panel:drop-target", async (_event, payload) => {
       ? payload.sourcePaths
       : currentDragPaths;
 
-  const action = inferAction(config.behavior.defaultAction);
+  const action = inferAction(payload?.action ?? getActiveDropAction());
 
   if (!Array.isArray(sourcePaths) || sourcePaths.length === 0) {
     if (tray) {
@@ -1095,6 +1142,14 @@ ipcMain.on("panel:drop-target", async (_event, payload) => {
     }
   }
 
+  const hasProcessedItems = (Number(result.copiedCount) || 0) + (Number(result.movedCount) || 0) > 0;
+  const shouldDelayClose = result.status === "success" || (result.status === "partial-failed" && hasProcessedItems);
+  if (shouldDelayClose) {
+    await new Promise((resolve) => {
+      setTimeout(resolve, DROP_SUCCESS_CLOSE_DELAY_MS);
+    });
+  }
+
   finalizeDropUiState();
   await settleUiThenOpenTargetFolder(targetPath, result);
 });
@@ -1130,7 +1185,7 @@ ipcMain.on("new-folder:submit", async (_event, folderName) => {
     const result = await routeEntries({
       sourcePaths: pendingCreateFolderContext.sourcePaths,
       targetDirectory,
-      action: inferAction(config.behavior.defaultAction)
+      action: inferAction(pendingCreateFolderContext.action ?? getActiveDropAction())
     });
     dropResult = result;
     shouldOpenTarget = true;
@@ -1232,6 +1287,7 @@ function finalizeDropUiState({ closeFolderWindow = false } = {}) {
   }
   stopDragMonitor();
   currentDragPaths = [];
+  resetDragSessionDropAction();
   setPanelEventsEnabled(false);
   setHotzoneEnabled(true);
 }
@@ -1243,7 +1299,10 @@ ipcMain.on("panel:open-config", () => {
   }
 });
 
-ipcMain.handle("panel:get-active", async () => ({ enabled: panelEventsEnabled }));
+ipcMain.handle("panel:get-active", async () => ({
+  enabled: panelEventsEnabled,
+  action: getActiveDropAction()
+}));
 
 ipcMain.handle("panel:list-children", async (_event, folderPath) => {
   if (typeof folderPath !== "string" || folderPath.length === 0) {
@@ -1310,6 +1369,10 @@ ipcMain.handle("config:save", async (_event, nextConfig) => {
     config = mergedRuntime;
     overlayHotzonePreview = config.hotzone;
     markConfigDirty("config_save_runtime");
+    const flushResult = await flushRuntimeConfigToDisk("config_save_flush");
+    if (!flushResult.ok) {
+      throw new Error("flush_failed");
+    }
     createOrUpdateOverlayWindow();
     if (panelWindow && !panelWindow.isDestroyed()) {
       panelWindow.webContents.send("panel-config", {
@@ -1678,6 +1741,11 @@ app.on("before-quit", () => {
     quitFlushInProgress = false;
     quitFlushCompleted = true;
   });
+});
+
+app.on("will-quit", () => {
+  unregisterPanelTabShortcut();
+  globalShortcut.unregisterAll();
 });
 
 export function getLoadedConfig() {

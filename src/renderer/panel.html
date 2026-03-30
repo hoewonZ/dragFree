@@ -559,9 +559,12 @@
         </div>
       </section>
     </main>
+    <div id="drag-mode-hint" style="position:fixed;left:0;top:0;transform:translate(-9999px,-9999px);pointer-events:none;z-index:999;padding:4px 8px;border-radius:8px;border:1px solid rgba(166,189,245,0.45);background:rgba(13,20,36,0.9);color:#edf4ff;font-size:11px;font-weight:600;white-space:nowrap;"></div>
 
     <script type="module">
       import { createPanelController } from "./panel-controller.js";
+
+      const dragModeHintEl = document.getElementById("drag-mode-hint");
 
       function getDraggedPaths(dataTransfer) {
         const files = Array.from(dataTransfer?.files ?? []);
@@ -582,21 +585,97 @@
       });
 
       let panelEventsEnabled = false;
+      let currentDropAction = "copy";
+      let dragSessionActive = false;
+      let dragEndRequested = false;
+      let lastDragActivityAt = 0;
+      let successFinalizeTimer = null;
+      let successFinalizePending = false;
+
+      const DRAG_IDLE_END_MS = 260;
+
+      function normalizeAction(action) {
+        return action === "move" ? "move" : "copy";
+      }
+
+      function actionText(action) {
+        return action === "move" ? "移动" : "复制";
+      }
+
+      function showDragModeHint(clientX, clientY) {
+        dragModeHintEl.textContent = `当前：${actionText(currentDropAction)}（Tab切换）`;
+        dragModeHintEl.style.transform = `translate(${Math.round(clientX + 14)}px, ${Math.round(clientY + 18)}px)`;
+      }
+
+      function hideDragModeHint() {
+        dragModeHintEl.style.transform = "translate(-9999px,-9999px)";
+      }
+
+      function beginDragSession() {
+        if (!dragSessionActive) {
+          dragSessionActive = true;
+          dragEndRequested = false;
+        }
+        lastDragActivityAt = Date.now();
+      }
+
+      function resetDragSession() {
+        dragSessionActive = false;
+        dragEndRequested = false;
+        lastDragActivityAt = 0;
+        successFinalizePending = false;
+        if (successFinalizeTimer !== null) {
+          clearTimeout(successFinalizeTimer);
+          successFinalizeTimer = null;
+        }
+      }
+
+      function endDragSession({ emit = true } = {}) {
+        hideDragModeHint();
+        if (emit && panelEventsEnabled && !dragEndRequested) {
+          dragEndRequested = true;
+          window.panelApi.emitDragEnd();
+        }
+        resetDragSession();
+      }
+
+      function endDragSessionFromGesture() {
+        if (successFinalizePending) {
+          return;
+        }
+        endDragSession();
+      }
 
       window.panelApi.onActive((payload) => {
         panelEventsEnabled = Boolean(payload?.enabled);
+        if (!panelEventsEnabled) {
+          endDragSession({ emit: false });
+        }
+      });
+
+      window.panelApi.onDropAction((payload) => {
+        currentDropAction = normalizeAction(payload?.action);
+        panelController.setSessionDropAction(currentDropAction);
+      });
+
+      window.panelApi.onReset(() => {
+        endDragSession({ emit: false });
       });
 
       window.panelApi.getActiveState().then((payload) => {
         panelEventsEnabled = Boolean(payload?.enabled);
+        currentDropAction = normalizeAction(payload?.action);
+        panelController.setSessionDropAction(currentDropAction);
       });
 
       window.addEventListener("dragover", (event) => {
         if (!panelEventsEnabled) {
           return;
         }
+        beginDragSession();
         const result = panelController.handleWindowDragOver(event);
         event.preventDefault();
+        showDragModeHint(event.clientX, event.clientY);
         if (event.dataTransfer) {
           event.dataTransfer.dropEffect = result?.dropEffect || "none";
         }
@@ -616,20 +695,27 @@
         }
         const result = panelController.handleWindowDrop(event);
         if (result?.dropped) {
+          hideDragModeHint();
           panelController.showSuccessHint(result.action, result.sourceCount);
-          setTimeout(() => {
-            window.panelApi.emitDragEnd();
+          successFinalizePending = true;
+          if (successFinalizeTimer !== null) {
+            clearTimeout(successFinalizeTimer);
+          }
+          successFinalizeTimer = setTimeout(() => {
+            successFinalizeTimer = null;
+            successFinalizePending = false;
+            endDragSession();
           }, 1500);
           return;
         }
-        window.panelApi.emitDragEnd();
+        endDragSession();
       });
 
       window.addEventListener("dragend", () => {
         if (!panelEventsEnabled) {
           return;
         }
-        window.panelApi.emitDragEnd();
+        endDragSession();
       });
 
       window.addEventListener("dragleave", (event) => {
@@ -640,6 +726,7 @@
           return;
         }
         panelController.handleWindowDragLeave();
+        endDragSessionFromGesture();
       });
 
       window.addEventListener("contextmenu", (event) => {
@@ -647,8 +734,34 @@
           return;
         }
         event.preventDefault();
-        window.panelApi.emitDragEnd();
+        endDragSessionFromGesture();
       });
+
+      window.addEventListener("mouseup", () => {
+        if (!panelEventsEnabled || !dragSessionActive) {
+          return;
+        }
+        endDragSessionFromGesture();
+      }, true);
+
+      window.addEventListener("pointerup", () => {
+        if (!panelEventsEnabled || !dragSessionActive) {
+          return;
+        }
+        endDragSessionFromGesture();
+      }, true);
+
+      setInterval(() => {
+        if (!panelEventsEnabled || !dragSessionActive || successFinalizePending) {
+          return;
+        }
+        if (lastDragActivityAt <= 0) {
+          return;
+        }
+        if (Date.now() - lastDragActivityAt >= DRAG_IDLE_END_MS) {
+          endDragSessionFromGesture();
+        }
+      }, 80);
     </script>
   </body>
 </html>

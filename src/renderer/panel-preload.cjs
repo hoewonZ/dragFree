@@ -11,6 +11,11 @@ contextBridge.exposeInMainWorld("panelApi", {
       handler(payload);
     });
   },
+  onDropAction(handler) {
+    ipcRenderer.on("panel-drop-action", (_event, payload) => {
+      handler(payload);
+    });
+  },
   openConfig() {
     ipcRenderer.send("panel:open-config");
   },

@@ -53,6 +53,7 @@ export function createPanelController({ root }) {
   let panelTileSize = "large";
   let pulseLevel = "high";
   let defaultAction = "copy";
+  let sessionDropAction = null;
   let postQueryCooldownMs = DEFAULT_POST_QUERY_COOLDOWN_MS;
 
   let activePathChain = [];
@@ -183,6 +184,14 @@ export function createPanelController({ root }) {
     node.append(icon, label);
   }
 
+  function normalizeAction(action) {
+    return action === "move" ? "move" : "copy";
+  }
+
+  function getEffectiveDropAction() {
+    return normalizeAction(sessionDropAction ?? defaultAction);
+  }
+
   function applyDropEffect(event, allowDrop) {
     if (!event?.dataTransfer) {
       return;
@@ -191,7 +200,7 @@ export function createPanelController({ root }) {
       event.dataTransfer.dropEffect = "none";
       return;
     }
-    event.dataTransfer.dropEffect = defaultAction === "move" ? "move" : "copy";
+    event.dataTransfer.dropEffect = getEffectiveDropAction() === "move" ? "move" : "copy";
   }
 
   function setBreadcrumbContent(node, text) {
@@ -633,7 +642,8 @@ export function createPanelController({ root }) {
 
     window.panelApi.emitDropTarget({
       targetPath,
-      sourcePaths: getDraggedPathsFromEvent(event)
+      sourcePaths: getDraggedPathsFromEvent(event),
+      action: getEffectiveDropAction()
     });
   }
 
@@ -796,7 +806,7 @@ export function createPanelController({ root }) {
         handleLiveHoverFromEvent(event);
       }
 
-      const dropEffect = defaultAction === "move" ? "move" : "copy";
+      const dropEffect = getEffectiveDropAction() === "move" ? "move" : "copy";
       if (hit.type === "list-empty-zone" || hit.type === "empty-zone") {
         listContainer.classList.add("drop-ready-parent");
         childHint.textContent = "当前空白区域可投放到该目录";
@@ -822,7 +832,7 @@ export function createPanelController({ root }) {
         const sourceCount = getDraggedPathsFromEvent(event).length;
         handleDropToPath(event, hit.targetPath);
         listContainer.classList.remove("drop-ready-parent");
-        return { dropped: true, action: defaultAction, sourceCount };
+        return { dropped: true, action: getEffectiveDropAction(), sourceCount };
       }
 
       listContainer.classList.remove("drop-ready-parent");
@@ -849,6 +859,9 @@ export function createPanelController({ root }) {
         currentPath,
         configuredFoldersCount: folders.length
       };
+    },
+    setSessionDropAction(action) {
+      sessionDropAction = normalizeAction(action);
     },
     showSuccessHint
   };

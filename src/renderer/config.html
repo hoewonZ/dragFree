@@ -767,6 +767,8 @@
           flashSavedTips(pendingChangedFields);
           if (!silent) {
             setStatus("已保存并应用。");
+          } else {
+            setStatus("已写入配置。");
           }
           return true;
         } catch (error) {
