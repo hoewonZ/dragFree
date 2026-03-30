@@ -45,6 +45,13 @@ export const DEFAULT_CONFIG = {
 export const HOTZONE_MIN_WIDTH = 120;
 export const HOTZONE_MIN_HEIGHT = 96;
 
+export function resolveSessionMinSize() {
+  return {
+    widthPx: HOTZONE_MIN_WIDTH,
+    heightPx: HOTZONE_MIN_HEIGHT
+  };
+}
+
 function deepClone(value) {
   return JSON.parse(JSON.stringify(value));
 }

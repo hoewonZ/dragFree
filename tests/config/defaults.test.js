@@ -5,7 +5,8 @@ import {
   DEFAULT_CONFIG,
   HOTZONE_MIN_HEIGHT,
   HOTZONE_MIN_WIDTH,
-  mergeConfig
+  mergeConfig,
+  resolveSessionMinSize
 } from "../../src/main/config-store.js";
 
 test("default config uses copy and immediate expand", () => {
@@ -75,4 +76,18 @@ test("mergeConfig clamps display text size level", () => {
 
   assert.equal(mergedTooSmall.hotzone.displayTextSizeLevel, 0);
   assert.equal(mergedTooLarge.hotzone.displayTextSizeLevel, 9);
+});
+
+test("session min size stays at fixed hotzone minimums", () => {
+  const minFromLargeHotzone = resolveSessionMinSize({ widthPx: 540, heightPx: 420 });
+  const minFromSmallHotzone = resolveSessionMinSize({ widthPx: 120, heightPx: 96 });
+
+  assert.deepEqual(minFromLargeHotzone, {
+    widthPx: HOTZONE_MIN_WIDTH,
+    heightPx: HOTZONE_MIN_HEIGHT
+  });
+  assert.deepEqual(minFromSmallHotzone, {
+    widthPx: HOTZONE_MIN_WIDTH,
+    heightPx: HOTZONE_MIN_HEIGHT
+  });
 });

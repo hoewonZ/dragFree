@@ -20,6 +20,7 @@ import {
   HOTZONE_MIN_WIDTH,
   mergeConfig,
   readConfigFromFile,
+  resolveSessionMinSize,
   writeConfigToFile
 } from "./config-store.js";
 import { DragSessionController } from "./drag-session-controller.js";
@@ -793,10 +794,9 @@ function rebuildOverlayWindow(options = {}) {
 }
 
 function updateSessionMinSize(configHotzone) {
-  const widthPx = Number(configHotzone?.widthPx);
-  const heightPx = Number(configHotzone?.heightPx);
-  sessionMinWidthPx = Math.max(HOTZONE_MIN_WIDTH, Number.isFinite(widthPx) ? Math.round(widthPx) : HOTZONE_MIN_WIDTH);
-  sessionMinHeightPx = Math.max(HOTZONE_MIN_HEIGHT, Number.isFinite(heightPx) ? Math.round(heightPx) : HOTZONE_MIN_HEIGHT);
+  const sessionMinSize = resolveSessionMinSize(configHotzone);
+  sessionMinWidthPx = sessionMinSize.widthPx;
+  sessionMinHeightPx = sessionMinSize.heightPx;
 }
 
 function scheduleHotzonePreviewUpdate() {
