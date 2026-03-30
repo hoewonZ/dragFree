@@ -218,28 +218,47 @@ export function createQuickOpenController({ root }) {
         chip.classList.add("is-root");
       }
 
-      chip.addEventListener("click", async () => {
+      chip.addEventListener("mouseenter", () => {
+        if (index === 0) {
+          setRootItems();
+          return;
+        }
         if (!item.path) {
-          if (index === 0) {
-            setRootItems();
-            return;
-          }
           return;
         }
         clearPendingHover();
-        const localSeq = ++requestSeq;
-        const children = await queryChildren(item.path);
-        if (localSeq !== requestSeq) {
+        const token = `breadcrumb:${index}:${item.path}`;
+        pendingHoverToken = token;
+        pendingHoverTimer = setTimeout(async () => {
+          if (pendingHoverToken !== token) {
+            return;
+          }
+          const localSeq = ++requestSeq;
+          const children = await queryChildren(item.path);
+          if (localSeq !== requestSeq) {
+            return;
+          }
+          if (children.length === 0) {
+            childHint.textContent = `${item.name} 无子目录，点击可直接打开`;
+            childMeta.textContent = "";
+            return;
+          }
+          applyPathChain(activePathChain.slice(0, index));
+          currentItemsSource = "children";
+          currentItems = children;
+          render();
+        }, getHoverDelay());
+      });
+
+      chip.addEventListener("click", () => {
+        if (index === 0) {
+          setRootItems();
           return;
         }
-        if (children.length === 0) {
-          openPath(item.path);
+        if (!item.path) {
           return;
         }
-        applyPathChain(activePathChain.slice(0, index));
-        currentItemsSource = "children";
-        currentItems = children;
-        render();
+        openPath(item.path);
       });
 
       breadcrumbsContainer.appendChild(chip);
@@ -272,29 +291,41 @@ export function createQuickOpenController({ root }) {
       chip.dataset.folderId = item.id;
       setChipContent(chip, item.name);
 
-      chip.addEventListener("click", async () => {
+      chip.addEventListener("mouseenter", () => {
         clearPendingHover();
-        const localSeq = ++requestSeq;
-        const children = await queryChildren(item.path);
-        if (localSeq !== requestSeq) {
-          return;
-        }
-        if (children.length === 0) {
-          openPath(item.path);
-          return;
-        }
+        const token = `path:${item.path}`;
+        pendingHoverToken = token;
+        pendingHoverTimer = setTimeout(async () => {
+          if (pendingHoverToken !== token) {
+            return;
+          }
+          const localSeq = ++requestSeq;
+          const children = await queryChildren(item.path);
+          if (localSeq !== requestSeq) {
+            return;
+          }
+          if (children.length === 0) {
+            childHint.textContent = `${item.name} 无子目录，点击可直接打开`;
+            childMeta.textContent = "";
+            return;
+          }
 
-        const existingIndex = activePathChain.findIndex((entry) => entry.path === item.path);
-        let nextChain;
-        if (existingIndex >= 0) {
-          nextChain = activePathChain.slice(0, existingIndex + 1);
-        } else {
-          nextChain = [...activePathChain, { id: item.id, path: item.path, name: item.name }];
-        }
-        applyPathChain(nextChain);
-        currentItemsSource = "children";
-        currentItems = children;
-        render();
+          const existingIndex = activePathChain.findIndex((entry) => entry.path === item.path);
+          let nextChain;
+          if (existingIndex >= 0) {
+            nextChain = activePathChain.slice(0, existingIndex + 1);
+          } else {
+            nextChain = [...activePathChain, { id: item.id, path: item.path, name: item.name }];
+          }
+          applyPathChain(nextChain);
+          currentItemsSource = "children";
+          currentItems = children;
+          render();
+        }, getHoverDelay());
+      });
+
+      chip.addEventListener("click", () => {
+        openPath(item.path);
       });
 
       listItemsContainer.appendChild(chip);
