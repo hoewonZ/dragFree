@@ -24,12 +24,14 @@ export const DEFAULT_CONFIG = {
   },
   behavior: {
     defaultAction: "copy",
+    interactionMode: "drag",
     openTargetFolderOnDropSuccess: false,
     expandDelayMs: 0,
     maxVisibleChildren: 8,
     breadcrumbSeparator: "/",
     dropPulseConfirmSec: 0.1,
-    hoverFollowupDelaySec: 0.3,
+    hoverFollowupDelaySec: 2,
+    quickOpenHoverDelayMs: 500,
     panelViewMode: "list",
     panelTileSize: "large",
     pulseLevel: "high"
@@ -112,6 +114,8 @@ export function mergeConfig(partial = {}) {
   const panelViewMode = normalizePanelViewMode(partial.behavior?.panelViewMode);
   const panelTileSize = normalizePanelTileSize(partial.behavior?.panelTileSize);
   const pulseLevel = normalizePulseLevel(partial.behavior?.pulseLevel);
+  const interactionMode = normalizeInteractionMode(partial.behavior?.interactionMode);
+  const quickOpenHoverDelayMs = normalizeQuickOpenHoverDelayMs(partial.behavior?.quickOpenHoverDelayMs);
   const openTargetFolderOnDropSuccess =
     typeof partial.behavior?.openTargetFolderOnDropSuccess === "boolean"
       ? partial.behavior.openTargetFolderOnDropSuccess
@@ -148,9 +152,11 @@ export function mergeConfig(partial = {}) {
       openTargetFolderOnDropSuccess,
       dropPulseConfirmSec,
       hoverFollowupDelaySec,
+      quickOpenHoverDelayMs,
       panelViewMode,
       panelTileSize,
-      pulseLevel
+      pulseLevel,
+      interactionMode
     },
     notification: {
       ...DEFAULT_CONFIG.notification,
@@ -176,6 +182,10 @@ function normalizePanelTileSize(value) {
 
 function normalizePulseLevel(value) {
   return "high";
+}
+
+function normalizeInteractionMode(value) {
+  return value === "quick-open" ? "quick-open" : "drag";
 }
 
 function normalizePositiveInt(value, fallback, minValue = 1) {
@@ -273,8 +283,18 @@ function normalizeHoverFollowupDelaySec(value) {
     return DEFAULT_CONFIG.behavior.hoverFollowupDelaySec;
   }
 
-  const clamped = Math.min(1, Math.max(0, parsed));
+  const clamped = Math.min(2, Math.max(0, parsed));
   return Math.round(clamped * 100) / 100;
+}
+
+function normalizeQuickOpenHoverDelayMs(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return DEFAULT_CONFIG.behavior.quickOpenHoverDelayMs;
+  }
+
+  const clamped = Math.min(3000, Math.max(200, parsed));
+  return Math.round(clamped);
 }
 
 function normalizeFolder(item, index) {

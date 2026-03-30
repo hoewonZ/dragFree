@@ -11,11 +11,13 @@ import {
 
 test("default config uses copy and immediate expand", () => {
   assert.equal(DEFAULT_CONFIG.behavior.defaultAction, "copy");
+  assert.equal(DEFAULT_CONFIG.behavior.interactionMode, "drag");
   assert.equal(DEFAULT_CONFIG.behavior.openTargetFolderOnDropSuccess, false);
   assert.equal(DEFAULT_CONFIG.behavior.expandDelayMs, 0);
   assert.equal(DEFAULT_CONFIG.behavior.breadcrumbSeparator, "/");
   assert.equal(DEFAULT_CONFIG.behavior.dropPulseConfirmSec, 0.1);
-  assert.equal(DEFAULT_CONFIG.behavior.hoverFollowupDelaySec, 0.3);
+  assert.equal(DEFAULT_CONFIG.behavior.hoverFollowupDelaySec, 2);
+  assert.equal(DEFAULT_CONFIG.behavior.quickOpenHoverDelayMs, 500);
   assert.equal(DEFAULT_CONFIG.behavior.panelViewMode, "list");
   assert.equal(DEFAULT_CONFIG.behavior.panelTileSize, "large");
   assert.equal(DEFAULT_CONFIG.behavior.pulseLevel, "high");
@@ -76,6 +78,22 @@ test("mergeConfig clamps display text size level", () => {
 
   assert.equal(mergedTooSmall.hotzone.displayTextSizeLevel, 0);
   assert.equal(mergedTooLarge.hotzone.displayTextSizeLevel, 9);
+});
+
+test("mergeConfig normalizes interaction mode", () => {
+  const mergedQuickOpen = mergeConfig({
+    behavior: {
+      interactionMode: "quick-open"
+    }
+  });
+  const mergedInvalid = mergeConfig({
+    behavior: {
+      interactionMode: "invalid-mode"
+    }
+  });
+
+  assert.equal(mergedQuickOpen.behavior.interactionMode, "quick-open");
+  assert.equal(mergedInvalid.behavior.interactionMode, "drag");
 });
 
 test("session min size stays at fixed hotzone minimums", () => {

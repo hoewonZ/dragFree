@@ -33,6 +33,12 @@ contextBridge.exposeInMainWorld("overlayApi", {
   cycleDisplay() {
     return ipcRenderer.invoke("overlay:cycle-display");
   },
+  setInteractionMode(mode) {
+    return ipcRenderer.invoke("overlay:set-interaction-mode", { mode });
+  },
+  emitQuickOpenTrigger(point) {
+    ipcRenderer.send("overlay:quick-open-trigger", point);
+  },
   getPathForFile(file) {
     try {
       return webUtils.getPathForFile(file) || "";

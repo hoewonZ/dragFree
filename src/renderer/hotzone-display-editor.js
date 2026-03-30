@@ -97,6 +97,26 @@
         cursor: default;
       }
 
+      .hotzone-interaction-toggle {
+        min-width: 54px;
+        height: 24px;
+        border: 1px solid rgba(245, 248, 255, 0.38);
+        background: rgba(10, 18, 35, 0.28);
+        color: rgba(245, 248, 255, 0.92);
+        cursor: pointer;
+        padding: 0 6px;
+        font-size: 11px;
+        line-height: 1;
+        border-radius: 8px;
+        pointer-events: auto;
+      }
+
+      .hotzone-interaction-toggle[data-mode="quick-open"] {
+        border-color: rgba(121, 234, 187, 0.55);
+        background: rgba(33, 122, 98, 0.34);
+        color: #d8fff0;
+      }
+
       #mode-toggle {
         display: none !important;
       }
@@ -293,6 +313,13 @@
     textSizeUpBtn.title = "增大文本";
     textSizeUpBtn.setAttribute("data-no-drag", "true");
 
+    const interactionModeBtn = document.createElement("button");
+    interactionModeBtn.type = "button";
+    interactionModeBtn.className = "hotzone-interaction-toggle";
+    interactionModeBtn.textContent = "拖拽模式";
+    interactionModeBtn.title = "切换到快速打开模式";
+    interactionModeBtn.setAttribute("data-no-drag", "true");
+
     const saveBtn = document.createElement("button");
     saveBtn.type = "button";
     saveBtn.className = "hotzone-text-action save";
@@ -328,6 +355,7 @@
     headerLeft.appendChild(displayBtn);
     headerLeft.appendChild(textSizeDownBtn);
     headerLeft.appendChild(textSizeUpBtn);
+    headerLeft.appendChild(interactionModeBtn);
     header.appendChild(headerLeft);
     header.appendChild(actions);
 
@@ -351,7 +379,8 @@
       pinned: true,
       collapsed: false,
       displayCount: 1,
-      textSizeLevel: 0
+      textSizeLevel: 0,
+      interactionMode: "drag"
     };
 
     function renderPinState() {
@@ -368,6 +397,10 @@
       const canIncrease = state.textSizeLevel < maxLevel;
       textSizeDownBtn.dataset.disabled = canDecrease ? "false" : "true";
       textSizeUpBtn.dataset.disabled = canIncrease ? "false" : "true";
+      interactionModeBtn.dataset.mode = state.interactionMode;
+      interactionModeBtn.textContent = state.interactionMode === "quick-open" ? "快开模式" : "拖拽模式";
+      interactionModeBtn.title =
+        state.interactionMode === "quick-open" ? "切换到拖拽模式" : "切换到快速打开模式";
     }
 
     function applyColorStyle() {
@@ -652,6 +685,22 @@
       event.stopPropagation();
     });
 
+    interactionModeBtn.addEventListener("click", async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const nextMode = state.interactionMode === "quick-open" ? "drag" : "quick-open";
+      const result = await overlayApi.setInteractionMode(nextMode);
+      if (result?.ok) {
+        state.interactionMode = result.mode === "quick-open" ? "quick-open" : "drag";
+        renderPinState();
+      }
+    });
+
+    interactionModeBtn.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+
     editor.addEventListener("input", () => {
       state.draft = editor.value;
     });
@@ -677,6 +726,7 @@
         state.pinned = typeof next.pinned === "boolean" ? next.pinned : state.pinned;
         state.collapsed = typeof next.collapsed === "boolean" ? next.collapsed : state.collapsed;
         state.displayCount = Number.isFinite(next.displayCount) ? Math.max(1, Math.round(next.displayCount)) : state.displayCount;
+        state.interactionMode = next.interactionMode === "quick-open" ? "quick-open" : "drag";
 
         if (!state.locked && state.editing) {
           state.editing = false;

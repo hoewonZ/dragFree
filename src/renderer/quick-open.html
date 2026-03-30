@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quick Open</title>
+    <style>
+      :root {
+        --bg: rgba(8, 28, 27, 0.9);
+        --border: rgba(96, 214, 186, 0.24);
+        --text: #ebfffb;
+        --muted: #9dd6ca;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        background: transparent;
+        font-family: "Segoe UI", "PingFang SC", sans-serif;
+      }
+
+      .panel {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        border-radius: 16px;
+        border: 1px solid var(--border);
+        background: var(--bg);
+        box-shadow: 0 14px 45px rgba(1, 14, 12, 0.45);
+        color: var(--text);
+        padding: 14px 14px 12px;
+      }
+
+      .title {
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      .subtitle {
+        margin-top: 4px;
+        font-size: 12px;
+        color: var(--muted);
+        flex: 0 0 auto;
+      }
+
+      .workspace {
+        margin-top: 10px;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        gap: 8px;
+        flex: 1 1 auto;
+        min-height: 0;
+      }
+
+      .breadcrumb-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+        min-height: 30px;
+        max-height: 30px;
+        overflow: hidden;
+      }
+
+      .breadcrumb-chip {
+        border: 1px solid rgba(99, 220, 190, 0.5);
+        background: rgba(44, 124, 106, 0.28);
+        border-radius: 5px;
+        padding: 6px 9px;
+        min-width: 0;
+        max-width: 148px;
+        font-size: 11px;
+        color: #e8fffb;
+        cursor: pointer;
+      }
+
+      .breadcrumb-sep,
+      .breadcrumb-ellipsis {
+        color: rgba(184, 239, 225, 0.72);
+        font-size: 11px;
+      }
+
+      .directory-list {
+        height: 100%;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: 6px 6px 6px 2px;
+        background: rgba(16, 52, 48, 0.32);
+        border-radius: 10px;
+      }
+
+      .folder-row {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 6px;
+      }
+
+      .folder-chip {
+        border: 1px solid rgba(138, 233, 210, 0.42);
+        background: rgba(96, 214, 186, 0.14);
+        border-radius: 10px;
+        padding: 8px 10px;
+        font-size: 12px;
+        color: #ebfffb;
+        min-width: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+      }
+
+      .folder-chip:hover,
+      .breadcrumb-chip:hover {
+        background: rgba(108, 228, 200, 0.24);
+      }
+
+      .chip-icon {
+        font-size: 13px;
+        line-height: 1;
+      }
+
+      .chip-label {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .empty {
+        display: none;
+        border: 1px dashed rgba(130, 228, 205, 0.5);
+        border-radius: 12px;
+        padding: 20px 16px;
+        font-size: 13px;
+        color: #d2fff2;
+        text-align: center;
+      }
+
+      .meta {
+        margin-top: 2px;
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        font-size: 11px;
+        color: #afddd2;
+      }
+
+      .scroll-zone {
+        display: none;
+        position: absolute;
+        left: 10px;
+        right: 10px;
+        height: 32px;
+        line-height: 32px;
+        text-align: center;
+        font-size: 18px;
+        color: rgba(144, 236, 216, 0.7);
+        cursor: pointer;
+        border-radius: 8px;
+        z-index: 10;
+      }
+
+      .scroll-zone.show {
+        display: block;
+      }
+
+      .scroll-zone.top {
+        top: 68px;
+      }
+
+      .scroll-zone.bottom {
+        bottom: 38px;
+      }
+
+      .scroll-zone.active {
+        background: rgba(96, 214, 186, 0.22);
+        color: #d8fff0;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="panel">
+      <div class="title">快速打开</div>
+      <div class="subtitle">右键热区触发，悬停下钻，单击立即打开</div>
+
+      <section class="workspace">
+        <div class="breadcrumb-row" data-breadcrumbs></div>
+        <div class="scroll-zone top" data-scroll-zone="up">↑</div>
+        <div class="directory-list" data-directory-list>
+          <div class="folder-row" data-directory-items></div>
+        </div>
+        <div class="scroll-zone bottom" data-scroll-zone="down">↓</div>
+        <div class="empty" data-empty-state>暂无可展示目录</div>
+      </section>
+
+      <div class="meta">
+        <span data-child-hint>悬停目录 220ms 后查询下一层</span>
+        <span data-child-meta></span>
+      </div>
+    </main>
+
+    <script type="module">
+      import { createQuickOpenController } from "./quick-open-controller.js";
+
+      const scrollZoneUp = document.querySelector("[data-scroll-zone='up']");
+      const scrollZoneDown = document.querySelector("[data-scroll-zone='down']");
+      let scrollZoneTicker = null;
+
+      function startZoneScroll(direction) {
+        if (scrollZoneTicker) {
+          return;
+        }
+        scrollZoneTicker = setInterval(() => {
+          const directoryList = document.querySelector("[data-directory-list]");
+          if (directoryList) {
+            const delta = direction === "down" ? 10 : -10;
+            directoryList.scrollBy({ top: delta, behavior: "auto" });
+          }
+        }, 60);
+      }
+
+      function stopZoneScroll() {
+        if (scrollZoneTicker) {
+          clearInterval(scrollZoneTicker);
+          scrollZoneTicker = null;
+        }
+        if (scrollZoneUp) {
+          scrollZoneUp.classList.remove("active");
+        }
+        if (scrollZoneDown) {
+          scrollZoneDown.classList.remove("active");
+        }
+      }
+
+      if (scrollZoneUp) {
+        scrollZoneUp.addEventListener("mouseenter", () => {
+          scrollZoneUp.classList.add("active");
+          startZoneScroll("up");
+        });
+        scrollZoneUp.addEventListener("mouseleave", stopZoneScroll);
+      }
+
+      if (scrollZoneDown) {
+        scrollZoneDown.addEventListener("mouseenter", () => {
+          scrollZoneDown.classList.add("active");
+          startZoneScroll("down");
+        });
+        scrollZoneDown.addEventListener("mouseleave", stopZoneScroll);
+      }
+
+      const controller = createQuickOpenController({ root: document });
+
+      document.body.addEventListener("mouseleave", () => {
+        controller.close();
+      });
+
+      window.addEventListener("contextmenu", (event) => {
+        event.preventDefault();
+        controller.close();
+      });
+
+      window.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          controller.close();
+        }
+      });
+    </script>
+  </body>
+</html>

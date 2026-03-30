@@ -33,6 +33,7 @@ const __dirname = dirname(__filename);
 let tray = null;
 let configWindow = null;
 let panelWindow = null;
+let quickOpenWindow = null;
 let overlayWindow = null;
 let config = null;
 let dragController = null;
@@ -64,6 +65,8 @@ let panelTabShortcutRegistered = false;
 
 const PANEL_WIDTH = 560;
 const PANEL_HEIGHT = 620;
+const QUICK_OPEN_WIDTH = 560;
+const QUICK_OPEN_HEIGHT = 620;
 const HOTZONE_PREVIEW_THROTTLE_MS = 33;
 const DISPLAY_TOPOLOGY_DEBOUNCE_MS = 220;
 const HOTZONE_DEBUG_LOG_NAME = "hotzone-debug.log";
@@ -366,6 +369,48 @@ function ensurePanelWindow() {
   return panelWindow;
 }
 
+function ensureQuickOpenWindow() {
+  if (quickOpenWindow && !quickOpenWindow.isDestroyed()) {
+    return quickOpenWindow;
+  }
+
+  quickOpenWindow = new BrowserWindow({
+    width: QUICK_OPEN_WIDTH,
+    height: QUICK_OPEN_HEIGHT,
+    show: false,
+    frame: false,
+    resizable: false,
+    movable: false,
+    minimizable: false,
+    maximizable: false,
+    hasShadow: true,
+    transparent: true,
+    alwaysOnTop: true,
+    autoHideMenuBar: true,
+    focusable: false,
+    skipTaskbar: true,
+    icon: getWindowIconPath(),
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      preload: join(__dirname, "../renderer/quick-open-preload.cjs")
+    }
+  });
+
+  quickOpenWindow.setIgnoreMouseEvents(false, { forward: true });
+  ensureWindowTopmost(quickOpenWindow);
+
+  quickOpenWindow.loadFile(join(__dirname, "../renderer/quick-open.html"));
+  quickOpenWindow.webContents.on("did-finish-load", () => {
+    quickOpenWindow.webContents.send("quick-open-config", {
+      folders: config.folders,
+      behavior: config.behavior
+    });
+  });
+
+  return quickOpenWindow;
+}
+
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
@@ -389,6 +434,9 @@ function positionPanelForCurrentEdge(displayBounds, cursorX = null) {
 }
 
 function handleDragEvent(event) {
+  if (getInteractionMode() !== "drag") {
+    return;
+  }
   if (event.type === "panel-open") {
     const panel = ensurePanelWindow();
     setDragSessionDropAction(config.behavior.defaultAction);
@@ -575,6 +623,7 @@ function getOverlayConfigPayload(hotzone, overlayBounds, headerHeight = HOTZONE_
     virtualBounds: getVirtualDisplayBounds(),
     overlayBounds,
     hotzone,
+    interactionMode: getInteractionMode(),
     headerHeight,
     collapsed: overlayCollapsed,
     minWidthPx: sessionMinWidthPx,
@@ -799,6 +848,60 @@ function updateSessionMinSize(configHotzone) {
   sessionMinHeightPx = sessionMinSize.heightPx;
 }
 
+function hideQuickOpenWindow() {
+  if (!quickOpenWindow || quickOpenWindow.isDestroyed()) {
+    return;
+  }
+  quickOpenWindow.hide();
+  quickOpenWindow.webContents.send("quick-open-reset");
+}
+
+function showQuickOpenWindow(anchorPoint = null) {
+  const panel = ensureQuickOpenWindow();
+  const cursorPoint = anchorPoint && Number.isFinite(anchorPoint.x) && Number.isFinite(anchorPoint.y)
+    ? { x: Math.round(anchorPoint.x), y: Math.round(anchorPoint.y) }
+    : screen.getCursorScreenPoint();
+  const display = screen.getDisplayNearestPoint(cursorPoint);
+  positionQuickOpenForCurrentEdge(display.bounds, cursorPoint.x);
+  panel.webContents.send("quick-open-config", {
+    folders: config.folders,
+    behavior: config.behavior
+  });
+  panel.showInactive();
+  ensureWindowTopmost(panel);
+}
+
+function getInteractionMode() {
+  return config?.behavior?.interactionMode === "quick-open" ? "quick-open" : "drag";
+}
+
+function applyInteractionModeSwitch(mode) {
+  const nextMode = mode === "quick-open" ? "quick-open" : "drag";
+  if (nextMode === "quick-open") {
+    finalizeDropUiState();
+    hideQuickOpenWindow();
+    return nextMode;
+  }
+
+  hideQuickOpenWindow();
+  return nextMode;
+}
+
+function positionQuickOpenForCurrentEdge(displayBounds, cursorX = null) {
+  const panel = ensureQuickOpenWindow();
+  const panelWidth = QUICK_OPEN_WIDTH;
+  const preferredCenterX = Number.isFinite(cursorX)
+    ? cursorX
+    : displayBounds.x + displayBounds.width / 2;
+  const rawX = preferredCenterX - panelWidth / 2;
+  const minX = displayBounds.x;
+  const maxX = displayBounds.x + displayBounds.width - panelWidth;
+  const x = Math.round(clamp(rawX, minX, maxX));
+  const y = Math.round(displayBounds.y + 4);
+
+  panel.setBounds({ x, y, width: QUICK_OPEN_WIDTH, height: QUICK_OPEN_HEIGHT });
+}
+
 function scheduleHotzonePreviewUpdate() {
   const now = Date.now();
   const elapsed = now - hotzonePreviewLastAppliedAt;
@@ -1017,6 +1120,9 @@ async function showOpenDirectoryDialogForContext({ title }) {
 }
 
 ipcMain.on("overlay:drag-position", (_event, payload) => {
+  if (getInteractionMode() !== "drag") {
+    return;
+  }
   if (!overlayEventsEnabled) {
     return;
   }
@@ -1030,6 +1136,9 @@ ipcMain.on("overlay:drag-position", (_event, payload) => {
 });
 
 ipcMain.on("overlay:drag-end", () => {
+  if (getInteractionMode() !== "drag") {
+    return;
+  }
   if (!overlayEventsEnabled) {
     return;
   }
@@ -1042,6 +1151,9 @@ ipcMain.on("overlay:drag-end", () => {
 });
 
 ipcMain.on("panel:drag-position", (_event, payload) => {
+  if (getInteractionMode() !== "drag") {
+    return;
+  }
   if (!panelEventsEnabled) {
     return;
   }
@@ -1055,10 +1167,16 @@ ipcMain.on("panel:drag-position", (_event, payload) => {
 });
 
 ipcMain.on("panel:drag-end", () => {
+  if (getInteractionMode() !== "drag") {
+    return;
+  }
   finalizeDropUiState({ keepCreateFolderContext: pendingCreateFolderContext !== null });
 });
 
 ipcMain.on("panel:drop-target", async (_event, payload) => {
+  if (getInteractionMode() !== "drag") {
+    return;
+  }
   const targetPath = payload?.targetPath;
   const isCreateFolderTarget = targetPath === "__CREATE_FOLDER__";
 
@@ -1316,12 +1434,81 @@ ipcMain.on("panel:open-config", () => {
   }
 });
 
+ipcMain.handle("overlay:set-interaction-mode", async (_event, payload) => {
+  const requested = payload?.mode === "quick-open" ? "quick-open" : "drag";
+  try {
+    const appliedMode = applyInteractionModeSwitch(requested);
+    config = mergeConfig({
+      ...config,
+      behavior: {
+        ...config.behavior,
+        interactionMode: appliedMode,
+        expandDelayMs: 0
+      }
+    });
+    markConfigDirty("overlay_set_interaction_mode");
+    createOrUpdateOverlayWindow({ forceRendererSync: true });
+    if (panelWindow && !panelWindow.isDestroyed()) {
+      panelWindow.webContents.send("panel-config", {
+        folders: config.folders,
+        behavior: config.behavior
+      });
+    }
+    if (quickOpenWindow && !quickOpenWindow.isDestroyed()) {
+      quickOpenWindow.webContents.send("quick-open-config", {
+        folders: config.folders,
+        behavior: config.behavior
+      });
+    }
+    return { ok: true, mode: appliedMode };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "切换模式失败"
+    };
+  }
+});
+
+ipcMain.on("overlay:quick-open-trigger", (_event, payload) => {
+  if (getInteractionMode() !== "quick-open") {
+    return;
+  }
+  const anchorPoint = {
+    x: Number(payload?.x),
+    y: Number(payload?.y)
+  };
+  showQuickOpenWindow(anchorPoint);
+});
+
+ipcMain.on("quick-open:close", () => {
+  hideQuickOpenWindow();
+});
+
+ipcMain.handle("quick-open:open-path", async (_event, targetPath) => {
+  if (typeof targetPath !== "string" || targetPath.length === 0) {
+    return { ok: false, error: "invalid_path" };
+  }
+  try {
+    const result = await shell.openPath(targetPath);
+    if (result) {
+      return { ok: false, error: result };
+    }
+    hideQuickOpenWindow();
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "open_failed"
+    };
+  }
+});
+
 ipcMain.handle("panel:get-active", async () => ({
   enabled: panelEventsEnabled,
   action: getActiveDropAction()
 }));
 
-ipcMain.handle("panel:list-children", async (_event, folderPath) => {
+async function listChildrenForPath(folderPath) {
   if (typeof folderPath !== "string" || folderPath.length === 0) {
     return [];
   }
@@ -1338,6 +1525,14 @@ ipcMain.handle("panel:list-children", async (_event, folderPath) => {
   } catch {
     return [];
   }
+}
+
+ipcMain.handle("panel:list-children", async (_event, folderPath) => {
+  return listChildrenForPath(folderPath);
+});
+
+ipcMain.handle("folders:list-children", async (_event, folderPath) => {
+  return listChildrenForPath(folderPath);
 });
 
 ipcMain.handle("config:get", async () => ({
@@ -1393,6 +1588,12 @@ ipcMain.handle("config:save", async (_event, nextConfig) => {
     createOrUpdateOverlayWindow();
     if (panelWindow && !panelWindow.isDestroyed()) {
       panelWindow.webContents.send("panel-config", {
+        folders: config.folders,
+        behavior: config.behavior
+      });
+    }
+    if (quickOpenWindow && !quickOpenWindow.isDestroyed()) {
+      quickOpenWindow.webContents.send("quick-open-config", {
         folders: config.folders,
         behavior: config.behavior
       });
@@ -1762,6 +1963,9 @@ app.on("before-quit", () => {
 
 app.on("will-quit", () => {
   unregisterPanelTabShortcut();
+  if (quickOpenWindow && !quickOpenWindow.isDestroyed()) {
+    quickOpenWindow.destroy();
+  }
   globalShortcut.unregisterAll();
 });
 

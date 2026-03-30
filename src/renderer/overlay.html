@@ -228,6 +228,7 @@
       let collapsed = false;
       let minWidthPx = MIN_WIDTH;
       let minHeightPx = MIN_HEIGHT;
+      let interactionMode = "drag";
       let hotzoneState = {
         edge: "top",
         displayId: null,
@@ -272,7 +273,8 @@
               color: hotzoneState.color,
               textColor: hotzoneState.displayTextColor,
               textBold: hotzoneState.displayTextBold,
-              textSizeLevel: hotzoneState.displayTextSizeLevel
+              textSizeLevel: hotzoneState.displayTextSizeLevel,
+              interactionMode
             });
             return { ok: true, text: hotzoneState.displayText };
           }
@@ -650,6 +652,7 @@
         overlayBounds = payload.overlayBounds ?? overlayBounds;
         headerHeight = Math.max(0, Math.round(Number(payload.headerHeight) || 0));
         collapsed = payload.collapsed === true;
+        interactionMode = payload.interactionMode === "quick-open" ? "quick-open" : "drag";
         minWidthPx = Math.max(MIN_WIDTH, Math.round(Number(payload.minWidthPx) || MIN_WIDTH));
         minHeightPx = Math.max(MIN_HEIGHT, Math.round(Number(payload.minHeightPx) || MIN_HEIGHT));
         hotzone.style.top = `${headerHeight}px`;
@@ -697,10 +700,26 @@
           textColor: hotzoneState.displayTextColor,
           textBold: hotzoneState.displayTextBold,
           textSizeLevel: hotzoneState.displayTextSizeLevel,
+          interactionMode,
           pinned: hotzoneState.pinned === true,
           collapsed,
           displayCount: Number.isFinite(payload.displayCount) ? payload.displayCount : 1
         });
+      });
+
+      window.addEventListener("contextmenu", (event) => {
+        if (interactionMode !== "quick-open") {
+          return;
+        }
+        if (collapsed || isEditing) {
+          return;
+        }
+        if (event.clientY <= headerHeight) {
+          return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        window.overlayApi.emitQuickOpenTrigger({ x: event.screenX, y: event.screenY });
       });
 
       window.addEventListener("dragover", (event) => {
