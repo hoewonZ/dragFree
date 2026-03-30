@@ -640,11 +640,17 @@ export function createPanelController({ root }) {
       return;
     }
 
-    window.panelApi.emitDropTarget({
+    const payload = {
       targetPath,
       sourcePaths: getDraggedPathsFromEvent(event),
       action: getEffectiveDropAction()
-    });
+    };
+
+    if (targetPath === "__CREATE_FOLDER__") {
+      payload.createFolderParentPath = typeof currentPath === "string" && currentPath.length > 0 ? currentPath : "";
+    }
+
+    window.panelApi.emitDropTarget(payload);
   }
 
   function resolveDropHit(event) {

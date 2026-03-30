@@ -1055,7 +1055,7 @@ ipcMain.on("panel:drag-position", (_event, payload) => {
 });
 
 ipcMain.on("panel:drag-end", () => {
-  finalizeDropUiState();
+  finalizeDropUiState({ keepCreateFolderContext: pendingCreateFolderContext !== null });
 });
 
 ipcMain.on("panel:drop-target", async (_event, payload) => {
@@ -1063,10 +1063,20 @@ ipcMain.on("panel:drop-target", async (_event, payload) => {
   const isCreateFolderTarget = targetPath === "__CREATE_FOLDER__";
 
   if (isCreateFolderTarget) {
-    const result = await showOpenDirectoryDialogForContext({ title: "选择新建文件夹的位置" });
+    const preferredParentPath =
+      typeof payload?.createFolderParentPath === "string" && payload.createFolderParentPath.trim().length > 0
+        ? payload.createFolderParentPath.trim()
+        : "";
 
-    if (result.canceled || result.filePaths.length === 0) {
-      return;
+    let selectedParentPath = preferredParentPath;
+    if (!selectedParentPath) {
+      const result = await showOpenDirectoryDialogForContext({ title: "选择新建文件夹的位置" });
+
+      if (result.canceled || result.filePaths.length === 0) {
+        return;
+      }
+
+      selectedParentPath = result.filePaths[0];
     }
 
     const sourcePathsForCreate =
@@ -1075,11 +1085,11 @@ ipcMain.on("panel:drop-target", async (_event, payload) => {
         : currentDragPaths;
 
     pendingCreateFolderContext = {
-      parentPath: result.filePaths[0],
+      parentPath: selectedParentPath,
       sourcePaths: sourcePathsForCreate,
       action: inferAction(payload?.action ?? getActiveDropAction())
     };
-    showNewFolderWindow(result.filePaths[0]);
+    showNewFolderWindow(selectedParentPath);
     return;
   }
 
@@ -1161,6 +1171,11 @@ ipcMain.on("new-folder:cancel", () => {
 
 ipcMain.on("new-folder:submit", async (_event, folderName) => {
   if (!pendingCreateFolderContext) {
+    if (newFolderWindow && !newFolderWindow.isDestroyed()) {
+      newFolderWindow.webContents.send("new-folder:conflict", {
+        message: "拖拽会话已结束，请重新拖拽后再试。"
+      });
+    }
     return;
   }
 
@@ -1277,11 +1292,13 @@ async function settleUiThenOpenTargetFolder(targetPath, routeResult) {
   await openTargetFolderAfterDropIfNeeded(targetPath, routeResult);
 }
 
-function finalizeDropUiState({ closeFolderWindow = false } = {}) {
+function finalizeDropUiState({ closeFolderWindow = false, keepCreateFolderContext = false } = {}) {
   if (closeFolderWindow) {
     closeNewFolderWindow();
   }
-  pendingCreateFolderContext = null;
+  if (!keepCreateFolderContext) {
+    pendingCreateFolderContext = null;
+  }
   if (dragController) {
     dragController.endDrag();
   }
