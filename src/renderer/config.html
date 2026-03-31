@@ -19,10 +19,12 @@
         box-sizing: border-box;
       }
 
+      html,
       body {
         margin: 0;
-        padding: 20px;
-        min-height: 100vh;
+        padding: 10px;
+        height: 100vh;
+        overflow: hidden;
         font-family: "Segoe UI", "PingFang SC", sans-serif;
         background: linear-gradient(150deg, #eef4ff 0%, var(--bg) 55%, #f9f7ff 100%);
         color: var(--text);
@@ -32,12 +34,13 @@
         background: var(--card);
         border: 1px solid #dfe6f4;
         border-radius: 16px;
-        padding: 22px;
+        padding: 12px;
         box-shadow: 0 12px 30px rgba(23, 32, 51, 0.08);
-        min-height: calc(100vh - 40px);
+        height: calc(100vh - 20px);
+        overflow: hidden;
         display: flex;
         flex-direction: column;
-        gap: 14px;
+        gap: 8px;
       }
 
       h1 {
@@ -48,9 +51,13 @@
       .top-bar {
         display: flex;
         align-items: center;
-        justify-content: space-between;
+        justify-content: flex-start;
         gap: 10px;
-        margin-bottom: 2px;
+        margin-bottom: 8px;
+      }
+
+      #add-folder {
+        margin-left: auto;
       }
 
       .gear-btn {
@@ -132,48 +139,25 @@
         border: 1px solid #cadeff;
       }
 
-      .layout {
-        display: grid;
-        gap: 18px;
-        flex: 1 1 auto;
-        min-height: 0;
-      }
-
-      .layout > .group {
-        min-height: 0;
-        display: flex;
-        flex-direction: column;
-      }
-
-      .modal-mask {
-        position: fixed;
-        inset: 0;
-        background: rgba(12, 20, 36, 0.35);
-        display: none;
-        align-items: center;
-        justify-content: center;
-        z-index: 50;
-      }
-
-      .modal-mask.show {
-        display: flex;
-      }
-
-      .modal-card {
-        width: min(560px, calc(100vw - 40px));
-        max-height: calc(100vh - 40px);
-        overflow: auto;
-        background: #fff;
+      .settings-panel {
+        margin-top: 10px;
         border: 1px solid #d7e2f8;
         border-radius: 12px;
-        padding: 16px;
-        box-shadow: 0 14px 40px rgba(18, 29, 52, 0.22);
+        padding: 14px;
+        background: #ffffff;
+        display: none;
+        max-height: 42vh;
+        overflow: auto;
+      }
+
+      .settings-panel.show {
+        display: block;
       }
 
       .modal-head {
         display: flex;
         align-items: center;
-        justify-content: flex-start;
+        justify-content: space-between;
         margin-bottom: 12px;
       }
 
@@ -192,26 +176,6 @@
         margin-top: 12px;
         display: flex;
         justify-content: flex-end;
-      }
-
-      .group {
-        border: 1px solid #dfe6f4;
-        border-radius: 12px;
-        padding: 14px;
-        background: #fbfdff;
-      }
-
-      .group h3 {
-        margin: 0;
-        font-size: 14px;
-      }
-
-      .group-head {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-        margin-bottom: 4px;
       }
 
       .title-tip {
@@ -317,42 +281,56 @@
       }
 
       .folder-list {
-        margin-top: 12px;
+        margin-top: 0;
         display: grid;
         grid-template-columns: 1fr;
         grid-auto-rows: min-content;
         align-content: start;
-        gap: 10px;
-        height: 320px;
-        min-height: 320px;
-        max-height: 320px;
+        gap: 6px;
+        flex: 1 1 auto;
+        min-height: 0;
         overflow-y: auto;
-        padding-right: 6px;
-        padding-bottom: 2px;
+        padding: 6px;
+        border: 1px solid #d6e0f5;
+        border-radius: 12px;
+        background: #f6f9ff;
       }
 
       .folder-item {
         border: 1px solid #d6e0f5;
         border-radius: 10px;
-        padding: 8px 10px;
-        background: #f8fbff;
+        padding: 6px 8px;
+        background: #ffffff;
         display: grid;
         grid-template-columns: 1fr auto;
         align-items: center;
         gap: 6px 10px;
-        min-height: 68px;
+        min-height: 48px;
+      }
+
+      .folder-main {
+        grid-column: 1 / 2;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
       }
 
       .folder-name {
+        flex: 0 0 auto;
         font-size: 13px;
         color: #1c2942;
         font-weight: 600;
       }
 
-      .folder-path {
-        font-size: 11px;
+      .folder-path-inline {
+        flex: 1 1 auto;
+        min-width: 0;
+        font-size: 13px;
         color: #6a7892;
-        grid-column: 1 / 2;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       .actions {
@@ -400,10 +378,6 @@
         font-size: 12px;
       }
 
-      .toolbar {
-        margin-top: 8px;
-      }
-
       .muted {
         font-size: 12px;
         color: #5c6d8a;
@@ -434,26 +408,18 @@
   <body>
     <main class="card">
       <div class="top-bar">
-        <h1>dragFree</h1>
-        <button id="open-display-config" class="gear-btn" type="button" title="配置" aria-label="配置">⚙</button>
+        <h3 style="margin: 0">常用文件夹 <span id="folder-added-tip" class="title-tip">已添加</span></h3>
+        <button id="add-folder" class="icon-btn add" type="button" title="添加文件夹" aria-label="添加文件夹">+</button>
+        <button id="open-display-config" class="gear-btn" type="button" title="显示与系统设置" aria-label="显示与系统设置">⚙</button>
       </div>
-
-      <section class="layout">
-        <div class="group">
-          <div class="group-head">
-            <h3>常用文件夹 <span id="folder-added-tip" class="title-tip">已添加</span></h3>
-            <button id="add-folder" class="icon-btn add" type="button" title="添加文件夹" aria-label="添加文件夹">+</button>
-          </div>
-          <div id="folder-list" class="folder-list"></div>
-        </div>
-      </section>
+      <div id="folder-list" class="folder-list"></div>
 
       <p id="save-status" class="muted"></p>
 
-      <div id="display-config-modal" class="modal-mask" role="dialog" aria-modal="true" aria-label="配置">
-        <div class="modal-card">
+      <section id="display-config-modal" class="settings-panel" aria-label="配置">
           <div class="modal-head">
-            <h3>配置</h3>
+            <h3 style="margin: 0">配置</h3>
+            <button id="save-display-config" type="button">收起设置</button>
           </div>
           <div class="modal-section-label">显示设置</div>
           <div class="grid">
@@ -582,11 +548,7 @@
               <span class="changed-tip" data-tip-for="hotzone-debug-log-enabled">已更改</span>
             </label>
           </div>
-          <div class="modal-actions">
-            <button id="save-display-config" type="button">关闭</button>
-          </div>
-        </div>
-      </div>
+      </section>
     </main>
 
     <script type="module">
@@ -697,10 +659,12 @@
 
       function openDisplayConfigModal() {
         displayConfigModalEl.classList.add("show");
+        openDisplayConfigEl.setAttribute("aria-pressed", "true");
       }
 
       function closeDisplayConfigModal() {
         displayConfigModalEl.classList.remove("show");
+        openDisplayConfigEl.setAttribute("aria-pressed", "false");
       }
 
       function resetConfigViewOnWindowShown() {
@@ -874,7 +838,7 @@
         return `folder-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
       }
 
-      function middleEllipsis(value, max = 56) {
+      function middleEllipsis(value, max = 72) {
         if (typeof value !== "string" || value.length <= max) {
           return value;
         }
@@ -897,14 +861,19 @@
           const item = document.createElement("div");
           item.className = "folder-item";
 
+          const main = document.createElement("div");
+          main.className = "folder-main";
+
           const name = document.createElement("div");
           name.className = "folder-name";
           name.textContent = `${index + 1}. ${folder.name}`;
 
           const path = document.createElement("div");
-          path.className = "folder-path";
-          path.textContent = middleEllipsis(folder.path, 58);
-          path.title = folder.path;
+          path.className = "folder-path-inline";
+          path.textContent = typeof folder.path === "string" ? folder.path : "";
+          path.title = typeof folder.path === "string" ? folder.path : "";
+
+          main.append(name, path);
 
           const actions = document.createElement("div");
           actions.className = "actions";
@@ -982,7 +951,7 @@
           });
 
           actions.append(up, down, replace, remove);
-          item.append(name, path, actions);
+          item.append(main, actions);
           folderListEl.appendChild(item);
         });
       }
@@ -1101,6 +1070,10 @@
         });
 
       openDisplayConfigEl.addEventListener("click", () => {
+        if (displayConfigModalEl.classList.contains("show")) {
+          closeDisplayConfigModal();
+          return;
+        }
         openDisplayConfigModal();
       });
 
@@ -1108,15 +1081,6 @@
         const ok = await flushPendingSave({ silent: false });
         if (ok) {
           closeDisplayConfigModal();
-        }
-      });
-
-      displayConfigModalEl.addEventListener("click", async (event) => {
-        if (event.target === displayConfigModalEl) {
-          const ok = await flushPendingSave({ silent: false });
-          if (ok) {
-            closeDisplayConfigModal();
-          }
         }
       });
 
