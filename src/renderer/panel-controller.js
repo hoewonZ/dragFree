@@ -1,5 +1,5 @@
-const HOVER_QUERY_DELAY_MS = 220;
-const DEFAULT_POST_QUERY_COOLDOWN_MS = 300;
+let HOVER_QUERY_DELAY_MS = 220;
+let DEFAULT_POST_QUERY_COOLDOWN_MS = 300;
 const SCROLL_ZONE_SPEED_PX_PER_SEC = 200;
 const SCROLL_ZONE_TICK_MS = 60;
 const SCROLL_ZONE_STEP_PX = Math.max(1, Math.round((SCROLL_ZONE_SPEED_PX_PER_SEC * SCROLL_ZONE_TICK_MS) / 1000));
@@ -763,10 +763,11 @@ export function createPanelController({ root }) {
         ? "medium"
         : "large";
     pulseLevel = payload.behavior?.pulseLevel === "medium" ? "medium" : payload.behavior?.pulseLevel === "low" ? "low" : "high";
-    const followupSec = Number(payload.behavior?.hoverFollowupDelaySec ?? 0.3);
-    postQueryCooldownMs = Number.isFinite(followupSec)
-      ? Math.round(Math.max(0, Math.min(1, followupSec)) * 1000)
-      : DEFAULT_POST_QUERY_COOLDOWN_MS;
+    HOVER_QUERY_DELAY_MS = Math.max(100, Math.min(2000, Number(payload.behavior?.hoverQueryDelayMs ?? 220) || 220));
+    const cooldownSec = Number(payload.behavior?.queryCooldownSec ?? 2);
+    DEFAULT_POST_QUERY_COOLDOWN_MS = Number.isFinite(cooldownSec)
+      ? Math.round(Math.max(0, Math.min(5, cooldownSec)) * 1000)
+      : 2000;
     applyViewModeClass();
     applyPulseLevelClass();
 

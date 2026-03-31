@@ -15,8 +15,8 @@ test("default config uses copy and immediate expand", () => {
   assert.equal(DEFAULT_CONFIG.behavior.openTargetFolderOnDropSuccess, false);
   assert.equal(DEFAULT_CONFIG.behavior.expandDelayMs, 0);
   assert.equal(DEFAULT_CONFIG.behavior.breadcrumbSeparator, "/");
-  assert.equal(DEFAULT_CONFIG.behavior.dropPulseConfirmSec, 0.1);
-  assert.equal(DEFAULT_CONFIG.behavior.hoverFollowupDelaySec, 2);
+  assert.equal(DEFAULT_CONFIG.behavior.hoverQueryDelayMs, 220);
+  assert.equal(DEFAULT_CONFIG.behavior.queryCooldownSec, 2);
   assert.equal(DEFAULT_CONFIG.behavior.quickOpenHoverDelayMs, 500);
   assert.equal(DEFAULT_CONFIG.behavior.panelViewMode, "list");
   assert.equal(DEFAULT_CONFIG.behavior.panelTileSize, "large");

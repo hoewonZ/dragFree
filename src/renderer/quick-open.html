@@ -84,12 +84,15 @@
         position: absolute;
         left: 0;
         right: 0;
-        top: 22px;
-        bottom: 22px;
+        top: 36px;
+        bottom: 36px;
         min-height: 0;
       }
 
       .breadcrumb-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
         border: 1px solid rgba(99, 220, 190, 0.5);
         background: rgba(44, 124, 106, 0.28);
         border-radius: 5px;
@@ -105,6 +108,14 @@
       .breadcrumb-ellipsis {
         color: rgba(184, 239, 225, 0.72);
         font-size: 11px;
+        pointer-events: none;
+      }
+
+      .chip-label {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       .directory-list {

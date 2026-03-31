@@ -29,8 +29,8 @@ export const DEFAULT_CONFIG = {
     expandDelayMs: 0,
     maxVisibleChildren: 8,
     breadcrumbSeparator: "/",
-    dropPulseConfirmSec: 0.1,
-    hoverFollowupDelaySec: 2,
+    hoverQueryDelayMs: 220,
+    queryCooldownSec: 2,
     quickOpenHoverDelayMs: 500,
     panelViewMode: "list",
     panelTileSize: "large",
@@ -109,8 +109,8 @@ export function mergeConfig(partial = {}) {
         .filter((item) => item !== null)
     : DEFAULT_CONFIG.folders;
 
-  const dropPulseConfirmSec = normalizeDropPulseConfirmSec(partial.behavior?.dropPulseConfirmSec);
-  const hoverFollowupDelaySec = normalizeHoverFollowupDelaySec(partial.behavior?.hoverFollowupDelaySec);
+  const hoverQueryDelayMs = normalizeHoverQueryDelayMs(partial.behavior?.hoverQueryDelayMs);
+  const queryCooldownSec = normalizeQueryCooldownSec(partial.behavior?.queryCooldownSec);
   const panelViewMode = normalizePanelViewMode(partial.behavior?.panelViewMode);
   const panelTileSize = normalizePanelTileSize(partial.behavior?.panelTileSize);
   const pulseLevel = normalizePulseLevel(partial.behavior?.pulseLevel);
@@ -150,8 +150,8 @@ export function mergeConfig(partial = {}) {
       ...DEFAULT_CONFIG.behavior,
       ...(partial.behavior ?? {}),
       openTargetFolderOnDropSuccess,
-      dropPulseConfirmSec,
-      hoverFollowupDelaySec,
+      hoverQueryDelayMs,
+      queryCooldownSec,
       quickOpenHoverDelayMs,
       panelViewMode,
       panelTileSize,
@@ -267,23 +267,23 @@ function normalizeDisplayTextSizeLevel(value, fallback) {
   return Math.min(9, Math.max(0, Math.round(parsed)));
 }
 
-function normalizeDropPulseConfirmSec(value) {
+function normalizeHoverQueryDelayMs(value) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) {
-    return DEFAULT_CONFIG.behavior.dropPulseConfirmSec;
+    return DEFAULT_CONFIG.behavior.hoverQueryDelayMs;
   }
 
-  const clamped = Math.min(1, Math.max(0, parsed));
-  return Math.round(clamped * 100) / 100;
+  const clamped = Math.min(2000, Math.max(100, parsed));
+  return Math.round(clamped);
 }
 
-function normalizeHoverFollowupDelaySec(value) {
+function normalizeQueryCooldownSec(value) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) {
-    return DEFAULT_CONFIG.behavior.hoverFollowupDelaySec;
+    return DEFAULT_CONFIG.behavior.queryCooldownSec;
   }
 
-  const clamped = Math.min(2, Math.max(0, parsed));
+  const clamped = Math.min(5, Math.max(0, parsed));
   return Math.round(clamped * 100) / 100;
 }
 
