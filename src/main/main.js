@@ -75,7 +75,6 @@ const HOTZONE_PREVIEW_THROTTLE_MS = 33;
 const DISPLAY_TOPOLOGY_DEBOUNCE_MS = 220;
 const HOTZONE_DEBUG_LOG_NAME = "hotzone-debug.log";
 const HOTZONE_HEADER_HEIGHT = 28;
-const DROP_RESULT_BASELINE_MS = 1500;
 const DROP_RESULT_HINT_VISIBLE_MS = 1500;
 const DRAG_FAIL_LOG_FILE_NAME = "drag_fail_logs";
 
@@ -1329,11 +1328,6 @@ ipcMain.on("panel:drop-target", async (_event, payload) => {
   if (!Array.isArray(sourcePaths) || sourcePaths.length === 0) {
     panelDropRouteInFlight = true;
     try {
-      const elapsedMs = 0;
-      const remainingBaselineMs = Math.max(0, DROP_RESULT_BASELINE_MS - elapsedMs);
-      await new Promise((resolve) => {
-        setTimeout(resolve, remainingBaselineMs);
-      });
       if (panelWindow && !panelWindow.isDestroyed()) {
         panelWindow.webContents.send("panel:drop-result", {
           status: "failed",
@@ -1390,12 +1384,6 @@ ipcMain.on("panel:drop-target", async (_event, payload) => {
         `[dragFree] move verify -> target: ${targetPath}, sourceRemoved: ${moveCheck.sourceRemovedCount}/${moveCheck.checkedCount}, stillExists: ${moveCheck.stillExistsCount}`
       );
     }
-
-    const elapsedMs = Date.now() - dropStartMs;
-    const remainingBaselineMs = Math.max(0, DROP_RESULT_BASELINE_MS - elapsedMs);
-    await new Promise((resolve) => {
-      setTimeout(resolve, remainingBaselineMs);
-    });
 
     if (panelWindow && !panelWindow.isDestroyed()) {
       panelWindow.webContents.send("panel:drop-result", buildDropResultPayload(routeResult, action));
