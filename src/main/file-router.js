@@ -1,5 +1,5 @@
 import { access, copyFile, cp, mkdir, rename, rm, stat } from "node:fs/promises";
-import { join, parse } from "node:path";
+import { basename, join, parse } from "node:path";
 
 async function pathExists(filePath) {
   try {
@@ -60,15 +60,33 @@ async function moveEntry(sourcePath, targetPath, isDirectory) {
   }
 }
 
-export async function routeEntries({ sourcePaths, targetDirectory, action = "copy" }) {
+function emitProgress(onProgress, payload) {
+  if (typeof onProgress !== "function") {
+    return;
+  }
+  try {
+    onProgress(payload);
+  } catch {
+    // ignore renderer/main progress handler failures
+  }
+}
+
+export async function routeEntries({ sourcePaths, targetDirectory, action = "copy", onProgress } = {}) {
   await mkdir(targetDirectory, { recursive: true });
+
+  const total = sourcePaths.length;
+  emitProgress(onProgress, { phase: "start", total, action });
 
   let copiedCount = 0;
   let movedCount = 0;
   let renamedCount = 0;
   const errors = [];
 
-  for (const sourcePath of sourcePaths) {
+  for (let index = 0; index < sourcePaths.length; index++) {
+    const sourcePath = sourcePaths[index];
+    const label = basename(sourcePath);
+    emitProgress(onProgress, { phase: "entry-start", index, total, sourcePath, label });
+
     try {
       const sourceStat = await stat(sourcePath);
       const sourceName = sourcePath.split(/[/\\]/).filter(Boolean).pop() ?? sourcePath;
@@ -85,10 +103,28 @@ export async function routeEntries({ sourcePaths, targetDirectory, action = "cop
         await copyEntry(sourcePath, unique.path, sourceStat.isDirectory());
         copiedCount += 1;
       }
+      emitProgress(onProgress, {
+        phase: "entry-done",
+        index,
+        completed: index + 1,
+        total,
+        sourcePath,
+        label,
+        success: true
+      });
     } catch (error) {
       errors.push({
         sourcePath,
         reason: error instanceof Error ? error.message : "unknown error"
+      });
+      emitProgress(onProgress, {
+        phase: "entry-done",
+        index,
+        completed: index + 1,
+        total,
+        sourcePath,
+        label,
+        success: false
       });
     }
   }

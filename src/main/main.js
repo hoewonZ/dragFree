@@ -45,6 +45,7 @@ let panelEventsEnabled = false;
 let currentDragPaths = [];
 let pendingCreateFolderContext = null;
 let newFolderWindow = null;
+let panelDropRouteInFlight = false;
 let overlayHotzonePreview = null;
 let hotzonePreviewTimer = null;
 let hotzonePreviewLastAppliedAt = 0;
@@ -71,7 +72,8 @@ const HOTZONE_PREVIEW_THROTTLE_MS = 33;
 const DISPLAY_TOPOLOGY_DEBOUNCE_MS = 220;
 const HOTZONE_DEBUG_LOG_NAME = "hotzone-debug.log";
 const HOTZONE_HEADER_HEIGHT = 28;
-const DROP_SUCCESS_CLOSE_DELAY_MS = 1500;
+const DROP_RESULT_BASELINE_MS = 1500;
+const DROP_RESULT_HINT_VISIBLE_MS = 900;
 
 async function initStartupLogger() {
   try {
@@ -1170,8 +1172,57 @@ ipcMain.on("panel:drag-end", () => {
   if (getInteractionMode() !== "drag") {
     return;
   }
+  if (panelDropRouteInFlight) {
+    return;
+  }
   finalizeDropUiState({ keepCreateFolderContext: pendingCreateFolderContext !== null });
 });
+
+function buildDropResultPayload(routeResult, action) {
+  const status = routeResult?.status ?? "cancelled";
+  const isMove = action === "move";
+  if (status === "success") {
+    const n = isMove ? routeResult.movedCount : routeResult.copiedCount;
+    return {
+      status,
+      variant: "success",
+      message: isMove ? `成功移动 ${n} 项` : `成功复制 ${n} 项`
+    };
+  }
+  if (status === "partial-failed") {
+    const ok = (Number(routeResult.copiedCount) || 0) + (Number(routeResult.movedCount) || 0);
+    const err = routeResult.errors?.length ?? 0;
+    return {
+      status,
+      variant: "warning",
+      message: `部分完成：已处理 ${ok} 项，${err} 项失败`
+    };
+  }
+  if (status === "failed") {
+    const err = routeResult.errors?.length ?? 0;
+    return {
+      status,
+      variant: "error",
+      message: `处理失败：${err} 项`
+    };
+  }
+  return {
+    status,
+    variant: "muted",
+    message: "已取消"
+  };
+}
+
+function sendDropProgressToPanel(payload) {
+  if (!panelWindow || panelWindow.isDestroyed()) {
+    return;
+  }
+  try {
+    panelWindow.webContents.send("panel:drop-progress", payload);
+  } catch {
+    // ignore
+  }
+}
 
 ipcMain.on("panel:drop-target", async (_event, payload) => {
   if (getInteractionMode() !== "drag") {
@@ -1242,44 +1293,62 @@ ipcMain.on("panel:drop-target", async (_event, payload) => {
 
   console.info(`[dragFree] drop requested -> target: ${targetPath}, action: ${action}`);
 
-  const result = await routeEntries({
-    sourcePaths,
-    targetDirectory: targetPath,
-    action
-  });
+  const dropStartMs = Date.now();
+  panelDropRouteInFlight = true;
 
-  console.debug("[dragFree] route-result", result);
-  console.info(
-    `[dragFree] drop completed -> target: ${targetPath}, status: ${result.status}, copied: ${result.copiedCount}, moved: ${result.movedCount}, errors: ${result.errors.length}`
-  );
+  let routeResult = null;
 
-  if (action === "move" && (result.status === "success" || result.status === "partial-failed")) {
-    const moveCheck = await verifyMoveOperation(sourcePaths, result);
-    console.info(
-      `[dragFree] move verify -> target: ${targetPath}, sourceRemoved: ${moveCheck.sourceRemovedCount}/${moveCheck.checkedCount}, stillExists: ${moveCheck.stillExistsCount}`
-    );
-  }
-
-  if (result.status === "failed" || result.status === "partial-failed") {
-    if (tray) {
-      tray.displayBalloon({
-        iconType: "error",
-        title: "dragFree",
-        content: `文件处理失败：${result.errors.length} 项` 
-      });
-    }
-  }
-
-  const hasProcessedItems = (Number(result.copiedCount) || 0) + (Number(result.movedCount) || 0) > 0;
-  const shouldDelayClose = result.status === "success" || (result.status === "partial-failed" && hasProcessedItems);
-  if (shouldDelayClose) {
-    await new Promise((resolve) => {
-      setTimeout(resolve, DROP_SUCCESS_CLOSE_DELAY_MS);
+  try {
+    routeResult = await routeEntries({
+      sourcePaths,
+      targetDirectory: targetPath,
+      action,
+      onProgress: (p) => {
+        sendDropProgressToPanel(p);
+      }
     });
-  }
 
-  finalizeDropUiState();
-  await settleUiThenOpenTargetFolder(targetPath, result);
+    console.debug("[dragFree] route-result", routeResult);
+    console.info(
+      `[dragFree] drop completed -> target: ${targetPath}, status: ${routeResult.status}, copied: ${routeResult.copiedCount}, moved: ${routeResult.movedCount}, errors: ${routeResult.errors.length}`
+    );
+
+    if (action === "move" && (routeResult.status === "success" || routeResult.status === "partial-failed")) {
+      const moveCheck = await verifyMoveOperation(sourcePaths, routeResult);
+      console.info(
+        `[dragFree] move verify -> target: ${targetPath}, sourceRemoved: ${moveCheck.sourceRemovedCount}/${moveCheck.checkedCount}, stillExists: ${moveCheck.stillExistsCount}`
+      );
+    }
+
+    if (routeResult.status === "failed" || routeResult.status === "partial-failed") {
+      if (tray) {
+        tray.displayBalloon({
+          iconType: "error",
+          title: "dragFree",
+          content: `文件处理失败：${routeResult.errors.length} 项`
+        });
+      }
+    }
+
+    const elapsedMs = Date.now() - dropStartMs;
+    const remainingBaselineMs = Math.max(0, DROP_RESULT_BASELINE_MS - elapsedMs);
+    await new Promise((resolve) => {
+      setTimeout(resolve, remainingBaselineMs);
+    });
+
+    if (panelWindow && !panelWindow.isDestroyed()) {
+      panelWindow.webContents.send("panel:drop-result", buildDropResultPayload(routeResult, action));
+    }
+
+    await new Promise((resolve) => {
+      setTimeout(resolve, DROP_RESULT_HINT_VISIBLE_MS);
+    });
+
+    finalizeDropUiState();
+    await settleUiThenOpenTargetFolder(targetPath, routeResult);
+  } finally {
+    panelDropRouteInFlight = false;
+  }
 });
 
 ipcMain.on("new-folder:cancel", () => {

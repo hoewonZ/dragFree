@@ -25,6 +25,7 @@
       }
 
       .panel {
+        position: relative;
         width: 100%;
         height: 100%;
         display: flex;
@@ -36,6 +37,47 @@
         color: var(--text);
         padding: 14px 14px 12px;
         animation: slide-down 160ms ease-out;
+      }
+
+      .drop-result-hint {
+        position: absolute;
+        left: 12px;
+        bottom: 10px;
+        max-width: calc(100% - 24px);
+        padding: 6px 10px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.35;
+        pointer-events: none;
+        z-index: 20;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        color: #c8f5d4;
+        background: rgba(20, 48, 32, 0.88);
+        border: 1px solid rgba(120, 200, 150, 0.45);
+      }
+
+      .drop-result-hint.visible {
+        opacity: 1;
+      }
+
+      .drop-result-hint.variant-warning {
+        color: #ffe8c4;
+        background: rgba(48, 36, 12, 0.9);
+        border-color: rgba(220, 180, 90, 0.6);
+      }
+
+      .drop-result-hint.variant-error {
+        color: #ffd4d4;
+        background: rgba(48, 18, 18, 0.9);
+        border-color: rgba(220, 100, 100, 0.55);
+      }
+
+      .drop-result-hint.variant-muted {
+        color: var(--muted);
+        background: rgba(16, 24, 42, 0.88);
+        border-color: rgba(132, 160, 214, 0.35);
       }
 
       .title {
@@ -558,6 +600,7 @@
           <span data-child-meta></span>
         </div>
       </section>
+      <div id="drop-result-hint" class="drop-result-hint" aria-live="polite"></div>
     </main>
     <div id="drag-mode-hint" style="position:fixed;left:0;top:0;transform:translate(-9999px,-9999px);pointer-events:none;z-index:999;padding:4px 8px;border-radius:8px;border:1px solid rgba(166,189,245,0.45);background:rgba(13,20,36,0.9);color:#edf4ff;font-size:11px;font-weight:600;white-space:nowrap;"></div>
 
@@ -565,6 +608,7 @@
       import { createPanelController } from "./panel-controller.js";
 
       const dragModeHintEl = document.getElementById("drag-mode-hint");
+      const dropResultHintEl = document.getElementById("drop-result-hint");
 
       function getDraggedPaths(dataTransfer) {
         const files = Array.from(dataTransfer?.files ?? []);
@@ -591,6 +635,7 @@
       let lastDragActivityAt = 0;
       let successFinalizeTimer = null;
       let successFinalizePending = false;
+      let awaitingMainDropResult = false;
 
       const DRAG_IDLE_END_MS = 260;
 
@@ -600,6 +645,45 @@
 
       function actionText(action) {
         return action === "move" ? "移动" : "复制";
+      }
+
+      function formatDropProgressMessage(p) {
+        if (!p || typeof p !== "object") {
+          return "";
+        }
+        const total = Number(p.total) || 0;
+        const labelFrom = (q) => {
+          const s = typeof q?.label === "string" ? q.label.trim() : "";
+          if (s.length > 0) {
+            return s;
+          }
+          const path = typeof q?.sourcePath === "string" ? q.sourcePath.trim() : "";
+          return path.length > 0 ? path : "";
+        };
+        if (p.phase === "start") {
+          if (total <= 0) {
+            return "正在处理文件…";
+          }
+          return `正在处理文件 0/${total} …`;
+        }
+        if (p.phase === "entry-start") {
+          const i = Number(p.index);
+          const idx = Number.isFinite(i) ? i + 1 : 1;
+          const name = labelFrom(p);
+          if (total > 0) {
+            return name ? `正在处理文件 ${idx}/${total} ${name}…` : `正在处理文件 ${idx}/${total} …`;
+          }
+          return name ? `正在处理文件 ${name}…` : "正在处理文件…";
+        }
+        if (p.phase === "entry-done") {
+          const done = Number(p.completed) || 0;
+          const name = labelFrom(p);
+          if (total > 0) {
+            return name ? `正在处理文件 ${done}/${total} ${name}…` : `正在处理文件 ${done}/${total} …`;
+          }
+          return name ? `正在处理文件 ${name}…` : "正在处理文件…";
+        }
+        return "";
       }
 
       function showDragModeHint(clientX, clientY) {
@@ -612,6 +696,10 @@
       }
 
       function beginDragSession() {
+        if (dropResultHintEl) {
+          dropResultHintEl.textContent = "";
+          dropResultHintEl.classList.remove("visible", "variant-warning", "variant-error", "variant-muted");
+        }
         if (!dragSessionActive) {
           dragSessionActive = true;
           dragEndRequested = false;
@@ -624,6 +712,7 @@
         dragEndRequested = false;
         lastDragActivityAt = 0;
         successFinalizePending = false;
+        awaitingMainDropResult = false;
         if (successFinalizeTimer !== null) {
           clearTimeout(successFinalizeTimer);
           successFinalizeTimer = null;
@@ -640,7 +729,7 @@
       }
 
       function endDragSessionFromGesture() {
-        if (successFinalizePending) {
+        if (successFinalizePending || awaitingMainDropResult) {
           return;
         }
         endDragSession();
@@ -658,7 +747,41 @@
         panelController.setSessionDropAction(currentDropAction);
       });
 
+      window.panelApi.onDropProgress((payload) => {
+        if (!dropResultHintEl) {
+          return;
+        }
+        const msg = formatDropProgressMessage(payload);
+        if (!msg) {
+          return;
+        }
+        dropResultHintEl.textContent = msg;
+        dropResultHintEl.classList.remove("variant-warning", "variant-error");
+        dropResultHintEl.classList.add("visible");
+      });
+
+      window.panelApi.onDropResult((payload) => {
+        if (!dropResultHintEl || !payload || typeof payload.message !== "string") {
+          return;
+        }
+        awaitingMainDropResult = false;
+        dropResultHintEl.textContent = payload.message;
+        dropResultHintEl.classList.remove("variant-warning", "variant-error");
+        if (payload.variant === "warning") {
+          dropResultHintEl.classList.add("variant-warning");
+        } else if (payload.variant === "error") {
+          dropResultHintEl.classList.add("variant-error");
+        } else if (payload.variant === "muted") {
+          dropResultHintEl.classList.add("variant-muted");
+        }
+        dropResultHintEl.classList.add("visible");
+      });
+
       window.panelApi.onReset(() => {
+        if (dropResultHintEl) {
+          dropResultHintEl.textContent = "";
+          dropResultHintEl.classList.remove("visible", "variant-warning", "variant-error", "variant-muted");
+        }
         endDragSession({ emit: false });
       });
 
@@ -696,16 +819,12 @@
         const result = panelController.handleWindowDrop(event);
         if (result?.dropped) {
           hideDragModeHint();
-          panelController.showSuccessHint(result.action, result.sourceCount);
+          awaitingMainDropResult = true;
           successFinalizePending = true;
           if (successFinalizeTimer !== null) {
             clearTimeout(successFinalizeTimer);
-          }
-          successFinalizeTimer = setTimeout(() => {
             successFinalizeTimer = null;
-            successFinalizePending = false;
-            endDragSession();
-          }, 1500);
+          }
           return;
         }
         endDragSession();
@@ -713,6 +832,9 @@
 
       window.addEventListener("dragend", () => {
         if (!panelEventsEnabled) {
+          return;
+        }
+        if (successFinalizePending || awaitingMainDropResult) {
           return;
         }
         endDragSession();
@@ -752,7 +874,7 @@
       }, true);
 
       setInterval(() => {
-        if (!panelEventsEnabled || !dragSessionActive || successFinalizePending) {
+        if (!panelEventsEnabled || !dragSessionActive || successFinalizePending || awaitingMainDropResult) {
           return;
         }
         if (lastDragActivityAt <= 0) {

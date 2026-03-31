@@ -31,6 +31,16 @@ contextBridge.exposeInMainWorld("panelApi", {
   emitDropTarget(payload) {
     ipcRenderer.send("panel:drop-target", payload);
   },
+  onDropResult(handler) {
+    ipcRenderer.on("panel:drop-result", (_event, payload) => {
+      handler(payload);
+    });
+  },
+  onDropProgress(handler) {
+    ipcRenderer.on("panel:drop-progress", (_event, payload) => {
+      handler(payload);
+    });
+  },
   onReset(handler) {
     ipcRenderer.on("panel-reset", () => {
       handler();
