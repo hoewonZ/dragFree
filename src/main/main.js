@@ -30,6 +30,8 @@ import { getHotzoneRect } from "./hotzone.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+const TRAY_BALLOON_TITLE = "dragFree";
+
 let tray = null;
 let configWindow = null;
 let panelWindow = null;
@@ -73,7 +75,7 @@ const DISPLAY_TOPOLOGY_DEBOUNCE_MS = 220;
 const HOTZONE_DEBUG_LOG_NAME = "hotzone-debug.log";
 const HOTZONE_HEADER_HEIGHT = 28;
 const DROP_RESULT_BASELINE_MS = 1500;
-const DROP_RESULT_HINT_VISIBLE_MS = 900;
+const DROP_RESULT_HINT_VISIBLE_MS = 1500;
 
 async function initStartupLogger() {
   try {
@@ -287,6 +289,23 @@ function showConfigWindow() {
   windowRef.focus();
 }
 
+function applyLaunchOnStartupSetting() {
+  const enabled = config?.behavior?.launchOnStartup === true;
+  if (!app.isPackaged) {
+    console.debug("[dragFree] launch on startup: skip applying in development (not packaged)");
+    return;
+  }
+  try {
+    app.setLoginItemSettings({
+      openAtLogin: enabled,
+      path: process.execPath,
+      args: []
+    });
+  } catch (error) {
+    console.warn("[dragFree] setLoginItemSettings failed:", error);
+  }
+}
+
 function createTray() {
   if (tray) {
     return tray;
@@ -299,7 +318,7 @@ function createTray() {
 
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: "Open Config",
+      label: "打开配置",
       click: () => {
         showConfigWindow();
       }
@@ -308,7 +327,7 @@ function createTray() {
       type: "separator"
     },
     {
-      label: "Quit",
+      label: "退出",
       click: () => {
         app.isQuiting = true;
         app.quit();
@@ -461,7 +480,7 @@ function handleDragEvent(event) {
     if (tray) {
       tray.displayBalloon({
         iconType: "warning",
-        title: "dragFree",
+        title: TRAY_BALLOON_TITLE,
         content: "拖拽已取消，已回退为普通拖拽。"
       });
     }
@@ -1274,12 +1293,26 @@ ipcMain.on("panel:drop-target", async (_event, payload) => {
   const action = inferAction(payload?.action ?? getActiveDropAction());
 
   if (!Array.isArray(sourcePaths) || sourcePaths.length === 0) {
-    if (tray) {
-      tray.displayBalloon({
-        iconType: "warning",
-        title: "dragFree",
-        content: "未获取到拖拽文件，未执行复制/移动。"
+    panelDropRouteInFlight = true;
+    try {
+      const elapsedMs = 0;
+      const remainingBaselineMs = Math.max(0, DROP_RESULT_BASELINE_MS - elapsedMs);
+      await new Promise((resolve) => {
+        setTimeout(resolve, remainingBaselineMs);
       });
+      if (panelWindow && !panelWindow.isDestroyed()) {
+        panelWindow.webContents.send("panel:drop-result", {
+          status: "failed",
+          variant: "error",
+          message: "未获取到拖拽文件，未执行复制/移动。"
+        });
+      }
+      await new Promise((resolve) => {
+        setTimeout(resolve, DROP_RESULT_HINT_VISIBLE_MS);
+      });
+      finalizeDropUiState();
+    } finally {
+      panelDropRouteInFlight = false;
     }
     return;
   }
@@ -1318,16 +1351,6 @@ ipcMain.on("panel:drop-target", async (_event, payload) => {
       console.info(
         `[dragFree] move verify -> target: ${targetPath}, sourceRemoved: ${moveCheck.sourceRemovedCount}/${moveCheck.checkedCount}, stillExists: ${moveCheck.stillExistsCount}`
       );
-    }
-
-    if (routeResult.status === "failed" || routeResult.status === "partial-failed") {
-      if (tray) {
-        tray.displayBalloon({
-          iconType: "error",
-          title: "dragFree",
-          content: `文件处理失败：${routeResult.errors.length} 项`
-        });
-      }
     }
 
     const elapsedMs = Date.now() - dropStartMs;
@@ -1396,7 +1419,7 @@ ipcMain.on("new-folder:submit", async (_event, folderName) => {
       if (tray) {
         tray.displayBalloon({
           iconType: "error",
-          title: "dragFree",
+          title: TRAY_BALLOON_TITLE,
           content: `文件处理失败：${result.errors.length} 项`
         });
       }
@@ -1406,7 +1429,7 @@ ipcMain.on("new-folder:submit", async (_event, folderName) => {
     if (tray) {
       tray.displayBalloon({
         iconType: "error",
-        title: "dragFree",
+        title: TRAY_BALLOON_TITLE,
         content: error instanceof Error ? error.message : "新建文件夹失败"
       });
     }
@@ -1654,6 +1677,7 @@ ipcMain.handle("config:save", async (_event, nextConfig) => {
     if (!flushResult.ok) {
       throw new Error("flush_failed");
     }
+    applyLaunchOnStartupSetting();
     createOrUpdateOverlayWindow();
     if (panelWindow && !panelWindow.isDestroyed()) {
       panelWindow.webContents.send("panel-config", {
@@ -1963,6 +1987,8 @@ async function bootstrap() {
   updateSessionMinSize(config.hotzone);
   markConfigPersisted("bootstrap_loaded");
   logStartupStep("bootstrap:config-merge:done");
+
+  applyLaunchOnStartupSetting();
 
   logStartupStep("bootstrap:overlay:init:start");
   createOrUpdateOverlayWindow();

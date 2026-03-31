@@ -69,7 +69,7 @@
       }
 
       .drop-result-hint.variant-error {
-        color: #ffd4d4;
+        color: #ff4444;
         background: rgba(48, 18, 18, 0.9);
         border-color: rgba(220, 100, 100, 0.55);
       }
@@ -766,7 +766,7 @@
         }
         awaitingMainDropResult = false;
         dropResultHintEl.textContent = payload.message;
-        dropResultHintEl.classList.remove("variant-warning", "variant-error");
+        dropResultHintEl.classList.remove("variant-warning", "variant-error", "variant-muted");
         if (payload.variant === "warning") {
           dropResultHintEl.classList.add("variant-warning");
         } else if (payload.variant === "error") {

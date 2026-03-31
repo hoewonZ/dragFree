@@ -21,6 +21,7 @@ test("default config uses copy and immediate expand", () => {
   assert.equal(DEFAULT_CONFIG.behavior.panelViewMode, "list");
   assert.equal(DEFAULT_CONFIG.behavior.panelTileSize, "large");
   assert.equal(DEFAULT_CONFIG.behavior.pulseLevel, "high");
+  assert.equal(DEFAULT_CONFIG.behavior.launchOnStartup, false);
   assert.equal(DEFAULT_CONFIG.hotzone.widthPx, 200);
   assert.equal(DEFAULT_CONFIG.hotzone.heightPx, 300);
   assert.equal(DEFAULT_CONFIG.hotzone.displayId, null);

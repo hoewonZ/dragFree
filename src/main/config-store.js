@@ -34,7 +34,8 @@ export const DEFAULT_CONFIG = {
     quickOpenHoverDelayMs: 500,
     panelViewMode: "list",
     panelTileSize: "large",
-    pulseLevel: "high"
+    pulseLevel: "high",
+    launchOnStartup: false
   },
   notification: {
     onSuccess: false,
@@ -120,6 +121,10 @@ export function mergeConfig(partial = {}) {
     typeof partial.behavior?.openTargetFolderOnDropSuccess === "boolean"
       ? partial.behavior.openTargetFolderOnDropSuccess
       : DEFAULT_CONFIG.behavior.openTargetFolderOnDropSuccess;
+  const launchOnStartup =
+    typeof partial.behavior?.launchOnStartup === "boolean"
+      ? partial.behavior.launchOnStartup
+      : DEFAULT_CONFIG.behavior.launchOnStartup;
   return {
     ...DEFAULT_CONFIG,
     version:
@@ -156,7 +161,8 @@ export function mergeConfig(partial = {}) {
       panelViewMode,
       panelTileSize,
       pulseLevel,
-      interactionMode
+      interactionMode,
+      launchOnStartup
     },
     notification: {
       ...DEFAULT_CONFIG.notification,
