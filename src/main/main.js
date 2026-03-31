@@ -367,6 +367,17 @@ function createConfigWindow() {
   return configWindow;
 }
 
+function sendConfigWindowShown() {
+  if (!configWindow || configWindow.isDestroyed()) {
+    return;
+  }
+  try {
+    configWindow.webContents.send("config:window-shown");
+  } catch {
+    // ignore
+  }
+}
+
 function showConfigWindow() {
   const windowRef = createConfigWindow();
   if (!windowRef || windowRef.isDestroyed()) {
@@ -375,6 +386,7 @@ function showConfigWindow() {
 
   windowRef.show();
   windowRef.focus();
+  sendConfigWindowShown();
 }
 
 function applyLaunchOnStartupSetting() {
@@ -1610,6 +1622,7 @@ ipcMain.on("panel:open-config", () => {
   if (configWindow && !configWindow.isDestroyed()) {
     configWindow.show();
     configWindow.focus();
+    sendConfigWindowShown();
   }
 });
 
@@ -2108,6 +2121,7 @@ if (!hasSingleInstanceLock) {
       }
       windowRef.show();
       windowRef.focus();
+      sendConfigWindowShown();
     }
   });
 

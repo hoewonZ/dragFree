@@ -12,5 +12,10 @@ contextBridge.exposeInMainWorld("configApi", {
   },
   isReady() {
     return true;
+  },
+  onWindowShown(handler) {
+    ipcRenderer.on("config:window-shown", () => {
+      handler();
+    });
   }
 });

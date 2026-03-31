@@ -703,6 +703,12 @@
         displayConfigModalEl.classList.remove("show");
       }
 
+      function resetConfigViewOnWindowShown() {
+        closeDisplayConfigModal();
+        setStatus("");
+        window.scrollTo(0, 0);
+      }
+
       function showFolderAddedTip() {
         folderAddedTipEl.classList.add("show");
         if (folderAddedTipTimer !== null) {
@@ -1116,6 +1122,11 @@
 
       try {
         const api = getApi();
+        if (typeof api.onWindowShown === "function") {
+          api.onWindowShown(() => {
+            resetConfigViewOnWindowShown();
+          });
+        }
         config = await api.getConfig();
         clearChangedTips();
         bindForm();
