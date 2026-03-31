@@ -66,6 +66,7 @@ let sessionMinWidthPx = HOTZONE_MIN_WIDTH;
 let sessionMinHeightPx = HOTZONE_MIN_HEIGHT;
 let dragSessionDropAction = null;
 let panelTabShortcutRegistered = false;
+let modeToggleShortcutRegistered = false;
 
 const PANEL_WIDTH = 560;
 const PANEL_HEIGHT = 620;
@@ -666,6 +667,32 @@ function unregisterPanelTabShortcut() {
   panelTabShortcutRegistered = false;
 }
 
+function registerModeToggleShortcut() {
+  if (modeToggleShortcutRegistered) {
+    return;
+  }
+  const ok = globalShortcut.register("CommandOrControl+Space", () => {
+    if (!config) {
+      return;
+    }
+    const nextMode = getInteractionMode() === "quick-open" ? "drag" : "quick-open";
+    applyInteractionModeFromMain(nextMode, "shortcut_toggle_interaction_mode");
+  });
+  if (!ok) {
+    console.warn("[dragFree] globalShortcut register failed: CommandOrControl+Space");
+    return;
+  }
+  modeToggleShortcutRegistered = true;
+}
+
+function unregisterModeToggleShortcut() {
+  if (!modeToggleShortcutRegistered) {
+    return;
+  }
+  globalShortcut.unregister("CommandOrControl+Space");
+  modeToggleShortcutRegistered = false;
+}
+
 function startDragMonitor() {
   stopDragMonitor();
   dragMonitorTimer = setInterval(() => {
@@ -996,6 +1023,24 @@ function getInteractionMode() {
   return config?.behavior?.interactionMode === "quick-open" ? "quick-open" : "drag";
 }
 
+function syncAllRendererConfigs() {
+  if (!config) {
+    return;
+  }
+  if (panelWindow && !panelWindow.isDestroyed()) {
+    panelWindow.webContents.send("panel-config", {
+      folders: config.folders,
+      behavior: config.behavior
+    });
+  }
+  if (quickOpenWindow && !quickOpenWindow.isDestroyed()) {
+    quickOpenWindow.webContents.send("quick-open-config", {
+      folders: config.folders,
+      behavior: config.behavior
+    });
+  }
+}
+
 function applyInteractionModeSwitch(mode) {
   const nextMode = mode === "quick-open" ? "quick-open" : "drag";
   if (nextMode === "quick-open") {
@@ -1006,6 +1051,33 @@ function applyInteractionModeSwitch(mode) {
 
   hideQuickOpenWindow();
   return nextMode;
+}
+
+function applyInteractionModeFromMain(requested, reason = "shortcut") {
+  const nextRequested = requested === "quick-open" ? "quick-open" : "drag";
+  if (!config) {
+    return { ok: false, error: "config_not_ready" };
+  }
+  try {
+    const appliedMode = applyInteractionModeSwitch(nextRequested);
+    config = mergeConfig({
+      ...config,
+      behavior: {
+        ...config.behavior,
+        interactionMode: appliedMode,
+        expandDelayMs: 0
+      }
+    });
+    markConfigDirty(reason);
+    createOrUpdateOverlayWindow({ forceRendererSync: true });
+    syncAllRendererConfigs();
+    return { ok: true, mode: appliedMode };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "切换模式失败"
+    };
+  }
 }
 
 function positionQuickOpenForCurrentEdge(displayBounds, cursorX = null) {
@@ -1628,37 +1700,7 @@ ipcMain.on("panel:open-config", () => {
 
 ipcMain.handle("overlay:set-interaction-mode", async (_event, payload) => {
   const requested = payload?.mode === "quick-open" ? "quick-open" : "drag";
-  try {
-    const appliedMode = applyInteractionModeSwitch(requested);
-    config = mergeConfig({
-      ...config,
-      behavior: {
-        ...config.behavior,
-        interactionMode: appliedMode,
-        expandDelayMs: 0
-      }
-    });
-    markConfigDirty("overlay_set_interaction_mode");
-    createOrUpdateOverlayWindow({ forceRendererSync: true });
-    if (panelWindow && !panelWindow.isDestroyed()) {
-      panelWindow.webContents.send("panel-config", {
-        folders: config.folders,
-        behavior: config.behavior
-      });
-    }
-    if (quickOpenWindow && !quickOpenWindow.isDestroyed()) {
-      quickOpenWindow.webContents.send("quick-open-config", {
-        folders: config.folders,
-        behavior: config.behavior
-      });
-    }
-    return { ok: true, mode: appliedMode };
-  } catch (error) {
-    return {
-      ok: false,
-      error: error instanceof Error ? error.message : "切换模式失败"
-    };
-  }
+  return applyInteractionModeFromMain(requested, "overlay_set_interaction_mode");
 });
 
 ipcMain.on("overlay:quick-open-trigger", (_event, payload) => {
@@ -2095,6 +2137,8 @@ async function bootstrap() {
   createOrUpdateOverlayWindow();
   logStartupStep("bootstrap:overlay:init:done");
 
+  registerModeToggleShortcut();
+
   setTimeout(() => {
     logStartupStep("bootstrap:deferred-init:start");
     createConfigWindow();
@@ -2160,6 +2204,7 @@ app.on("before-quit", () => {
 
 app.on("will-quit", () => {
   unregisterPanelTabShortcut();
+  unregisterModeToggleShortcut();
   if (quickOpenWindow && !quickOpenWindow.isDestroyed()) {
     quickOpenWindow.destroy();
   }

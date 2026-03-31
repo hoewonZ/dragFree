@@ -155,7 +155,7 @@
         position: absolute;
         z-index: 8;
         overflow: hidden;
-        pointer-events: none;
+        pointer-events: auto;
         display: none;
       }
 
@@ -163,7 +163,8 @@
         width: 100%;
         height: 100%;
         box-sizing: border-box;
-        overflow: hidden;
+        overflow-y: auto;
+        overflow-x: hidden;
         line-height: 1.42;
         text-align: left;
         color: var(--hotzone-text-color, rgba(255, 255, 255, 0.95));
@@ -182,16 +183,13 @@
       }
 
       #hotzone-text-scroll.readonly {
-        display: -webkit-box;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        display: block;
       }
 
       #hotzone-text-scroll::-webkit-scrollbar,
       #hotzone-text-editor::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
+        width: 6px;
+        height: 6px;
       }
 
       #hotzone-text-scroll::-webkit-scrollbar-track,
@@ -204,7 +202,12 @@
         border-radius: 999px;
         border: 2px solid transparent;
         background-clip: padding-box;
-        background: var(--hotzone-scrollbar-color, rgba(70, 126, 255, 0.58));
+        background: var(--hotzone-scrollbar-color, rgba(70, 126, 255, 0.26));
+      }
+
+      #hotzone-text-scroll:hover::-webkit-scrollbar-thumb,
+      #hotzone-text-editor:hover::-webkit-scrollbar-thumb {
+        background: var(--hotzone-scrollbar-color, rgba(70, 126, 255, 0.42));
       }
 
       #hotzone-text-editor {
@@ -400,7 +403,9 @@
       interactionModeBtn.dataset.mode = state.interactionMode;
       interactionModeBtn.textContent = state.interactionMode === "quick-open" ? "快开模式" : "拖拽模式";
       interactionModeBtn.title =
-        state.interactionMode === "quick-open" ? "切换到拖拽模式" : "切换到快速打开模式";
+        state.interactionMode === "quick-open"
+          ? "切换到拖拽模式（快捷键：Ctrl+Space）"
+          : "切换到快速打开模式（快捷键：Ctrl+Space）";
     }
 
     function applyColorStyle() {
@@ -408,7 +413,7 @@
       const r = Number.parseInt(hex.slice(0, 2), 16);
       const g = Number.parseInt(hex.slice(2, 4), 16);
       const b = Number.parseInt(hex.slice(4, 6), 16);
-      const rgba = `rgba(${r}, ${g}, ${b}, 0.58)`;
+      const rgba = `rgba(${r}, ${g}, ${b}, 0.32)`;
       displayScroll.style.setProperty("--hotzone-scrollbar-color", rgba);
       editor.style.setProperty("--hotzone-scrollbar-color", rgba);
       editor.style.setProperty("--hotzone-editor-bg", `rgba(${r}, ${g}, ${b}, 0.2)`);
@@ -453,23 +458,13 @@
     function renderDisplay(rect) {
       const normalized = normalizeText(state.text);
       displayScroll.textContent = normalized;
-      const compact = state.widthPx <= minWidth || state.heightPx <= minHeight;
-      displayScroll.classList.add("readonly");
-      displayScroll.classList.toggle("compact", compact);
-      if (compact) {
-        displayScroll.style.removeProperty("-webkit-line-clamp");
-      } else {
-        const lineHeightPx = 17;
-        const availableHeight = Math.max(17, Math.floor((rect?.height ?? 80) - 12));
-        const lineClamp = Math.max(1, Math.floor(availableHeight / lineHeightPx));
-        displayScroll.style.setProperty("-webkit-line-clamp", String(lineClamp));
-      }
+      displayScroll.classList.remove("readonly");
+      displayScroll.classList.remove("compact");
+      displayScroll.style.removeProperty("-webkit-line-clamp");
 
       requestAnimationFrame(() => {
-        const isTruncated = compact
-          ? displayScroll.scrollWidth > displayScroll.clientWidth + 1
-          : displayScroll.scrollHeight > displayScroll.clientHeight + 1;
-        displayScroll.title = isTruncated ? normalized : "";
+        const isOverflowing = displayScroll.scrollHeight > displayScroll.clientHeight + 1;
+        displayScroll.title = isOverflowing ? normalized : "";
       });
 
       displayViewport.style.display = state.enabled ? "block" : "none";
