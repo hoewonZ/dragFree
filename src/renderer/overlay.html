@@ -171,6 +171,11 @@
         cursor: nwse-resize;
       }
 
+      #hotzone[data-text-editing="true"] .resize-hit {
+        pointer-events: none !important;
+        cursor: default;
+      }
+
       body.editable #editor-layer,
       body.interacting #editor-layer {
         opacity: 1;
@@ -471,6 +476,9 @@
         if (!isEditorEnabled()) {
           return;
         }
+        if (type === "resize" && hotzone.dataset.textEditing === "true") {
+          return;
+        }
         isFileDragging = false;
         interaction = {
           type,
@@ -580,6 +588,13 @@
           return;
         }
 
+        if (interaction.type === "resize" && hotzone.dataset.textEditing === "true") {
+          releaseCapturedPointer();
+          interaction = null;
+          updateEditorVisibility();
+          return;
+        }
+
         const dx = Math.round(event.screenX - interaction.startScreenX);
         const dy = Math.round(event.screenY - interaction.startScreenY);
 
@@ -631,6 +646,9 @@
             return;
           }
           if (!isEditorEnabled()) {
+            return;
+          }
+          if (hotzone.dataset.textEditing === "true") {
             return;
           }
           event.preventDefault();
