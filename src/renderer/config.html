@@ -177,6 +177,17 @@
         margin-bottom: 12px;
       }
 
+      .modal-section-label {
+        margin: 0 0 10px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #2f4677;
+      }
+
+      .modal-section-label.spaced {
+        margin-top: 18px;
+      }
+
       .modal-actions {
         margin-top: 12px;
         display: flex;
@@ -424,20 +435,10 @@
     <main class="card">
       <div class="top-bar">
         <h1>dragFree</h1>
-        <button id="open-display-config" class="gear-btn" type="button" title="显示配置" aria-label="显示配置">⚙</button>
+        <button id="open-display-config" class="gear-btn" type="button" title="配置" aria-label="配置">⚙</button>
       </div>
 
       <section class="layout">
-        <div class="group">
-          <div class="group-head">
-            <h3>应用</h3>
-          </div>
-          <label class="toggle-row">
-            <input id="launch-on-startup" type="checkbox" />
-            <span>开机自启动（建议将程序放到固定目录后再开启）</span>
-            <span class="changed-tip" data-tip-for="launch-on-startup">已更改</span>
-          </label>
-        </div>
         <div class="group">
           <div class="group-head">
             <h3>常用文件夹 <span id="folder-added-tip" class="title-tip">已添加</span></h3>
@@ -449,11 +450,12 @@
 
       <p id="save-status" class="muted"></p>
 
-      <div id="display-config-modal" class="modal-mask" role="dialog" aria-modal="true" aria-label="显示配置">
+      <div id="display-config-modal" class="modal-mask" role="dialog" aria-modal="true" aria-label="配置">
         <div class="modal-card">
           <div class="modal-head">
-            <h3>显示配置</h3>
+            <h3>配置</h3>
           </div>
+          <div class="modal-section-label">显示设置</div>
           <div class="grid">
             <div>
               <span class="label-row">
@@ -562,6 +564,24 @@
               </select>
             </label>
           </div>
+          <div class="modal-section-label spaced">系统设置</div>
+          <div class="grid">
+            <label class="toggle-row" style="grid-column: 1 / -1">
+              <input id="launch-on-startup" type="checkbox" />
+              <span>开机自启动（建议将程序放到固定目录后再开启）</span>
+              <span class="changed-tip" data-tip-for="launch-on-startup">已更改</span>
+            </label>
+            <label class="toggle-row" style="grid-column: 1 / -1; align-items: flex-start">
+              <input id="hotzone-debug-log-enabled" type="checkbox" />
+              <span>
+                启用 hotzone 调试日志（hotzone-debug.log）
+                <span class="muted" style="display: block; margin-top: 4px; font-weight: 400; font-size: 12px">
+                  建议关闭；仅在排查热区/显示问题时开启，会增加磁盘写入。
+                </span>
+              </span>
+              <span class="changed-tip" data-tip-for="hotzone-debug-log-enabled">已更改</span>
+            </label>
+          </div>
           <div class="modal-actions">
             <button id="save-display-config" type="button">关闭</button>
           </div>
@@ -589,6 +609,7 @@
       const defaultActionEl = document.getElementById("default-action");
       const openTargetFolderOnSuccessEl = document.getElementById("open-target-folder-on-success");
       const launchOnStartupEl = document.getElementById("launch-on-startup");
+      const hotzoneDebugLogEnabledEl = document.getElementById("hotzone-debug-log-enabled");
       const panelViewModeEl = document.getElementById("panel-view-mode");
       const panelTileSizeWrapEl = document.getElementById("tile-size-wrap");
       const panelTileSizeEl = document.getElementById("panel-tile-size");
@@ -726,7 +747,8 @@
           hotzone: {
             ...source.hotzone,
             ...collectHotzoneDraft(source.hotzone),
-            edge: "top"
+            edge: "top",
+            hotzoneDebugLogEnabled: hotzoneDebugLogEnabledEl.checked
           },
           behavior: {
             ...source.behavior,
@@ -973,6 +995,7 @@
         defaultActionEl.value = config.behavior?.defaultAction === "move" ? "move" : "copy";
         openTargetFolderOnSuccessEl.checked = config.behavior?.openTargetFolderOnDropSuccess === true;
         launchOnStartupEl.checked = config.behavior?.launchOnStartup === true;
+        hotzoneDebugLogEnabledEl.checked = config.hotzone?.hotzoneDebugLogEnabled === true;
         panelViewModeEl.value =
           config.behavior?.panelViewMode === "tile"
             ? "tile"
@@ -1000,6 +1023,7 @@
         defaultActionEl,
         openTargetFolderOnSuccessEl,
         launchOnStartupEl,
+        hotzoneDebugLogEnabledEl,
         panelViewModeEl,
         panelTileSizeEl
       ].forEach((el) => {
@@ -1021,7 +1045,7 @@
           if (el === panelViewModeEl) {
             syncTileSizeVisibility();
           }
-          if (el === defaultActionEl || el === launchOnStartupEl) {
+          if (el === defaultActionEl || el === launchOnStartupEl || el === hotzoneDebugLogEnabledEl) {
             void flushPendingSave({ silent: true });
           } else {
             scheduleAutoSave();

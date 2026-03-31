@@ -56,6 +56,7 @@ let startupLogFilePath = null;
 let startupStartMs = 0;
 let startupOverlayLoadedLogged = false;
 let hotzoneDebugLogFilePath = null;
+let hotzoneDebugLogSessionOpened = false;
 let configDirty = false;
 let configPersisted = true;
 let quitFlushInProgress = false;
@@ -76,6 +77,29 @@ const HOTZONE_DEBUG_LOG_NAME = "hotzone-debug.log";
 const HOTZONE_HEADER_HEIGHT = 28;
 const DROP_RESULT_BASELINE_MS = 1500;
 const DROP_RESULT_HINT_VISIBLE_MS = 1500;
+const DRAG_FAIL_LOG_FILE_NAME = "drag_fail_logs";
+
+async function appendDragFailRecords(errors) {
+  if (!Array.isArray(errors) || errors.length === 0) {
+    return;
+  }
+  try {
+    const logDir = join(app.getPath("userData"), "dragfree", "logs");
+    await mkdir(logDir, { recursive: true });
+    const filePath = join(logDir, DRAG_FAIL_LOG_FILE_NAME);
+    const modeLabel = getInteractionMode() === "quick-open" ? "快开" : "拖拽";
+    const lines = errors.map((e) => {
+      const sourcePath = typeof e.sourcePath === "string" ? e.sourcePath : "";
+      const fileName = sourcePath ? basename(sourcePath) : "(未知)";
+      const reason = typeof e.reason === "string" ? e.reason : "unknown";
+      const ts = new Date().toISOString();
+      return `${ts} 模式:${modeLabel} 文件:${fileName} 原因:${reason} 源路径:${sourcePath}\n`;
+    });
+    await appendFile(filePath, lines.join(""), "utf8");
+  } catch (error) {
+    console.warn("[dragFree] appendDragFailRecords failed:", error);
+  }
+}
 
 async function initStartupLogger() {
   try {
@@ -90,13 +114,23 @@ async function initStartupLogger() {
   }
 }
 
-async function initHotzoneDebugLogger() {
+async function syncHotzoneDebugLoggerFromConfig() {
+  const enabled = config?.hotzone?.hotzoneDebugLogEnabled === true;
+  if (!enabled) {
+    hotzoneDebugLogFilePath = null;
+    hotzoneDebugLogSessionOpened = false;
+    return;
+  }
   try {
     const logDir = join(app.getPath("userData"), "dragfree", "logs");
     await mkdir(logDir, { recursive: true });
-    hotzoneDebugLogFilePath = join(logDir, HOTZONE_DEBUG_LOG_NAME);
-    const sessionHeader = `\n=== hotzone session ${new Date().toISOString()} (packaged=${app.isPackaged}) ===\n`;
-    await appendFile(hotzoneDebugLogFilePath, sessionHeader, "utf8");
+    const filePath = join(logDir, HOTZONE_DEBUG_LOG_NAME);
+    if (!hotzoneDebugLogSessionOpened) {
+      const sessionHeader = `\n=== hotzone session ${new Date().toISOString()} (packaged=${app.isPackaged}) ===\n`;
+      await appendFile(filePath, sessionHeader, "utf8");
+      hotzoneDebugLogSessionOpened = true;
+    }
+    hotzoneDebugLogFilePath = filePath;
   } catch {
     hotzoneDebugLogFilePath = null;
   }
@@ -1341,6 +1375,10 @@ ipcMain.on("panel:drop-target", async (_event, payload) => {
       }
     });
 
+    if (routeResult.errors.length > 0) {
+      await appendDragFailRecords(routeResult.errors);
+    }
+
     console.debug("[dragFree] route-result", routeResult);
     console.info(
       `[dragFree] drop completed -> target: ${targetPath}, status: ${routeResult.status}, copied: ${routeResult.copiedCount}, moved: ${routeResult.movedCount}, errors: ${routeResult.errors.length}`
@@ -1414,6 +1452,10 @@ ipcMain.on("new-folder:submit", async (_event, folderName) => {
     });
     dropResult = result;
     shouldOpenTarget = true;
+
+    if (result.errors.length > 0) {
+      await appendDragFailRecords(result.errors);
+    }
 
     if (result.status === "failed" || result.status === "partial-failed") {
       if (tray) {
@@ -1672,6 +1714,7 @@ ipcMain.handle("config:save", async (_event, nextConfig) => {
     });
     config = mergedRuntime;
     overlayHotzonePreview = config.hotzone;
+    await syncHotzoneDebugLoggerFromConfig();
     markConfigDirty("config_save_runtime");
     const flushResult = await flushRuntimeConfigToDisk("config_save_flush");
     if (!flushResult.ok) {
@@ -1966,7 +2009,6 @@ function closeNewFolderWindow() {
 
 async function bootstrap() {
   await initStartupLogger();
-  await initHotzoneDebugLogger();
   logStartupStep("bootstrap:start");
   const userDataPath = app.getPath("userData");
   configFilePath = join(userDataPath, "dragfree", "config.json");
@@ -1985,6 +2027,7 @@ async function bootstrap() {
     }
   });
   updateSessionMinSize(config.hotzone);
+  await syncHotzoneDebugLoggerFromConfig();
   markConfigPersisted("bootstrap_loaded");
   logStartupStep("bootstrap:config-merge:done");
 

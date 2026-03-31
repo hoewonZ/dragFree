@@ -20,7 +20,8 @@ export const DEFAULT_CONFIG = {
     displayTextBold: false,
     displayTextSizeLevel: 0,
     cancelRegionPx: 48,
-    debugVisible: true
+    debugVisible: true,
+    hotzoneDebugLogEnabled: false
   },
   behavior: {
     defaultAction: "copy",
@@ -103,6 +104,10 @@ export function mergeConfig(partial = {}) {
     typeof partial.hotzone?.debugVisible === "boolean"
       ? partial.hotzone.debugVisible
       : DEFAULT_CONFIG.hotzone.debugVisible;
+  const hotzoneDebugLogEnabled =
+    typeof partial.hotzone?.hotzoneDebugLogEnabled === "boolean"
+      ? partial.hotzone.hotzoneDebugLogEnabled
+      : DEFAULT_CONFIG.hotzone.hotzoneDebugLogEnabled;
 
   const folders = Array.isArray(partial.folders)
     ? partial.folders
@@ -149,7 +154,8 @@ export function mergeConfig(partial = {}) {
       displayTextBold,
       displayTextSizeLevel,
       cancelRegionPx,
-      debugVisible
+      debugVisible,
+      hotzoneDebugLogEnabled
     },
     behavior: {
       ...DEFAULT_CONFIG.behavior,

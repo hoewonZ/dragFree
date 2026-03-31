@@ -36,6 +36,7 @@ test("default config uses copy and immediate expand", () => {
   assert.equal(DEFAULT_CONFIG.hotzone.displayTextColor, "#f5f8ff");
   assert.equal(DEFAULT_CONFIG.hotzone.displayTextBold, false);
   assert.equal(DEFAULT_CONFIG.hotzone.displayTextSizeLevel, 0);
+  assert.equal(DEFAULT_CONFIG.hotzone.hotzoneDebugLogEnabled, false);
   assert.equal(DEFAULT_CONFIG.notification.onSuccess, false);
   assert.equal(DEFAULT_CONFIG.notification.onCancelled, true);
   assert.equal(DEFAULT_CONFIG.notification.onFailed, true);
