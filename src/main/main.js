@@ -78,6 +78,59 @@ const HOTZONE_HEADER_HEIGHT = 28;
 const DROP_RESULT_HINT_VISIBLE_MS = 1500;
 const DRAG_FAIL_LOG_FILE_NAME = "drag_fail_logs";
 
+function getDragErrorZhMessage(code) {
+  switch (code) {
+    case "EACCES":
+    case "EPERM":
+      return "没有权限访问（请以管理员运行或检查文件/目录权限）";
+    case "EBUSY":
+      return "文件被占用（请关闭正在使用该文件的程序后重试）";
+    case "ENOENT":
+      return "源文件不存在或已被移动/删除（可能在拖拽过程中发生变化）";
+    case "ENOTDIR":
+      return "目标路径不是文件夹";
+    case "EISDIR":
+      return "目标是文件夹，无法按文件方式写入";
+    case "ENOTEMPTY":
+    case "EEXIST":
+      return "目标已存在且无法覆盖（或目录非空）";
+    case "EINVAL":
+      return "路径或文件名无效";
+    case "ENAMETOOLONG":
+      return "路径过长（Windows 路径长度限制）";
+    case "EMFILE":
+      return "打开文件过多（请稍后重试）";
+    case "ENOSPC":
+      return "磁盘空间不足";
+    case "EROFS":
+      return "目标磁盘为只读";
+    case "EXDEV":
+      return "跨磁盘移动（已自动改为复制后删除源文件）";
+    default:
+      return "";
+  }
+}
+
+function summarizeDragErrors(errors) {
+  if (!Array.isArray(errors) || errors.length === 0) {
+    return "";
+  }
+  const first = errors[0] && typeof errors[0] === "object" ? errors[0] : null;
+  const code = typeof first?.code === "string" ? first.code : "";
+  const zh = getDragErrorZhMessage(code);
+  const reason = typeof first?.reason === "string" ? first.reason : "";
+  if (zh && code) {
+    return `${zh}（${code}）`;
+  }
+  if (code) {
+    return `错误码：${code}`;
+  }
+  if (reason) {
+    return `原因：${reason}`;
+  }
+  return "";
+}
+
 async function appendDragFailRecords(errors) {
   if (!Array.isArray(errors) || errors.length === 0) {
     return;
@@ -90,9 +143,11 @@ async function appendDragFailRecords(errors) {
     const lines = errors.map((e) => {
       const sourcePath = typeof e.sourcePath === "string" ? e.sourcePath : "";
       const fileName = sourcePath ? basename(sourcePath) : "(未知)";
+      const code = typeof e.code === "string" ? e.code : "";
+      const zh = getDragErrorZhMessage(code);
       const reason = typeof e.reason === "string" ? e.reason : "unknown";
       const ts = new Date().toISOString();
-      return `${ts} 模式:${modeLabel} 文件:${fileName} 原因:${reason} 源路径:${sourcePath}\n`;
+      return `${ts} 模式:${modeLabel} 文件:${fileName} 错误码:${code || "-"} 中文:${zh || "-"} 原因:${reason} 源路径:${sourcePath}\n`;
     });
     await appendFile(filePath, lines.join(""), "utf8");
   } catch (error) {
@@ -1244,18 +1299,20 @@ function buildDropResultPayload(routeResult, action) {
   if (status === "partial-failed") {
     const ok = (Number(routeResult.copiedCount) || 0) + (Number(routeResult.movedCount) || 0);
     const err = routeResult.errors?.length ?? 0;
+    const hint = summarizeDragErrors(routeResult.errors);
     return {
       status,
       variant: "warning",
-      message: `部分完成：已处理 ${ok} 项，${err} 项失败`
+      message: hint ? `部分完成：已处理 ${ok} 项，${err} 项失败（${hint}）` : `部分完成：已处理 ${ok} 项，${err} 项失败`
     };
   }
   if (status === "failed") {
     const err = routeResult.errors?.length ?? 0;
+    const hint = summarizeDragErrors(routeResult.errors);
     return {
       status,
       variant: "error",
-      message: `处理失败：${err} 项`
+      message: hint ? `处理失败：${err} 项（${hint}）` : `处理失败：${err} 项`
     };
   }
   return {

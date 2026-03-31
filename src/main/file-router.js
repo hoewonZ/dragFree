@@ -113,8 +113,11 @@ export async function routeEntries({ sourcePaths, targetDirectory, action = "cop
         success: true
       });
     } catch (error) {
+      const code =
+        error && typeof error === "object" && typeof error.code === "string" && error.code.length > 0 ? error.code : "";
       errors.push({
         sourcePath,
+        code,
         reason: error instanceof Error ? error.message : "unknown error"
       });
       emitProgress(onProgress, {
