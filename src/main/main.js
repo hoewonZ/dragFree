@@ -76,6 +76,9 @@ const HOTZONE_PREVIEW_THROTTLE_MS = 33;
 const DISPLAY_TOPOLOGY_DEBOUNCE_MS = 220;
 const HOTZONE_DEBUG_LOG_NAME = "hotzone-debug.log";
 const HOTZONE_HEADER_HEIGHT = 28;
+const HOTZONE_TAB_RAIL_WIDTH = 24;
+const HOTZONE_TAB_RAIL_GAP = 8;
+const HOTZONE_TAB_RAIL_TOTAL_WIDTH = HOTZONE_TAB_RAIL_WIDTH + HOTZONE_TAB_RAIL_GAP;
 const DROP_RESULT_HINT_VISIBLE_MS = 1500;
 const DRAG_FAIL_LOG_FILE_NAME = "drag_fail_logs";
 
@@ -765,17 +768,20 @@ function getVirtualDisplayBounds() {
   };
 }
 
-function getOverlayConfigPayload(hotzone, overlayBounds, headerHeight = HOTZONE_HEADER_HEIGHT) {
+function getOverlayConfigPayload(hotzone, overlayBounds, hotzoneBounds, headerHeight = HOTZONE_HEADER_HEIGHT) {
   return {
     displayBounds: activeDisplayBounds,
     virtualBounds: getVirtualDisplayBounds(),
     overlayBounds,
+    hotzoneBounds,
     hotzone,
     interactionMode: getInteractionMode(),
     headerHeight,
     collapsed: overlayCollapsed,
     minWidthPx: sessionMinWidthPx,
     minHeightPx: sessionMinHeightPx,
+    tabRailWidth: HOTZONE_TAB_RAIL_WIDTH,
+    tabRailGap: HOTZONE_TAB_RAIL_GAP,
     displayCount: screen.getAllDisplays().length
   };
 }
@@ -828,6 +834,13 @@ function createOrUpdateOverlayWindow(options = {}) {
     hotzoneRect = clampHotzoneRectForHeader(display.bounds, getHotzoneRect(display.bounds, nextHotzone));
   }
 
+  const minHotzoneX = display.bounds.x + HOTZONE_TAB_RAIL_TOTAL_WIDTH;
+  const maxHotzoneX = display.bounds.x + display.bounds.width - hotzoneRect.width;
+  hotzoneRect = {
+    ...hotzoneRect,
+    x: Math.round(clamp(hotzoneRect.x, minHotzoneX, Math.max(minHotzoneX, maxHotzoneX)))
+  };
+
   nextHotzone = {
     ...nextHotzone,
     xPx: hotzoneRect.x,
@@ -860,11 +873,17 @@ function createOrUpdateOverlayWindow(options = {}) {
   const overlayY = hotzoneRect.y - HOTZONE_HEADER_HEIGHT;
   const effectiveHeaderHeight = HOTZONE_HEADER_HEIGHT;
   const overlayHeight = overlayCollapsed ? Math.max(1, effectiveHeaderHeight) : hotzoneRect.height + effectiveHeaderHeight;
-  const overlayBounds = {
+  const hotzoneBounds = {
     x: hotzoneRect.x,
     y: overlayY,
     width: hotzoneRect.width,
     height: overlayHeight
+  };
+  const overlayBounds = {
+    x: hotzoneBounds.x - HOTZONE_TAB_RAIL_TOTAL_WIDTH,
+    y: hotzoneBounds.y,
+    width: hotzoneBounds.width + HOTZONE_TAB_RAIL_TOTAL_WIDTH,
+    height: hotzoneBounds.height
   };
 
   appendHotzoneDebug("overlay_window_update", {
@@ -876,6 +895,7 @@ function createOrUpdateOverlayWindow(options = {}) {
     selectedDisplayId: getDisplayId(display),
     activeDisplayBounds: display.bounds,
     overlayBounds,
+    hotzoneBounds,
     headerHeight: effectiveHeaderHeight,
     collapsed: overlayCollapsed,
     hotzone: {
@@ -902,10 +922,10 @@ function createOrUpdateOverlayWindow(options = {}) {
 
     if (!previewOnly) {
       recreateDragController();
-      overlayWindow.webContents.send("drag-config", getOverlayConfigPayload(nextHotzone, overlayBounds, effectiveHeaderHeight));
+      overlayWindow.webContents.send("drag-config", getOverlayConfigPayload(nextHotzone, overlayBounds, hotzoneBounds, effectiveHeaderHeight));
     } else if (boundsChanged || geometryChanged || forceRendererSync) {
       recreateDragController();
-      overlayWindow.webContents.send("drag-config", getOverlayConfigPayload(nextHotzone, overlayBounds, effectiveHeaderHeight));
+      overlayWindow.webContents.send("drag-config", getOverlayConfigPayload(nextHotzone, overlayBounds, hotzoneBounds, effectiveHeaderHeight));
     }
     applyOverlayPinnedState(nextHotzone.pinned === true);
     return;
@@ -946,7 +966,7 @@ function createOrUpdateOverlayWindow(options = {}) {
   setPanelEventsEnabled(false);
 
   overlayWindow.webContents.on("did-finish-load", () => {
-    overlayWindow.webContents.send("drag-config", getOverlayConfigPayload(nextHotzone, overlayBounds, effectiveHeaderHeight));
+    overlayWindow.webContents.send("drag-config", getOverlayConfigPayload(nextHotzone, overlayBounds, hotzoneBounds, effectiveHeaderHeight));
     if (deferShowUntilReady) {
       setHotzoneEnabled(overlayEventsEnabled);
     }

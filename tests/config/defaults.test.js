@@ -33,6 +33,10 @@ test("default config uses copy and immediate expand", () => {
   assert.equal(DEFAULT_CONFIG.hotzone.titleBarColor, "#0c1220");
   assert.equal(DEFAULT_CONFIG.hotzone.pinned, true);
   assert.equal(DEFAULT_CONFIG.hotzone.displayText, "拖动文件到这里，或双击这里试试");
+  assert.equal(Array.isArray(DEFAULT_CONFIG.hotzone.textTabs), true);
+  assert.equal(DEFAULT_CONFIG.hotzone.textTabs.length, 1);
+  assert.equal(DEFAULT_CONFIG.hotzone.textTabs[0].id, "tab-1");
+  assert.equal(DEFAULT_CONFIG.hotzone.activeTextTabId, "tab-1");
   assert.equal(DEFAULT_CONFIG.hotzone.displayTextColor, "#f5f8ff");
   assert.equal(DEFAULT_CONFIG.hotzone.displayTextBold, false);
   assert.equal(DEFAULT_CONFIG.hotzone.displayTextSizeLevel, 0);
@@ -96,6 +100,23 @@ test("mergeConfig normalizes interaction mode", () => {
 
   assert.equal(mergedQuickOpen.behavior.interactionMode, "quick-open");
   assert.equal(mergedInvalid.behavior.interactionMode, "drag");
+});
+
+test("mergeConfig normalizes hotzone text tabs and active tab", () => {
+  const merged = mergeConfig({
+    hotzone: {
+      displayText: "旧文案",
+      textTabs: [
+        { id: "", text: "A" },
+        { id: "tab-b", text: "B" }
+      ],
+      activeTextTabId: "missing-id"
+    }
+  });
+  assert.equal(merged.hotzone.textTabs.length, 2);
+  assert.equal(merged.hotzone.textTabs[0].id, "tab-1");
+  assert.equal(merged.hotzone.activeTextTabId, "tab-1");
+  assert.equal(merged.hotzone.displayText, "A");
 });
 
 test("session min size stays at fixed hotzone minimums", () => {

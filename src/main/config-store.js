@@ -16,6 +16,13 @@ export const DEFAULT_CONFIG = {
     titleBarColor: "#0c1220",
     pinned: true,
     displayText: "拖动文件到这里，或双击这里试试",
+    textTabs: [
+      {
+        id: "tab-1",
+        text: "拖动文件到这里，或双击这里试试"
+      }
+    ],
+    activeTextTabId: "tab-1",
     displayTextColor: "#f5f8ff",
     displayTextBold: false,
     displayTextSizeLevel: 0,
@@ -84,6 +91,12 @@ export function mergeConfig(partial = {}) {
   const titleBarColor = normalizeHexColor(partial.hotzone?.titleBarColor, DEFAULT_CONFIG.hotzone.titleBarColor);
   const pinned = typeof partial.hotzone?.pinned === "boolean" ? partial.hotzone.pinned : DEFAULT_CONFIG.hotzone.pinned;
   const displayText = normalizeDisplayText(partial.hotzone?.displayText, DEFAULT_CONFIG.hotzone.displayText);
+  const { textTabs, activeTextTabId, activeText } = normalizeHotzoneTextTabs({
+    textTabs: partial.hotzone?.textTabs,
+    activeTextTabId: partial.hotzone?.activeTextTabId,
+    displayText,
+    fallbackText: DEFAULT_CONFIG.hotzone.displayText
+  });
   const displayTextColor = normalizeHexColor(
     partial.hotzone?.displayTextColor,
     DEFAULT_CONFIG.hotzone.displayTextColor
@@ -149,7 +162,9 @@ export function mergeConfig(partial = {}) {
       color,
       titleBarColor,
       pinned,
-      displayText,
+      displayText: activeText,
+      textTabs,
+      activeTextTabId,
       displayTextColor,
       displayTextBold,
       displayTextSizeLevel,
@@ -268,6 +283,40 @@ function normalizeDisplayText(value, fallback) {
   }
 
   return trimmed.slice(0, 500);
+}
+
+function normalizeHotzoneTextTabs({ textTabs, activeTextTabId, displayText, fallbackText }) {
+  const fallback = normalizeDisplayText(fallbackText, DEFAULT_CONFIG.hotzone.displayText);
+  const inputTabs = Array.isArray(textTabs) ? textTabs : [];
+  const normalizedTabs = inputTabs
+    .map((item, index) => normalizeTextTab(item, index))
+    .filter((item) => item !== null);
+  if (normalizedTabs.length === 0) {
+    const singleText = normalizeDisplayText(displayText, fallback);
+    return {
+      textTabs: [{ id: "tab-1", text: singleText }],
+      activeTextTabId: "tab-1",
+      activeText: singleText
+    };
+  }
+  const activeId = typeof activeTextTabId === "string" && activeTextTabId.trim().length > 0
+    ? activeTextTabId.trim()
+    : normalizedTabs[0].id;
+  const active = normalizedTabs.find((item) => item.id === activeId) ?? normalizedTabs[0];
+  return {
+    textTabs: normalizedTabs,
+    activeTextTabId: active.id,
+    activeText: active.text
+  };
+}
+
+function normalizeTextTab(item, index) {
+  if (!item || typeof item !== "object") {
+    return null;
+  }
+  const id = typeof item.id === "string" && item.id.trim().length > 0 ? item.id.trim() : `tab-${index + 1}`;
+  const text = normalizeDisplayText(item.text, DEFAULT_CONFIG.hotzone.displayText);
+  return { id, text };
 }
 
 function normalizeDisplayTextSizeLevel(value, fallback) {

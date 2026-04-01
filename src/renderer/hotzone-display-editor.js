@@ -4,6 +4,8 @@
   const TEXT_SIZE_MIN_PX = 12;
   const TEXT_SIZE_STEP_PX = 4;
   const TEXT_SIZE_LEVEL_COUNT = 10;
+  const TAB_LONG_PRESS_MS = 520;
+  const TAB_MAX_COUNT = 8;
 
   function ensureStyle() {
     if (document.getElementById(STYLE_ID)) {
@@ -119,6 +121,64 @@
 
       #mode-toggle {
         display: none !important;
+      }
+
+      #hotzone-tab-list {
+        display: inline-flex;
+        flex-direction: column;
+        gap: 6px;
+        pointer-events: auto;
+      }
+
+      .hotzone-tab-item {
+        position: relative;
+        width: 24px;
+        height: 22px;
+        border: 1px solid rgba(176, 198, 244, 0.45);
+        border-radius: 6px;
+        background: rgba(12, 18, 35, 0.34);
+        color: rgba(231, 239, 255, 0.92);
+        font-size: 10px;
+        line-height: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        padding: 0;
+      }
+
+      .hotzone-tab-item.active {
+        border-color: rgba(124, 233, 190, 0.62);
+        background: rgba(26, 111, 86, 0.45);
+        color: #e3fff5;
+      }
+
+      .hotzone-tab-item.add {
+        border-style: dashed;
+        font-size: 14px;
+      }
+
+      .hotzone-tab-delete {
+        position: absolute;
+        right: -5px;
+        top: -5px;
+        width: 14px;
+        height: 14px;
+        border-radius: 999px;
+        border: none;
+        background: #ef4f5f;
+        color: #fff;
+        font-size: 10px;
+        line-height: 1;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        cursor: pointer;
+      }
+
+      .hotzone-tab-item.delete-mode .hotzone-tab-delete {
+        display: inline-flex;
       }
 
       #hotzone-text-actions {
@@ -251,6 +311,32 @@
     return normalized.slice(0, 500);
   }
 
+  function normalizeTabId(input, fallback) {
+    if (typeof input === "string" && input.trim().length > 0) {
+      return input.trim();
+    }
+    return fallback;
+  }
+
+  function normalizeTextTabs(inputTabs, fallbackText) {
+    const source = Array.isArray(inputTabs) ? inputTabs : [];
+    const normalized = source
+      .map((item, index) => {
+        if (!item || typeof item !== "object") {
+          return null;
+        }
+        return {
+          id: normalizeTabId(item.id, `tab-${index + 1}`),
+          text: normalizeText(item.text)
+        };
+      })
+      .filter((item) => item !== null);
+    if (normalized.length > 0) {
+      return normalized.slice(0, TAB_MAX_COUNT);
+    }
+    return [{ id: "tab-1", text: normalizeText(fallbackText) }];
+  }
+
   function normalizeTextSizeLevel(input) {
     const parsed = Number(input);
     if (!Number.isFinite(parsed)) {
@@ -269,7 +355,7 @@
   function createHotzoneDisplayEditor(options) {
     ensureStyle();
 
-    const { hotzoneEl, titlebarEl, displayEl, minWidth, minHeight, overlayApi, onSave } = options;
+    const { hotzoneEl, titlebarEl, displayEl, tabRailEl, minWidth, minHeight, overlayApi, onSave } = options;
 
     const header = document.createElement("div");
     header.id = "hotzone-header";
@@ -338,6 +424,9 @@
     const displayViewport = document.createElement("div");
     displayViewport.id = "hotzone-text-display";
 
+    const tabList = document.createElement("div");
+    tabList.id = "hotzone-tab-list";
+
     const displayScroll = document.createElement("div");
     displayScroll.id = "hotzone-text-scroll";
 
@@ -366,6 +455,20 @@
     titlebarEl.appendChild(header);
     hotzoneEl.appendChild(displayViewport);
     hotzoneEl.appendChild(editor);
+    if (tabRailEl) {
+      tabRailEl.appendChild(tabList);
+      tabRailEl.addEventListener("dragover", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      });
+      tabRailEl.addEventListener("drop", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      });
+      tabRailEl.addEventListener("contextmenu", (event) => {
+        event.stopPropagation();
+      });
+    }
 
     const state = {
       text: normalizeText(initialText),
@@ -383,8 +486,12 @@
       collapsed: false,
       displayCount: 1,
       textSizeLevel: 0,
-      interactionMode: "drag"
+      interactionMode: "drag",
+      textTabs: normalizeTextTabs([], initialText),
+      activeTextTabId: "tab-1",
+      deleteMode: false
     };
+    let tabLongPressTimer = null;
 
     function renderPinState() {
       pinBtn.dataset.pinned = state.pinned ? "true" : "false";
@@ -427,6 +534,188 @@
       displayScroll.style.lineHeight = String(style.lineHeight);
       editor.style.fontSize = `${style.fontSize}px`;
       editor.style.lineHeight = String(style.lineHeight);
+    }
+
+    function getActiveTab() {
+      return state.textTabs.find((item) => item.id === state.activeTextTabId) ?? state.textTabs[0] ?? null;
+    }
+
+    function setActiveTab(tabId) {
+      const target = state.textTabs.find((item) => item.id === tabId);
+      if (!target) {
+        return;
+      }
+      state.activeTextTabId = target.id;
+      state.text = normalizeText(target.text);
+      state.draft = state.text;
+    }
+
+    function buildTabLabel(index) {
+      return String(index + 1);
+    }
+
+    function clearTabLongPressTimer() {
+      if (tabLongPressTimer) {
+        clearTimeout(tabLongPressTimer);
+        tabLongPressTimer = null;
+      }
+    }
+
+    async function handleUnsavedBeforeTabSwitch() {
+      if (!state.editing) {
+        return true;
+      }
+      const active = getActiveTab();
+      const persisted = normalizeText(active?.text ?? state.text);
+      const draft = normalizeText(editor.value);
+      if (draft === persisted) {
+        return true;
+      }
+      const shouldSave = window.confirm(
+        "当前标签页文本尚未保存。\n选择“确定”先保存后切换，选择“取消”将直接切换且不保存。"
+      );
+      if (shouldSave) {
+        await saveEditing();
+        return true;
+      }
+      state.editing = false;
+      await releaseEditorFocus();
+      state.draft = persisted;
+      return true;
+    }
+
+    async function persistTabs() {
+      const active = getActiveTab();
+      if (!active) {
+        return;
+      }
+      const payload = {
+        textTabs: state.textTabs,
+        activeTextTabId: active.id,
+        displayText: active.text
+      };
+      await onSave(payload);
+    }
+
+    async function addTab() {
+      if (state.saving) {
+        return;
+      }
+      if (state.textTabs.length >= TAB_MAX_COUNT) {
+        window.alert(`最多仅支持 ${TAB_MAX_COUNT} 个标签页。`);
+        return;
+      }
+      const nextId = `tab-${Date.now()}`;
+      state.textTabs = [...state.textTabs, { id: nextId, text: DEFAULT_TEXT }];
+      setActiveTab(nextId);
+      await persistTabs();
+      render();
+    }
+
+    async function deleteTab(tabId) {
+      if (state.textTabs.length <= 1 || state.saving) {
+        return;
+      }
+      const target = state.textTabs.find((item) => item.id === tabId);
+      if (!target) {
+        return;
+      }
+      const preview = normalizeText(target.text).slice(0, 20);
+      const ok = window.confirm(`确认删除该标签页？\n${preview}${target.text.length > 20 ? "..." : ""}`);
+      if (!ok) {
+        return;
+      }
+      const index = state.textTabs.findIndex((item) => item.id === tabId);
+      const nextTabs = state.textTabs.filter((item) => item.id !== tabId);
+      const nextActive = nextTabs[Math.min(index, nextTabs.length - 1)];
+      state.textTabs = nextTabs;
+      setActiveTab(nextActive.id);
+      await persistTabs();
+      render();
+    }
+
+    function renderTabs() {
+      if (!tabList) {
+        return;
+      }
+      tabList.innerHTML = "";
+      if (!state.enabled || state.collapsed) {
+        return;
+      }
+      state.textTabs.forEach((tab, index) => {
+        const item = document.createElement("button");
+        item.type = "button";
+        item.className = "hotzone-tab-item";
+        if (tab.id === state.activeTextTabId) {
+          item.classList.add("active");
+        }
+        if (state.deleteMode) {
+          item.classList.add("delete-mode");
+        }
+        const label = buildTabLabel(index);
+        item.textContent = label;
+        item.title = normalizeText(tab.text);
+        item.setAttribute("data-no-drag", "true");
+
+        const del = document.createElement("button");
+        del.type = "button";
+        del.className = "hotzone-tab-delete";
+        del.textContent = "x";
+        del.title = "删除";
+        del.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          void deleteTab(tab.id);
+        });
+        item.appendChild(del);
+
+        item.addEventListener("pointerdown", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          clearTabLongPressTimer();
+          tabLongPressTimer = setTimeout(() => {
+            state.deleteMode = !state.deleteMode;
+            renderTabs();
+          }, TAB_LONG_PRESS_MS);
+        });
+        item.addEventListener("pointerup", async (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          const wasLongPressed = state.deleteMode;
+          clearTabLongPressTimer();
+          if (wasLongPressed) {
+            return;
+          }
+          if (state.activeTextTabId !== tab.id) {
+            const canSwitch = await handleUnsavedBeforeTabSwitch();
+            if (!canSwitch) {
+              return;
+            }
+            setActiveTab(tab.id);
+            await persistTabs();
+            render();
+          }
+        });
+        item.addEventListener("pointerleave", clearTabLongPressTimer);
+        tabList.appendChild(item);
+      });
+
+      const addItem = document.createElement("button");
+      addItem.type = "button";
+      addItem.className = "hotzone-tab-item add";
+      addItem.textContent = "+";
+      addItem.title = "新增标签页";
+      addItem.setAttribute("data-no-drag", "true");
+      addItem.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      });
+      addItem.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        void addTab();
+      });
+      tabList.appendChild(addItem);
     }
 
     function computeContentRect() {
@@ -493,6 +782,7 @@
 
     function render() {
       const contentRect = updateLayout();
+      renderTabs();
 
       if (!state.enabled) {
         hotzoneEl.dataset.textEditing = "false";
@@ -551,7 +841,15 @@
 
       state.saving = true;
       const normalized = normalizeText(editor.value);
-      const result = await onSave(normalized);
+      const active = getActiveTab();
+      if (active) {
+        state.textTabs = state.textTabs.map((tab) => (tab.id === active.id ? { ...tab, text: normalized } : tab));
+      }
+      const result = await onSave({
+        text: normalized,
+        textTabs: state.textTabs,
+        activeTextTabId: state.activeTextTabId
+      });
       state.saving = false;
 
       if (result?.ok) {
@@ -706,7 +1004,16 @@
 
     return {
       update(next) {
-        state.text = normalizeText(typeof next.text === "string" ? next.text : state.text);
+        const fallbackText = typeof next.text === "string" ? next.text : state.text;
+        const incomingTabs = normalizeTextTabs(next.textTabs, fallbackText);
+        state.textTabs = incomingTabs;
+        const candidateActive =
+          typeof next.activeTextTabId === "string" && next.activeTextTabId.trim().length > 0
+            ? next.activeTextTabId.trim()
+            : incomingTabs[0].id;
+        state.activeTextTabId = incomingTabs.some((item) => item.id === candidateActive) ? candidateActive : incomingTabs[0].id;
+        const active = getActiveTab();
+        state.text = normalizeText(active?.text ?? fallbackText);
         state.locked = next.locked === true;
         state.enabled = next.enabled === true;
         state.widthPx = Number.isFinite(next.widthPx) ? next.widthPx : state.widthPx;
@@ -722,6 +1029,9 @@
         state.collapsed = typeof next.collapsed === "boolean" ? next.collapsed : state.collapsed;
         state.displayCount = Number.isFinite(next.displayCount) ? Math.max(1, Math.round(next.displayCount)) : state.displayCount;
         state.interactionMode = next.interactionMode === "quick-open" ? "quick-open" : "drag";
+        if (!state.enabled || state.collapsed) {
+          state.deleteMode = false;
+        }
 
         if (!state.locked && state.editing) {
           state.editing = false;

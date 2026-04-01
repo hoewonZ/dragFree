@@ -50,6 +50,15 @@
         cursor: move;
       }
 
+      #hotzone-tab-rail {
+        position: absolute;
+        left: 0;
+        top: calc(var(--header-height, 28px) + 8px);
+        width: var(--tab-rail-width, 24px);
+        pointer-events: auto;
+        z-index: 20;
+      }
+
       #mode-toggle {
         position: absolute;
         left: 8px;
@@ -200,6 +209,7 @@
   </head>
   <body>
     <div id="hotzone-titlebar"></div>
+    <div id="hotzone-tab-rail"></div>
     <div id="hotzone">
       <button id="mode-toggle" type="button" data-editing="false" aria-label="切换编辑模式">🔒 锁定</button>
       <div id="editor-layer">
@@ -222,6 +232,7 @@
       const modeToggle = document.getElementById("mode-toggle");
       const debug = document.getElementById("debug");
       const moveHit = document.getElementById("move-hit");
+      const tabRail = document.getElementById("hotzone-tab-rail");
 
       const MIN_WIDTH = 120;
       const MIN_HEIGHT = 96;
@@ -229,7 +240,10 @@
       let displayBounds = { x: 0, y: 0, width: 1920, height: 1080 };
       let virtualBounds = { x: 0, y: 0, width: 1920, height: 1080 };
       let overlayBounds = { x: 0, y: 0, width: 1920, height: 1080 };
+      let hotzoneBounds = { x: 0, y: 0, width: 1920, height: 1080 };
       let headerHeight = 28;
+      let tabRailWidth = 24;
+      let tabRailGap = 8;
       let collapsed = false;
       let minWidthPx = MIN_WIDTH;
       let minHeightPx = MIN_HEIGHT;
@@ -245,6 +259,13 @@
         color: "#467eff",
         titleBarColor: "#0c1220",
         displayText: "拖动文件到这里，或双击这里试试",
+        textTabs: [
+          {
+            id: "tab-1",
+            text: "拖动文件到这里，或双击这里试试"
+          }
+        ],
+        activeTextTabId: "tab-1",
         displayTextColor: "#f5f8ff",
         displayTextBold: false,
         displayTextSizeLevel: 0,
@@ -261,16 +282,27 @@
         hotzoneEl: hotzone,
         titlebarEl: titlebar,
         displayEl: debug,
+        tabRailEl: tabRail,
         minWidth: MIN_WIDTH,
         minHeight: MIN_HEIGHT,
         overlayApi: window.overlayApi,
-        onSave: async (nextText) => {
-          const result = await window.overlayApi.commitHotzone({ displayText: nextText });
+        onSave: async (payload) => {
+          const nextText = typeof payload?.text === "string" ? payload.text : hotzoneState.displayText;
+          const result = await window.overlayApi.commitHotzone({
+            displayText: nextText,
+            textTabs: Array.isArray(payload?.textTabs) ? payload.textTabs : hotzoneState.textTabs,
+            activeTextTabId:
+              typeof payload?.activeTextTabId === "string" && payload.activeTextTabId.length > 0
+                ? payload.activeTextTabId
+                : hotzoneState.activeTextTabId
+          });
           if (result?.ok && result.hotzone) {
             hotzoneState = sanitizeHotzone(result.hotzone);
             applyHotzoneVisual();
             displayEditor.update({
               text: hotzoneState.displayText,
+              textTabs: hotzoneState.textTabs,
+              activeTextTabId: hotzoneState.activeTextTabId,
               locked: true,
               enabled: hotzoneState.debugVisible,
               widthPx: hotzoneState.widthPx,
@@ -367,14 +399,20 @@
           opacity: Math.round(opacity * 100) / 100,
           color,
           titleBarColor,
-          displayTextSizeLevel
+          displayTextSizeLevel,
+          textTabs: Array.isArray(state.textTabs) ? state.textTabs : hotzoneState.textTabs,
+          activeTextTabId:
+            typeof state.activeTextTabId === "string" && state.activeTextTabId.length > 0
+              ? state.activeTextTabId
+              : (Array.isArray(state.textTabs) && state.textTabs[0] ? state.textTabs[0].id : hotzoneState.activeTextTabId)
         };
       }
 
       function applyHotzoneGeometry() {
-        const localX = isEditing ? hotzoneState.xPx - overlayBounds.x : 0;
+        const hotzoneOffsetX = tabRailWidth + tabRailGap;
+        const localX = isEditing ? hotzoneState.xPx - overlayBounds.x : hotzoneOffsetX;
         const localY = isEditing ? hotzoneState.yPx - overlayBounds.y - headerHeight : headerHeight;
-        const renderWidth = isEditing ? hotzoneState.widthPx : overlayBounds.width;
+        const renderWidth = isEditing ? hotzoneState.widthPx : hotzoneBounds.width;
         const renderHeight = isEditing ? hotzoneState.heightPx : Math.max(1, overlayBounds.height - headerHeight);
         const localRight = localX + renderWidth;
         const localBottom = localY + renderHeight;
@@ -417,6 +455,9 @@
         hotzone.style.top = `${Math.round(localY)}px`;
         hotzone.style.width = `${Math.max(1, Math.round(renderWidth))}px`;
         hotzone.style.height = `${Math.max(1, Math.round(renderHeight))}px`;
+        titlebar.style.left = `${Math.round(localX)}px`;
+        titlebar.style.width = `${Math.max(1, Math.round(renderWidth))}px`;
+        titlebar.style.right = "auto";
       }
 
       function hexToRgba(hex, alpha) {
@@ -651,6 +692,9 @@
           if (hotzone.dataset.textEditing === "true") {
             return;
           }
+          if (handle.dataset.resize === "nw") {
+            return;
+          }
           event.preventDefault();
           event.stopPropagation();
           beginInteraction("resize", event, {
@@ -668,14 +712,18 @@
         displayBounds = payload.displayBounds ?? displayBounds;
         virtualBounds = payload.virtualBounds ?? virtualBounds;
         overlayBounds = payload.overlayBounds ?? overlayBounds;
+        hotzoneBounds = payload.hotzoneBounds ?? hotzoneBounds;
         headerHeight = Math.max(0, Math.round(Number(payload.headerHeight) || 0));
+        tabRailWidth = Math.max(16, Math.round(Number(payload.tabRailWidth) || tabRailWidth));
+        tabRailGap = Math.max(0, Math.round(Number(payload.tabRailGap) || tabRailGap));
         collapsed = payload.collapsed === true;
         interactionMode = payload.interactionMode === "quick-open" ? "quick-open" : "drag";
         minWidthPx = Math.max(MIN_WIDTH, Math.round(Number(payload.minWidthPx) || MIN_WIDTH));
         minHeightPx = Math.max(MIN_HEIGHT, Math.round(Number(payload.minHeightPx) || MIN_HEIGHT));
         hotzone.style.top = `${headerHeight}px`;
-        hotzone.style.height = `${Math.max(1, overlayBounds.height - headerHeight)}px`;
+        hotzone.style.height = `${Math.max(1, hotzoneBounds.height - headerHeight)}px`;
         document.documentElement.style.setProperty("--header-height", `${headerHeight}px`);
+        document.documentElement.style.setProperty("--tab-rail-width", `${tabRailWidth}px`);
         isEditing = false;
         hotzoneState = sanitizeHotzone(payload.hotzone ?? hotzoneState);
         window.overlayApi.emitDebugSnapshot({
@@ -710,6 +758,8 @@
         updateEditorVisibility();
         displayEditor.update({
           text: hotzoneState.displayText,
+          textTabs: hotzoneState.textTabs,
+          activeTextTabId: hotzoneState.activeTextTabId,
           locked: true,
           enabled: hotzoneState.debugVisible,
           widthPx: hotzoneState.widthPx,
@@ -726,6 +776,9 @@
       });
 
       window.addEventListener("contextmenu", (event) => {
+        if (event.target && event.target.closest("#hotzone-tab-rail")) {
+          return;
+        }
         if (interactionMode !== "quick-open") {
           return;
         }
@@ -741,6 +794,13 @@
       });
 
       window.addEventListener("dragover", (event) => {
+        if (event.target && event.target.closest("#hotzone-tab-rail")) {
+          event.preventDefault();
+          event.stopPropagation();
+          isFileDragging = false;
+          updateEditorVisibility();
+          return;
+        }
         event.preventDefault();
         if (collapsed) {
           isFileDragging = false;
@@ -776,6 +836,13 @@
       });
 
       window.addEventListener("drop", (event) => {
+        if (event.target && event.target.closest("#hotzone-tab-rail")) {
+          event.preventDefault();
+          event.stopPropagation();
+          isFileDragging = false;
+          updateEditorVisibility();
+          return;
+        }
         event.preventDefault();
         if (collapsed) {
           isFileDragging = false;
