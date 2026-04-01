@@ -651,7 +651,9 @@
         };
         hotzoneState = sanitizeHotzone(next);
         applyHotzoneVisual();
-        emitPreview();
+        if (hotzone.dataset.textEditing !== "true") {
+          emitPreview();
+        }
       }
 
       function applyResize(mode, dx, dy) {
@@ -737,6 +739,9 @@
         const endedInteraction = { ...interaction };
         releaseCapturedPointer();
         interaction = null;
+        if (endedInteraction.type === "move" && hotzone.dataset.textEditing === "true") {
+          emitPreview();
+        }
         updateEditorVisibility();
         emitInteractionSnapshot(endedInteraction);
       });
