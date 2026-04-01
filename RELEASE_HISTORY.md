@@ -29,3 +29,13 @@
     - 同步更新版本流程规则文档，强化提交后记录与版本确认顺序。
     - 本次提交同时完成版本升级 `0.1.1 -> 0.1.2`（PATCH）。
 
+## v0.1.3 (from v0.1.2)
+
+- Release commit: `（待提交）`
+- Release type: PATCH
+- Merged commits in this release window:
+  - `133d9e7` feat(tray): 托盘支持文件化更新日志与版权声明
+    - 托盘菜单支持从文件加载完整更新日志与版权声明。
+    - 新增 `RELEASE_HISTORY.md` 与 `COPYRIGHT_NOTICE.md`，并加入打包清单。
+    - 规则文档中文化并加强提交后版本维护流程。
+
