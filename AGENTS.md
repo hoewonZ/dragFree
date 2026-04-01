@@ -179,8 +179,8 @@ node --test --test-name-pattern="hotzone"
   1. 每次代码提交后，**立即**将该提交摘要写入 `COMMIT_HISTORY.md`。
   2. 若 `COMMIT_HISTORY.md` 未包含最新提交 hash / message，任务不得结束。
   3. `COMMIT_HISTORY.md` 在同一日期段内必须严格按时间顺序（旧 -> 新）。
-  4. 版本记录必须绑定真实变更 `package.json` 的提交 hash，禁止使用 `HEAD` 占位。
-  5. “下次升版本需合并的提交数”以“最后一次版本记录之后的非 release 提交”顺序统计，禁止主观估算。
+  4. `COMMIT_HISTORY.md` 只记录正常功能/修复提交，不记录 release 提交项。
+  5. “下次升版本需合并的提交数”以“最后一次版本记录之后的正常提交”顺序统计，禁止主观估算。
   6. 然后询问用户是否升版本。
   7. 给出升版本建议（`MAJOR` / `MINOR` / `PATCH`）与理由。
   8. 改版本前先确认自上个 release 以来是否存在多次提交。
@@ -190,7 +190,7 @@ node --test --test-name-pattern="hotzone"
       - 最新提交已记录到 `COMMIT_HISTORY.md`
       - 版本升级决策已获用户确认
       - 若版本变更：`package.json` 与 `COMMIT_HISTORY.md` 已同步
-      - 若版本变更：`RELEASE_HISTORY.md` 已记录该版本窗口内合并提交
+      - 若版本变更：`RELEASE_HISTORY.md` 已记录“版本变更信息 + 版本窗口内所有提交摘要”，且不写 release commit 字段
 
 ## 已知运行注意事项
 

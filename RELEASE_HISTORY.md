@@ -2,9 +2,8 @@
 
 ## v0.1.1 (from v0.1.0)
 
-- Release commit: `d212ece`
-- Release type: PATCH
-- Merged commits in this release window:
+- 版本变更：`0.1.0 -> 0.1.1`（PATCH）
+- 本次版本窗口合并提交摘要：
   - `001f60a` feat(config): 新增拖拽文本换行与文本上限配置
     - 在系统设置新增“拖拽文字追加时默认先换行”开关并持久化。
     - 在系统设置新增“启用文本上限（1000字）”开关；关闭后取消长度限制。
@@ -16,9 +15,8 @@
 
 ## v0.1.2 (from v0.1.1)
 
-- Release commit: `703ddf5`
-- Release type: PATCH
-- Merged commits in this release window:
+- 版本变更：`0.1.1 -> 0.1.2`（PATCH）
+- 本次版本窗口合并提交摘要：
   - `40099cd` fix(overlay): 改进链接拖拽解析并统一展示区安全跳转
     - 增强拖拽链接解析：支持从 `text/plain`、`text/uri-list`、`text/html` 提取链接与锚文本。
     - 展示区将 `http/https` 文本渲染为可点击链接，并通过主进程安全打开外部地址。
@@ -31,9 +29,8 @@
 
 ## v0.1.3 (from v0.1.2)
 
-- Release commit: `（待提交）`
-- Release type: PATCH
-- Merged commits in this release window:
+- 版本变更：`0.1.2 -> 0.1.3`（PATCH）
+- 本次版本窗口合并提交摘要：
   - `133d9e7` feat(tray): 托盘支持文件化更新日志与版权声明
     - 托盘菜单支持从文件加载完整更新日志与版权声明。
     - 新增 `RELEASE_HISTORY.md` 与 `COPYRIGHT_NOTICE.md`，并加入打包清单。
