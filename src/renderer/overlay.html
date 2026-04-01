@@ -359,12 +359,78 @@
         return types.includes("Files");
       }
 
-      function getDraggedPlainText(dataTransfer) {
+      function readDataTransferText(dataTransfer, mimeType) {
         if (!dataTransfer || typeof dataTransfer.getData !== "function") {
           return "";
         }
-        const value = dataTransfer.getData("text/plain");
+        const value = dataTransfer.getData(mimeType);
         return typeof value === "string" ? value : "";
+      }
+
+      function parseUriListFirstUrl(uriListRaw) {
+        if (typeof uriListRaw !== "string" || uriListRaw.trim().length === 0) {
+          return "";
+        }
+        const lines = uriListRaw
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter((line) => line.length > 0 && !line.startsWith("#"));
+        for (const line of lines) {
+          if (/^https?:\/\//i.test(line)) {
+            return line;
+          }
+        }
+        return "";
+      }
+
+      function extractAnchorTextFromHtml(htmlRaw) {
+        if (typeof htmlRaw !== "string" || htmlRaw.trim().length === 0) {
+          return "";
+        }
+        try {
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(htmlRaw, "text/html");
+          const anchor = doc.querySelector("a");
+          const text = anchor?.textContent;
+          return typeof text === "string" ? text.trim() : "";
+        } catch {
+          return "";
+        }
+      }
+
+      function findHttpUrlInText(rawText) {
+        if (typeof rawText !== "string" || rawText.trim().length === 0) {
+          return "";
+        }
+        const match = rawText.match(/https?:\/\/[^\s]+/i);
+        return match ? match[0] : "";
+      }
+
+      function getDroppedTextPayload(dataTransfer, options = {}) {
+        const useLinkSpecialFormat = options.useLinkSpecialFormat === true;
+        const plain = readDataTransferText(dataTransfer, "text/plain").replace(/\r\n/g, "\n").trim();
+        const uriListRaw = readDataTransferText(dataTransfer, "text/uri-list");
+        const htmlRaw = readDataTransferText(dataTransfer, "text/html");
+
+        const urlFromUriList = parseUriListFirstUrl(uriListRaw);
+        const urlFromPlain = findHttpUrlInText(plain);
+        const url = urlFromUriList || urlFromPlain;
+
+        if (!url) {
+          return { text: plain, isLink: false };
+        }
+
+        if (!useLinkSpecialFormat) {
+          return { text: plain || url, isLink: true };
+        }
+
+        const anchorFromHtml = extractAnchorTextFromHtml(htmlRaw);
+        const anchorFromPlain = plain && plain !== url ? plain : "";
+        const anchor = anchorFromHtml || anchorFromPlain;
+        if (anchor) {
+          return { text: `${anchor}\n${url}`, isLink: true };
+        }
+        return { text: url, isLink: true };
       }
 
       function clamp(value, min, max) {
@@ -875,9 +941,13 @@
         }
         const isDroppedFile = detectFileDrag(event.dataTransfer);
         if (!isDroppedFile && interactionMode === "drag") {
-          const droppedText = getDraggedPlainText(event.dataTransfer);
-          if (droppedText.trim().length > 0) {
-            displayEditor.appendDroppedTextAndEdit(droppedText);
+          const droppedPayload = getDroppedTextPayload(event.dataTransfer, {
+            useLinkSpecialFormat: true
+          });
+          if (droppedPayload.text.trim().length > 0) {
+            displayEditor.appendDroppedTextAndEdit(droppedPayload.text, {
+              forceLeadingNewline: droppedPayload.isLink === true
+            });
           }
         }
         isFileDragging = false;

@@ -8,6 +8,7 @@
   const TAB_MAX_COUNT = 8;
   const LIMITED_TEXT_MAX_LENGTH = 1000;
   const HEADER_COMPACT_THRESHOLD_PX = 140;
+  const HTTP_URL_REGEX = /https?:\/\/[^\s]+/gi;
 
   function ensureStyle() {
     if (document.getElementById(STYLE_ID)) {
@@ -313,6 +314,12 @@
         white-space: pre-wrap;
       }
 
+      #hotzone-text-scroll a {
+        color: #9fc2ff;
+        text-decoration: underline;
+        cursor: pointer;
+      }
+
       #hotzone-text-scroll.compact {
         white-space: nowrap;
         overflow: hidden;
@@ -392,6 +399,65 @@
 
   function normalizeCurrentText(state, input) {
     return normalizeText(input, { textLimitEnabled: state.textLimitEnabled });
+  }
+
+  function isSafeHttpUrl(value) {
+    if (typeof value !== "string" || value.length === 0) {
+      return false;
+    }
+    try {
+      const parsed = new URL(value);
+      return parsed.protocol === "http:" || parsed.protocol === "https:";
+    } catch {
+      return false;
+    }
+  }
+
+  function trimTrailingPunctuation(rawUrl) {
+    if (typeof rawUrl !== "string" || rawUrl.length === 0) {
+      return "";
+    }
+    return rawUrl.replace(/[),.;!?]+$/g, "");
+  }
+
+  function appendDisplayTextWithLinks(container, text) {
+    container.innerHTML = "";
+    const source = typeof text === "string" ? text : "";
+    if (!source) {
+      return;
+    }
+
+    let lastIndex = 0;
+    source.replace(HTTP_URL_REGEX, (match, offset) => {
+      const safeIndex = Number(offset);
+      if (!Number.isFinite(safeIndex)) {
+        return match;
+      }
+      if (safeIndex > lastIndex) {
+        container.appendChild(document.createTextNode(source.slice(lastIndex, safeIndex)));
+      }
+      const trimmed = trimTrailingPunctuation(match);
+      const suffix = match.slice(trimmed.length);
+      if (isSafeHttpUrl(trimmed)) {
+        const link = document.createElement("a");
+        link.href = trimmed;
+        link.textContent = trimmed;
+        link.setAttribute("data-external-link", "true");
+        link.setAttribute("rel", "noopener noreferrer");
+        container.appendChild(link);
+      } else {
+        container.appendChild(document.createTextNode(match));
+      }
+      if (suffix) {
+        container.appendChild(document.createTextNode(suffix));
+      }
+      lastIndex = safeIndex + match.length;
+      return match;
+    });
+
+    if (lastIndex < source.length) {
+      container.appendChild(document.createTextNode(source.slice(lastIndex)));
+    }
   }
 
   function normalizeTabId(input, fallback) {
@@ -960,7 +1026,7 @@
 
     function renderDisplay(rect) {
       const normalized = normalizeCurrentText(state, state.text);
-      displayScroll.textContent = normalized;
+      appendDisplayTextWithLinks(displayScroll, normalized);
       displayScroll.classList.remove("readonly");
       displayScroll.classList.remove("compact");
       displayScroll.style.removeProperty("-webkit-line-clamp");
@@ -1242,6 +1308,25 @@
       }
     });
 
+    displayScroll.addEventListener("click", async (event) => {
+      const rawTarget = event.target;
+      if (!(rawTarget instanceof Element)) {
+        return;
+      }
+      const anchor = rawTarget.closest("a[data-external-link]");
+      if (!(anchor instanceof HTMLAnchorElement)) {
+        return;
+      }
+      const href = anchor.getAttribute("href") || "";
+      if (!isSafeHttpUrl(href)) {
+        event.preventDefault();
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      await overlayApi.openExternal(href);
+    });
+
     window.addEventListener("resize", () => {
       render();
     });
@@ -1262,7 +1347,7 @@
     });
 
     return {
-      appendDroppedTextAndEdit(droppedText) {
+      appendDroppedTextAndEdit(droppedText, options = {}) {
         if (!state.enabled || !state.locked || state.saving) {
           return { ok: false, reason: "disabled" };
         }
@@ -1271,7 +1356,9 @@
           return { ok: false, reason: "empty" };
         }
         const base = state.editing ? state.draft : normalizeCurrentText(state, state.text);
-        const separator = state.dragTextAppendWithNewline && base && raw ? "\n" : "";
+        const forceLeadingNewline = options?.forceLeadingNewline === true;
+        const shouldUseNewline = forceLeadingNewline || state.dragTextAppendWithNewline;
+        const separator = shouldUseNewline && base && raw ? "\n" : "";
         const nextDraft = `${base}${separator}${raw}`;
         const shouldLimit = state.textLimitEnabled !== false;
         const willTruncate = shouldLimit && nextDraft.length > LIMITED_TEXT_MAX_LENGTH;

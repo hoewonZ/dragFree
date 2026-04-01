@@ -1723,6 +1723,31 @@ ipcMain.handle("overlay:set-interaction-mode", async (_event, payload) => {
   return applyInteractionModeFromMain(requested, "overlay_set_interaction_mode");
 });
 
+ipcMain.handle("overlay:open-external", async (_event, payload) => {
+  const candidate = typeof payload?.url === "string" ? payload.url.trim() : "";
+  if (!candidate) {
+    return { ok: false, error: "invalid_url" };
+  }
+  let parsed;
+  try {
+    parsed = new URL(candidate);
+  } catch {
+    return { ok: false, error: "invalid_url" };
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    return { ok: false, error: "unsupported_protocol" };
+  }
+  try {
+    await shell.openExternal(parsed.toString());
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "open_external_failed"
+    };
+  }
+});
+
 ipcMain.on("overlay:quick-open-trigger", (_event, payload) => {
   if (getInteractionMode() !== "quick-open") {
     return;

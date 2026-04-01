@@ -39,6 +39,9 @@ contextBridge.exposeInMainWorld("overlayApi", {
   emitQuickOpenTrigger(point) {
     ipcRenderer.send("overlay:quick-open-trigger", point);
   },
+  openExternal(url) {
+    return ipcRenderer.invoke("overlay:open-external", { url });
+  },
   getPathForFile(file) {
     try {
       return webUtils.getPathForFile(file) || "";
