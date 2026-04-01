@@ -239,6 +239,92 @@
         margin-top: 6px;
       }
 
+      .color-settings {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .color-setting-item {
+        padding: 2px 0;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 6px;
+      }
+
+      .color-setting-head {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 6px;
+        font-size: 12px;
+        color: #435474;
+      }
+
+      .color-inline {
+        display: inline-flex;
+        align-items: center;
+        margin-top: 0;
+        margin-left: 2px;
+      }
+
+      .settings-group-card {
+        grid-column: 1 / -1;
+        border: 1px solid #d7e2f8;
+        border-radius: 10px;
+        background: #f8fbff;
+        padding: 10px;
+      }
+
+      .settings-group-grid {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .display-settings-footer {
+        margin-top: 6px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .opacity-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        flex: 1 1 auto;
+      }
+
+      .opacity-head {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        color: #435474;
+      }
+
+      .opacity-control {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 300px;
+      }
+
+      .popup-toggle-row {
+        grid-column: 1 / -1;
+        margin-top: 0;
+      }
+
+      .section-label-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
       .toggle-row {
         display: inline-flex;
         align-items: center;
@@ -258,13 +344,56 @@
       #hotzone-titlebar-color,
       #hotzone-text-color {
         margin-top: 0;
-        width: 28px;
-        height: 28px;
+        width: 22px;
+        height: 22px;
         padding: 0;
         border-radius: 6px;
         border: 1px solid #ccd8f0;
         background: #fff;
         cursor: pointer;
+      }
+
+      .reset-link-btn {
+        border: none;
+        background: transparent;
+        color: #5d6d8d;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        font-size: 12px;
+        padding: 0;
+        cursor: pointer;
+      }
+
+      .reset-link-btn:hover {
+        color: #3c4f77;
+      }
+
+      .toggle-group {
+        grid-column: 1 / -1;
+        display: grid;
+        gap: 8px;
+        border: 1px solid #d7e2f8;
+        border-radius: 10px;
+        background: #f8fbff;
+        padding: 10px;
+      }
+
+      .toggle-group-title {
+        margin: 0;
+        font-size: 12px;
+        font-weight: 600;
+        color: #2f4677;
+      }
+
+      .toggle-split-row {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        align-items: center;
+      }
+
+      .toggle-split-row .toggle-row {
+        margin-top: 0;
       }
 
       #hotzone-color::-webkit-color-swatch-wrapper,
@@ -402,6 +531,10 @@
         .grid {
           grid-template-columns: 1fr;
         }
+
+        .settings-group-grid {
+          grid-template-columns: 1fr;
+        }
       }
     </style>
   </head>
@@ -421,147 +554,174 @@
             <h3 style="margin: 0">配置</h3>
             <button id="save-display-config" type="button">收起设置</button>
           </div>
-          <div class="modal-section-label">显示设置</div>
+          <div class="section-label-row">
+            <div class="modal-section-label">显示设置</div>
+            <button id="reset-hotzone" class="reset-link-btn" type="button">重置热区属性</button>
+          </div>
           <div class="grid">
-            <div>
-              <span class="label-row">
-                <span>热区颜色</span>
-                <span class="changed-tip" data-tip-for="hotzone-color">已更改</span>
-              </span>
-              <span class="color-row">
-                <input id="hotzone-color" type="color" />
-                <button id="reset-hotzone" type="button">重置热区属性</button>
-              </span>
-              <span class="label-row" style="margin-top: 8px">
-                <span>展示文本颜色</span>
-                <span class="changed-tip" data-tip-for="hotzone-text-color">已更改</span>
-              </span>
-              <span class="color-row">
-                <input id="hotzone-text-color" type="color" />
-              </span>
-              <span class="label-row" style="margin-top: 8px">
-                <span>标题栏颜色</span>
-                <span class="changed-tip" data-tip-for="hotzone-titlebar-color">已更改</span>
-              </span>
-              <span class="color-row">
-                <input id="hotzone-titlebar-color" type="color" />
-              </span>
-              <label class="toggle-row">
-                <input id="hotzone-text-bold" type="checkbox" />
-                <span>展示文本加粗</span>
-                <span class="changed-tip" data-tip-for="hotzone-text-bold">已更改</span>
-              </label>
-              <label style="margin-top: 8px">
-                <span class="label-row">
-                  <span>热区透明度（0-1）</span>
-                  <span class="changed-tip" data-tip-for="hotzone-opacity">已更改</span>
-                </span>
-                <span class="color-row" style="gap: 10px">
-                  <input id="hotzone-opacity" type="range" min="0" max="1" step="0.01" />
-                  <span id="hotzone-opacity-value" style="min-width: 44px; font-size: 12px; color: #435474">0.08</span>
-                </span>
-              </label>
+            <div class="settings-group-card">
+              <div class="color-settings">
+                <div class="color-setting-item">
+                  <span class="color-setting-head">
+                    <span>热区颜色</span>
+                    <span class="changed-tip" data-tip-for="hotzone-color">已更改</span>
+                  </span>
+                  <span class="color-inline">
+                    <input id="hotzone-color" type="color" />
+                  </span>
+                </div>
+                <div class="color-setting-item">
+                  <span class="color-setting-head">
+                    <span>标题栏颜色</span>
+                    <span class="changed-tip" data-tip-for="hotzone-titlebar-color">已更改</span>
+                  </span>
+                  <span class="color-inline">
+                    <input id="hotzone-titlebar-color" type="color" />
+                  </span>
+                </div>
+              </div>
+              <div class="display-settings-footer">
+                <label class="opacity-row" style="margin: 0">
+                  <span class="opacity-head">
+                    <span>热区透明度（0-1）</span>
+                    <span class="changed-tip" data-tip-for="hotzone-opacity">已更改</span>
+                  </span>
+                  <span class="opacity-control">
+                    <input id="hotzone-opacity" type="range" min="0" max="1" step="0.01" />
+                    <span id="hotzone-opacity-value" style="min-width: 44px; font-size: 12px; color: #435474">0.08</span>
+                  </span>
+                </label>
+              </div>
             </div>
-            <label>
-              <span class="label-row">
-                <span>面包屑分隔符</span>
-                <span class="changed-tip" data-tip-for="breadcrumb-separator">已更改</span>
-              </span>
-              <select id="breadcrumb-separator">
-                <option value="/">/（默认）</option>
-                <option value=">">&gt;</option>
-              </select>
-            </label>
-            <label>
-              <span class="label-row">
-                <span>悬停查询延时（毫秒）</span>
-                <span class="changed-tip" data-tip-for="hover-query-delay">已更改</span>
-              </span>
-              <input id="hover-query-delay" type="number" min="100" max="2000" step="50" />
-            </label>
-            <label>
-              <span class="label-row">
-                <span>查询冷却时长（秒）</span>
-                <span class="changed-tip" data-tip-for="query-cooldown">已更改</span>
-              </span>
-              <input id="query-cooldown" type="number" min="0" max="5" step="0.1" />
-            </label>
-            <label>
-              <span class="label-row">
-                <span>快开悬停延时（毫秒）</span>
-                <span class="changed-tip" data-tip-for="quick-open-hover-delay">已更改</span>
-              </span>
-              <input id="quick-open-hover-delay" type="number" min="200" max="3000" step="100" />
-            </label>
-            <label>
-              <span class="label-row">
-                <span>默认处理方式</span>
-                <span class="changed-tip" data-tip-for="default-action">已更改</span>
-              </span>
-              <select id="default-action">
-                <option value="copy">复制</option>
-                <option value="move">移动</option>
-              </select>
-            </label>
-            <label class="toggle-row">
-              <input id="open-target-folder-on-success" type="checkbox" />
-              <span>投放成功后打开目标文件夹</span>
-              <span class="changed-tip" data-tip-for="open-target-folder-on-success">已更改</span>
-            </label>
-            <label>
-              <span class="label-row">
-                <span>面板目录样式</span>
-                <span class="changed-tip" data-tip-for="panel-view-mode">已更改</span>
-              </span>
-              <select id="panel-view-mode">
-                <option value="list">列表（推荐）</option>
-                <option value="tile">平铺</option>
-              </select>
-            </label>
-            <label id="tile-size-wrap">
-              <span class="label-row">
-                <span>平铺尺寸</span>
-                <span class="changed-tip" data-tip-for="panel-tile-size">已更改</span>
-              </span>
-              <select id="panel-tile-size">
-                <option value="large">大（3列）</option>
-                <option value="medium">中（5列）</option>
-                <option value="small">小（7列）</option>
-              </select>
-            </label>
+          </div>
+          <div class="modal-section-label spaced">弹窗设置</div>
+          <div class="grid">
+            <div class="settings-group-card">
+              <div class="settings-group-grid">
+                <label>
+                  <span class="label-row">
+                    <span>面包屑分隔符</span>
+                    <span class="changed-tip" data-tip-for="breadcrumb-separator">已更改</span>
+                  </span>
+                  <select id="breadcrumb-separator">
+                    <option value="/">/（默认）</option>
+                    <option value=">">&gt;</option>
+                  </select>
+                </label>
+                <label>
+                  <span class="label-row">
+                    <span>悬停查询延时（毫秒）</span>
+                    <span class="changed-tip" data-tip-for="hover-query-delay">已更改</span>
+                  </span>
+                  <input id="hover-query-delay" type="number" min="100" max="2000" step="50" />
+                </label>
+                <label>
+                  <span class="label-row">
+                    <span>查询冷却时长（秒）</span>
+                    <span class="changed-tip" data-tip-for="query-cooldown">已更改</span>
+                  </span>
+                  <input id="query-cooldown" type="number" min="0" max="5" step="0.1" />
+                </label>
+                <label>
+                  <span class="label-row">
+                    <span>快开悬停延时（毫秒）</span>
+                    <span class="changed-tip" data-tip-for="quick-open-hover-delay">已更改</span>
+                  </span>
+                  <input id="quick-open-hover-delay" type="number" min="200" max="3000" step="100" />
+                </label>
+                <label class="toggle-row popup-toggle-row">
+                  <input id="open-target-folder-on-success" type="checkbox" />
+                  <span>投放成功后打开目标文件夹</span>
+                  <span class="changed-tip" data-tip-for="open-target-folder-on-success">已更改</span>
+                </label>
+                <label>
+                  <span class="label-row">
+                    <span>默认处理方式</span>
+                    <span class="changed-tip" data-tip-for="default-action">已更改</span>
+                  </span>
+                  <select id="default-action">
+                    <option value="copy">复制</option>
+                    <option value="move">移动</option>
+                  </select>
+                </label>
+                <label>
+                  <span class="label-row">
+                    <span>面板目录样式</span>
+                    <span class="changed-tip" data-tip-for="panel-view-mode">已更改</span>
+                  </span>
+                  <select id="panel-view-mode">
+                    <option value="list">列表（推荐）</option>
+                    <option value="tile">平铺</option>
+                  </select>
+                </label>
+                <label id="tile-size-wrap">
+                  <span class="label-row">
+                    <span>平铺尺寸</span>
+                    <span class="changed-tip" data-tip-for="panel-tile-size">已更改</span>
+                  </span>
+                  <select id="panel-tile-size">
+                    <option value="large">大（3列）</option>
+                    <option value="medium">中（5列）</option>
+                    <option value="small">小（7列）</option>
+                  </select>
+                </label>
+              </div>
+            </div>
           </div>
           <div class="modal-section-label spaced">系统设置</div>
           <div class="grid">
-            <label class="toggle-row" style="grid-column: 1 / -1">
-              <input id="launch-on-startup" type="checkbox" />
-              <span>开机自启动（建议将程序放到固定目录后再开启）</span>
-              <span class="changed-tip" data-tip-for="launch-on-startup">已更改</span>
-            </label>
-            <label class="toggle-row" style="grid-column: 1 / -1; align-items: flex-start">
-              <input id="hotzone-debug-log-enabled" type="checkbox" />
-              <span>
-                启用 hotzone 调试日志（hotzone-debug.log）
-                <span class="muted" style="display: block; margin-top: 4px; font-weight: 400; font-size: 12px">
-                  建议关闭；仅在排查热区/显示问题时开启，会增加磁盘写入。
+            <div class="toggle-group">
+              <div class="toggle-group-title">热区设置</div>
+              <div class="toggle-split-row">
+                <label class="toggle-row">
+                  <input id="hotzone-text-bold" type="checkbox" />
+                  <span>展示文本加粗</span>
+                  <span class="changed-tip" data-tip-for="hotzone-text-bold">已更改</span>
+                </label>
+                <label class="color-setting-item">
+                  <span class="color-setting-head">
+                    <span>展示文本颜色</span>
+                    <span class="changed-tip" data-tip-for="hotzone-text-color">已更改</span>
+                  </span>
+                  <span class="color-inline">
+                    <input id="hotzone-text-color" type="color" />
+                  </span>
+                </label>
+              </div>
+              <label class="toggle-row">
+                <input id="text-limit-enabled" type="checkbox" />
+                <span>启用文本上限（1000字）</span>
+                <span class="changed-tip" data-tip-for="text-limit-enabled">已更改</span>
+              </label>
+              <label class="toggle-row">
+                <input id="drag-text-append-with-newline" type="checkbox" />
+                <span>
+                  拖拽文字追加时默认先换行
+                  <span class="muted" style="display: block; margin-top: 4px; font-weight: 400; font-size: 12px">
+                    取消换行可能会与链接格式内容产生冲突，导致链接识别错误。
+                  </span>
                 </span>
-              </span>
-              <span class="changed-tip" data-tip-for="hotzone-debug-log-enabled">已更改</span>
-            </label>
-            <label class="toggle-row" style="grid-column: 1 / -1">
-              <input id="text-limit-enabled" type="checkbox" />
-              <span>启用文本上限（1000字）</span>
-              <span class="changed-tip" data-tip-for="text-limit-enabled">已更改</span>
-            </label>
-            <label class="toggle-row" style="grid-column: 1 / -1">
-              <input id="drag-text-append-with-newline" type="checkbox" />
-              <span>
-                拖拽文字追加时默认先换行
-                <span class="muted" style="display: block; margin-top: 4px; font-weight: 400; font-size: 12px">
-                  取消换行可能会与链接格式内容产生冲突，导致链接识别错误。
+                <span class="changed-tip" data-tip-for="drag-text-append-with-newline">已更改</span>
+              </label>
+            </div>
+            <div class="toggle-group">
+              <div class="toggle-group-title">系统开关</div>
+              <label class="toggle-row">
+                <input id="launch-on-startup" type="checkbox" />
+                <span>开机自启动（建议将程序放到固定目录后再开启）</span>
+                <span class="changed-tip" data-tip-for="launch-on-startup">已更改</span>
+              </label>
+              <label class="toggle-row" style="align-items: flex-start">
+                <input id="hotzone-debug-log-enabled" type="checkbox" />
+                <span>
+                  启用 hotzone 调试日志（hotzone-debug.log）
+                  <span class="muted" style="display: block; margin-top: 4px; font-weight: 400; font-size: 12px">
+                    建议关闭；仅在排查热区/显示问题时开启，会增加磁盘写入。
+                  </span>
                 </span>
-              </span>
-              <span class="changed-tip" data-tip-for="drag-text-append-with-newline">已更改</span>
-            </label>
+                <span class="changed-tip" data-tip-for="hotzone-debug-log-enabled">已更改</span>
+              </label>
+            </div>
           </div>
       </section>
     </main>
