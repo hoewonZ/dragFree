@@ -7,6 +7,7 @@
   const TAB_LONG_PRESS_MS = 520;
   const TAB_MAX_COUNT = 8;
   const LIMITED_TEXT_MAX_LENGTH = 1000;
+  const HEADER_COMPACT_THRESHOLD_PX = 140;
 
   function ensureStyle() {
     if (document.getElementById(STYLE_ID)) {
@@ -32,6 +33,9 @@
         display: inline-flex;
         align-items: center;
         gap: 6px;
+        min-width: 0;
+        flex: 1 1 auto;
+        position: relative;
       }
 
       .hotzone-pin-toggle {
@@ -45,6 +49,10 @@
         font-size: 16px;
         line-height: 1;
         pointer-events: auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        vertical-align: middle;
       }
 
       .hotzone-pin-toggle[data-pinned="false"] {
@@ -62,6 +70,10 @@
         font-size: 16px;
         line-height: 1;
         pointer-events: auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        vertical-align: middle;
       }
 
       .hotzone-display-toggle {
@@ -75,6 +87,10 @@
         font-size: 16px;
         line-height: 1;
         pointer-events: auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        vertical-align: middle;
       }
 
       .hotzone-display-toggle[data-disabled="true"] {
@@ -93,6 +109,10 @@
         font-size: 13px;
         line-height: 1;
         pointer-events: auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        vertical-align: middle;
       }
 
       .hotzone-text-size-toggle[data-disabled="true"] {
@@ -112,6 +132,10 @@
         line-height: 1;
         border-radius: 8px;
         pointer-events: auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        vertical-align: middle;
       }
 
       .hotzone-interaction-toggle[data-mode="quick-open"] {
@@ -187,6 +211,59 @@
         align-items: center;
         gap: 6px;
         pointer-events: auto;
+        flex: 0 0 auto;
+      }
+
+      .hotzone-header-more {
+        width: 24px;
+        height: 24px;
+        border: none;
+        background: transparent;
+        color: rgba(245, 248, 255, 0.9);
+        cursor: pointer;
+        padding: 0;
+        font-size: 16px;
+        line-height: 1;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        vertical-align: middle;
+      }
+
+      .hotzone-header-menu {
+        position: absolute;
+        top: 26px;
+        left: 0;
+        display: none;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 120px;
+        padding: 6px;
+        border-radius: 8px;
+        border: 1px solid rgba(176, 198, 244, 0.45);
+        background: rgba(12, 18, 35, 0.94);
+        z-index: 30;
+        pointer-events: auto;
+      }
+
+      .hotzone-header-menu.show {
+        display: inline-flex;
+      }
+
+      .hotzone-header-menu-item {
+        border: none;
+        background: transparent;
+        color: rgba(245, 248, 255, 0.92);
+        text-align: left;
+        font-size: 12px;
+        line-height: 1.2;
+        padding: 4px 6px;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+
+      .hotzone-header-menu-item:hover {
+        background: rgba(70, 126, 255, 0.24);
       }
 
       .hotzone-text-action {
@@ -415,6 +492,17 @@
     interactionModeBtn.title = "切换到快速打开模式";
     interactionModeBtn.setAttribute("data-no-drag", "true");
 
+    const moreBtn = document.createElement("button");
+    moreBtn.type = "button";
+    moreBtn.className = "hotzone-header-more";
+    moreBtn.textContent = "⋯";
+    moreBtn.title = "更多";
+    moreBtn.setAttribute("data-no-drag", "true");
+
+    const moreMenu = document.createElement("div");
+    moreMenu.className = "hotzone-header-menu";
+    moreMenu.setAttribute("data-no-drag", "true");
+
     const saveBtn = document.createElement("button");
     saveBtn.type = "button";
     saveBtn.className = "hotzone-text-action save";
@@ -454,6 +542,8 @@
     headerLeft.appendChild(textSizeDownBtn);
     headerLeft.appendChild(textSizeUpBtn);
     headerLeft.appendChild(interactionModeBtn);
+    headerLeft.appendChild(moreBtn);
+    headerLeft.appendChild(moreMenu);
     header.appendChild(headerLeft);
     header.appendChild(actions);
 
@@ -501,6 +591,15 @@
     };
     let tabLongPressTimer = null;
     let maxLengthWarningShown = false;
+    const headerTools = [
+      { key: "pin", button: pinBtn, label: "置顶热区" },
+      { key: "collapse", button: collapseBtn, label: "折叠热区" },
+      { key: "display", button: displayBtn, label: "切换显示器" },
+      { key: "text-down", button: textSizeDownBtn, label: "减小文本" },
+      { key: "text-up", button: textSizeUpBtn, label: "增大文本" },
+      { key: "mode", button: interactionModeBtn, label: "切换模式" }
+    ];
+    let headerMenuOpen = false;
 
     function alertTextTruncated(reason = "save") {
       const hint =
@@ -530,6 +629,104 @@
         state.interactionMode === "quick-open"
           ? "切换到拖拽模式（快捷键：Ctrl+Space）"
           : "切换到快速打开模式（快捷键：Ctrl+Space）";
+    }
+
+    function measureButtonWidth(button, fallback = 24) {
+      const rect = button.getBoundingClientRect();
+      return Math.max(fallback, Math.ceil(rect.width || fallback));
+    }
+
+    function closeHeaderMenu() {
+      headerMenuOpen = false;
+      moreMenu.classList.remove("show");
+      moreBtn.dataset.open = "false";
+    }
+
+    function renderHeaderTools() {
+      const headerWidth = Math.max(0, Math.floor(header.clientWidth || 0));
+      if (headerWidth <= 0) {
+        return;
+      }
+      const gap = 6;
+      const paddingReserve = 6;
+      const actionsReserve = state.editing ? Math.max(68, Math.ceil(actions.getBoundingClientRect().width || 0)) : 0;
+      const available = Math.max(0, headerWidth - actionsReserve - paddingReserve);
+      const moreWidth = measureButtonWidth(moreBtn, 24);
+      let used = 0;
+      const hiddenTools = [];
+
+      const forceCompact = headerWidth <= HEADER_COMPACT_THRESHOLD_PX || available <= moreWidth + 8;
+      if (forceCompact) {
+        headerTools.forEach((item) => {
+          item.button.style.display = "none";
+        });
+        moreMenu.innerHTML = "";
+        headerTools.forEach((item) => {
+          const menuItem = document.createElement("button");
+          menuItem.type = "button";
+          menuItem.className = "hotzone-header-menu-item";
+          menuItem.textContent = item.label;
+          menuItem.setAttribute("data-no-drag", "true");
+          menuItem.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            closeHeaderMenu();
+            item.button.click();
+          });
+          moreMenu.appendChild(menuItem);
+        });
+        moreBtn.style.display = "inline-flex";
+        if (headerMenuOpen) {
+          moreMenu.classList.add("show");
+        } else {
+          moreMenu.classList.remove("show");
+        }
+        return;
+      }
+
+      for (let i = 0; i < headerTools.length; i += 1) {
+        const item = headerTools[i];
+        const buttonWidth = measureButtonWidth(item.button, 24);
+        const withGap = used > 0 ? gap : 0;
+        const nextUsed = used + withGap + buttonWidth;
+        const willNeedMore = i < headerTools.length - 1;
+        const reserveForMore = willNeedMore ? (used > 0 ? gap : 0) + moreWidth : 0;
+        if (nextUsed + reserveForMore <= available) {
+          item.button.style.display = "";
+          used = nextUsed;
+          continue;
+        }
+        item.button.style.display = "none";
+        hiddenTools.push(item);
+      }
+
+      moreMenu.innerHTML = "";
+      if (hiddenTools.length === 0) {
+        moreBtn.style.display = "none";
+        closeHeaderMenu();
+        return;
+      }
+
+      hiddenTools.forEach((item) => {
+        const menuItem = document.createElement("button");
+        menuItem.type = "button";
+        menuItem.className = "hotzone-header-menu-item";
+        menuItem.textContent = item.label;
+        menuItem.setAttribute("data-no-drag", "true");
+        menuItem.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          closeHeaderMenu();
+          item.button.click();
+        });
+        moreMenu.appendChild(menuItem);
+      });
+      moreBtn.style.display = "inline-flex";
+      if (headerMenuOpen) {
+        moreMenu.classList.add("show");
+      } else {
+        moreMenu.classList.remove("show");
+      }
     }
 
     function applyColorStyle() {
@@ -799,24 +996,25 @@
 
     function render() {
       const contentRect = updateLayout();
-      renderTabs();
-
       if (!state.enabled) {
         hotzoneEl.dataset.textEditing = "false";
         displayViewport.style.display = "none";
         editor.style.display = "none";
         actions.style.display = "none";
         renderPinState();
+        renderHeaderTools();
+        renderTabs();
         return;
       }
-
-      renderPinState();
 
       if (state.editing) {
         hotzoneEl.dataset.textEditing = "true";
         displayViewport.style.display = "none";
         editor.style.display = "block";
         actions.style.display = "inline-flex";
+        renderPinState();
+        renderHeaderTools();
+        renderTabs();
         if (editor.value !== state.draft) {
           editor.value = state.draft;
         }
@@ -827,6 +1025,9 @@
       hotzoneEl.dataset.textEditing = "false";
       editor.style.display = "none";
       actions.style.display = "none";
+      renderPinState();
+      renderHeaderTools();
+      renderTabs();
       renderDisplay(contentRect);
     }
 
@@ -938,6 +1139,23 @@
       event.stopPropagation();
     });
 
+    moreBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      headerMenuOpen = !headerMenuOpen;
+      if (headerMenuOpen) {
+        moreMenu.classList.add("show");
+        moreBtn.dataset.open = "true";
+      } else {
+        closeHeaderMenu();
+      }
+    });
+
+    moreBtn.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+
     collapseBtn.addEventListener("click", async (event) => {
       event.preventDefault();
       event.stopPropagation();
@@ -1026,6 +1244,21 @@
 
     window.addEventListener("resize", () => {
       render();
+    });
+
+    const headerResizeObserver = new ResizeObserver(() => {
+      renderHeaderTools();
+    });
+    headerResizeObserver.observe(hotzoneEl);
+
+    document.addEventListener("pointerdown", (event) => {
+      if (!headerMenuOpen) {
+        return;
+      }
+      if (headerLeft.contains(event.target)) {
+        return;
+      }
+      closeHeaderMenu();
     });
 
     return {

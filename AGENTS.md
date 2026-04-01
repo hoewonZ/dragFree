@@ -175,6 +175,11 @@ Recommended agent loop for code changes:
   3. Wire IPC/UI.
   4. Add/update tests.
 - Verify with targeted tests first, then full test run.
+- Follow `docs/versioning.zh-CN.md` for all agent-created commits (fallback: `docs/versioning.md`):
+  1. After a code commit, ask the user whether to bump version.
+  2. Show bump rationale and recommended `MAJOR.MINOR.PATCH` level.
+  3. Only bump `package.json` version after explicit user confirmation.
+  4. Update `COMMIT_HISTORY.md` with version bump rationale and summary.
 
 ## Known Operational Notes
 
