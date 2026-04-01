@@ -450,6 +450,13 @@ function buildTrayContextMenu() {
   const currentVersion = app.getVersion();
   return Menu.buildFromTemplate([
     {
+      label: `当前版本 v${currentVersion}`,
+      enabled: false
+    },
+    {
+      type: "separator"
+    },
+    {
       label: "打开配置",
       click: () => {
         showConfigWindow();
@@ -476,13 +483,6 @@ function buildTrayContextMenu() {
         app.isQuiting = true;
         app.quit();
       }
-    },
-    {
-      type: "separator"
-    },
-    {
-      label: `当前版本 v${currentVersion}`,
-      enabled: false
     }
   ]);
 }

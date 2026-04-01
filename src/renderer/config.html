@@ -154,6 +154,22 @@
         display: block;
       }
 
+      .card.settings-focus {
+        gap: 0;
+      }
+
+      .card.settings-focus .top-bar,
+      .card.settings-focus .folder-list,
+      .card.settings-focus #save-status {
+        display: none;
+      }
+
+      .card.settings-focus .settings-panel.show {
+        margin-top: 0;
+        max-height: none;
+        flex: 1 1 auto;
+      }
+
       .modal-head {
         display: flex;
         align-items: center;
@@ -539,7 +555,7 @@
     </style>
   </head>
   <body>
-    <main class="card">
+    <main id="config-card" class="card">
       <div class="top-bar">
         <h3 style="margin: 0">常用文件夹 <span id="folder-added-tip" class="title-tip">已添加</span></h3>
         <button id="add-folder" class="icon-btn add" type="button" title="添加文件夹" aria-label="添加文件夹">+</button>
@@ -754,6 +770,7 @@
       const panelTileSizeEl = document.getElementById("panel-tile-size");
       const folderListEl = document.getElementById("folder-list");
       const saveStatusEl = document.getElementById("save-status");
+      const configCardEl = document.getElementById("config-card");
       const changedTips = Array.from(document.querySelectorAll(".changed-tip"));
 
       let config = null;
@@ -840,11 +857,13 @@
       }
 
       function openDisplayConfigModal() {
+        configCardEl.classList.add("settings-focus");
         displayConfigModalEl.classList.add("show");
         openDisplayConfigEl.setAttribute("aria-pressed", "true");
       }
 
       function closeDisplayConfigModal() {
+        configCardEl.classList.remove("settings-focus");
         displayConfigModalEl.classList.remove("show");
         openDisplayConfigEl.setAttribute("aria-pressed", "false");
       }
