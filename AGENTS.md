@@ -176,10 +176,12 @@ Recommended agent loop for code changes:
   4. Add/update tests.
 - Verify with targeted tests first, then full test run.
 - Follow `docs/versioning.zh-CN.md` for all agent-created commits (fallback: `docs/versioning.md`):
-  1. After a code commit, ask the user whether to bump version.
-  2. Show bump rationale and recommended `MAJOR.MINOR.PATCH` level.
-  3. Only bump `package.json` version after explicit user confirmation.
-  4. Update `COMMIT_HISTORY.md` with version bump rationale and summary.
+  1. After each code commit, append the commit summary to `COMMIT_HISTORY.md`.
+  2. Then ask the user whether to bump version.
+  3. Show bump rationale and recommended `MAJOR.MINOR.PATCH` level.
+  4. Before changing version, check whether there are multiple commits since last release entry.
+  5. If multiple commits exist, merge them into one release note summary, then bump version once.
+  6. Only bump `package.json` version after explicit user confirmation.
 
 ## Known Operational Notes
 

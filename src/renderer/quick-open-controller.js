@@ -43,6 +43,22 @@ export function createQuickOpenController({ root }) {
 
   const childrenCache = new Map();
 
+  if (scrollZoneUp) {
+    scrollZoneUp.addEventListener("mouseenter", () => {
+      clearPendingHover();
+    });
+  }
+  if (scrollZoneDown) {
+    scrollZoneDown.addEventListener("mouseenter", () => {
+      clearPendingHover();
+    });
+  }
+  if (listContainer) {
+    listContainer.addEventListener("scroll", () => {
+      clearPendingHover();
+    });
+  }
+
   function setScrollZoneActive(direction = null) {
     if (scrollZoneUp) {
       scrollZoneUp.classList.toggle("active", direction === "up");
@@ -322,6 +338,9 @@ export function createQuickOpenController({ root }) {
           currentItems = children;
           render();
         }, getHoverDelay());
+      });
+      chip.addEventListener("mouseleave", () => {
+        clearPendingHover();
       });
 
       chip.addEventListener("click", () => {
