@@ -533,7 +533,7 @@
     const displayBtn = document.createElement("button");
     displayBtn.type = "button";
     displayBtn.className = "hotzone-display-toggle";
-    displayBtn.textContent = "🖥";
+    displayBtn.textContent = "⇄";
     displayBtn.title = "切换显示器";
     displayBtn.setAttribute("data-no-drag", "true");
 
@@ -1306,6 +1306,17 @@
       if (state.textLimitEnabled === false || editor.value.length < LIMITED_TEXT_MAX_LENGTH) {
         maxLengthWarningShown = false;
       }
+    });
+
+    editor.addEventListener("keydown", (event) => {
+      if (event.key !== "Tab") {
+        return;
+      }
+      event.preventDefault();
+      const start = editor.selectionStart ?? 0;
+      const end = editor.selectionEnd ?? start;
+      editor.setRangeText("\t", start, end, "end");
+      state.draft = editor.value;
     });
 
     displayScroll.addEventListener("click", async (event) => {

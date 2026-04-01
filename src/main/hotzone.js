@@ -14,6 +14,8 @@ function toFiniteNumber(value, fallback) {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
+const HOTZONE_HEADER_HEIGHT = 28;
+
 export function getHotzoneRect(displayBounds, hotzone) {
   const edge = normalizeEdge(hotzone?.edge);
   const maxWidth = Math.max(1, displayBounds.width);
@@ -28,7 +30,7 @@ export function getHotzoneRect(displayBounds, hotzone) {
   const minX = displayBounds.x;
   const maxX = displayBounds.x + displayBounds.width - widthPx;
   const minY = displayBounds.y;
-  const maxY = displayBounds.y + displayBounds.height - heightPx;
+  const maxY = displayBounds.y + displayBounds.height - HOTZONE_HEADER_HEIGHT;
 
   const x = Math.round(clamp(rawX, minX, maxX));
   const y = Math.round(clamp(rawY, minY, maxY));

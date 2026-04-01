@@ -449,7 +449,7 @@
         const xClampMin = displayBounds.x;
         const xClampMax = displayBounds.x + displayBounds.width - widthPx;
         const yClampMin = displayBounds.y;
-        const yClampMax = displayBounds.y + displayBounds.height - heightPx;
+        const yClampMax = displayBounds.y + displayBounds.height - headerHeight;
 
         const xPx = clamp(rawX, xClampMin, xClampMax);
         const yPx = clamp(rawY, yClampMin, yClampMax);

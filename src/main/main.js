@@ -868,7 +868,7 @@ function isSameRect(a, b) {
 }
 
 function clampHotzoneRectForHeader(displayBounds, hotzoneRect) {
-  const maxY = displayBounds.y + Math.max(0, displayBounds.height - hotzoneRect.height);
+  const maxY = displayBounds.y + Math.max(0, displayBounds.height - HOTZONE_HEADER_HEIGHT);
   const minY = Math.min(displayBounds.y + HOTZONE_HEADER_HEIGHT, maxY);
   const nextY = Math.round(Math.min(maxY, Math.max(minY, hotzoneRect.y)));
   return {
