@@ -23,7 +23,9 @@
     },
     "files": [
       "src/**/*",
-      "package.json"
+      "package.json",
+      "RELEASE_HISTORY.md",
+      "COPYRIGHT_NOTICE.md"
     ],
     "extraResources": [
       {

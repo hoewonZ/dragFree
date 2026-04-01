@@ -1,189 +1,198 @@
 # AGENTS.md
 
-Repository guidance for agentic coding assistants working in `dragFree`.
+`dragFree` 仓库中的智能编码助手工作规范。
 
-## Project Overview
+## 项目概览
 
-- App type: Electron desktop app.
-- Runtime: Node.js + Electron.
-- Module mode: ESM for app code (`"type": "module"`), CommonJS for preload files (`*.cjs`).
-- Entry point: `src/main/main.js`.
-- Primary domains:
-  - `src/main/`: app lifecycle, windows, config, drag session orchestration.
-  - `src/renderer/`: overlay/panel/config/new-folder UI.
-  - `tests/`: Node built-in test runner suites.
+- 应用类型：Electron 桌面应用。
+- 运行时：Node.js + Electron。
+- 模块模式：应用代码使用 ESM（`"type": "module"`）；preload 文件使用 CommonJS（`*.cjs`）。
+- 入口文件：`src/main/main.js`。
+- 主要目录：
+  - `src/main/`：应用生命周期、窗口、配置、拖拽会话编排。
+  - `src/renderer/`：overlay/panel/config/new-folder 界面。
+  - `tests/`：Node 内置测试框架测试集。
 
-## Source of Truth and Rules Files
+## 规则来源
 
-- Checked for Cursor rules:
-  - `.cursorrules`: not present.
-  - `.cursor/rules/`: not present.
-- Checked for Copilot rules:
-  - `.github/copilot-instructions.md`: not present.
-- Therefore, this file is the effective agent guidance in-repo.
+- 已检查 Cursor 规则：
+  - `.cursorrules`：不存在
+  - `.cursor/rules/`：不存在
+- 已检查 Copilot 规则：
+  - `.github/copilot-instructions.md`：不存在
+- 因此：**本文件是仓库内唯一生效的助手规则来源**。
 
-## Install / Run / Build / Test Commands
+## 安装 / 运行 / 构建 / 测试
 
-Run commands from repository root:
+在仓库根目录执行：
 
 ```bash
 npm install
 ```
 
-Start app locally:
+启动应用：
 
 ```bash
 npm run start
 ```
 
-Run all tests:
+运行全部测试：
 
 ```bash
 npm test
 ```
 
-Build Windows portable package:
+构建 Windows 便携包：
 
 ```bash
 npm run build:win
 ```
 
-## Single-Test Workflows (Important)
+## 单测执行（重要）
 
-This repo uses Node's built-in test runner (`node --test`).
+本仓库使用 Node 内置测试器（`node --test`）。
 
-Run one test file:
+单文件测试：
 
 ```bash
 npm test -- tests/m2/hotzone.test.js
 ```
 
-Equivalent direct command:
+等价命令：
 
 ```bash
 node --test tests/m2/hotzone.test.js
 ```
 
-Run multiple specific files:
+多文件测试：
 
 ```bash
 node --test tests/m2/hotzone.test.js tests/m2/drag-session-controller.test.js
 ```
 
-Run tests by name pattern:
+按名称过滤：
 
 ```bash
 node --test --test-name-pattern="hotzone"
 ```
 
-Recommended agent loop for code changes:
+推荐流程：
 
-1. Run the most specific impacted test file first.
-2. Run all tests (`npm test`) before claiming completion.
-3. If behavior changes config/defaults, include `tests/config/defaults.test.js`.
+1. 先跑最小影响范围的测试文件。
+2. 再跑全量测试（`npm test`）。
+3. 如果改动涉及配置默认值，必须覆盖 `tests/config/defaults.test.js`。
 
-## Lint / Format Status
+## Lint / 格式说明
 
-- No lint script is currently defined in `package.json`.
-- No repo-level ESLint/Prettier config was found.
-- Formatting/style enforcement is convention-based; keep edits consistent with nearby code.
+- `package.json` 目前没有 lint 脚本。
+- 仓库未发现 ESLint/Prettier 全局配置。
+- 代码风格以现有文件风格为准，保持一致即可。
 
-## Code Style Guidelines
+## 代码风格约定
 
-### JavaScript / Module Conventions
+### JavaScript / 模块规范
 
-- Use ESM `import`/`export` in `.js` files.
-- Keep preload files as CommonJS (`require`, `contextBridge`) in `.cjs`.
-- Prefer explicit named imports (for example from `electron`, `node:path`, `node:fs/promises`).
-- Group imports by origin:
-  1. External/runtime (`electron`).
-  2. Node built-ins (`node:*`).
-  3. Local modules (`./...`).
+- `.js` 使用 ESM（`import` / `export`）。
+- `.cjs` preload 使用 CommonJS（`require`、`contextBridge`）。
+- 优先显式命名导入（如 `electron`、`node:path`、`node:fs/promises`）。
+- import 分组顺序：
+  1. 外部运行时依赖（如 `electron`）
+  2. Node 内置模块（`node:*`）
+  3. 本地模块（`./...`）
 
-### Formatting
+### 格式
 
-- Use double quotes for strings.
-- Keep trailing semicolons.
-- Prefer 2-space indentation.
-- Preserve existing line wrapping style; do not reflow unrelated code.
-- Keep functions focused and small when practical.
+- 字符串使用双引号。
+- 保留分号。
+- 使用 2 空格缩进。
+- 不重排无关代码行。
+- 函数尽量保持单一职责、短小清晰。
 
-### Naming
+### 命名
 
-- Functions/variables: `camelCase`.
-- Classes: `PascalCase` (for example `DragSessionController`).
-- Constants: `UPPER_SNAKE_CASE` for fixed timings/thresholds.
-- Use descriptive names that encode intent (`dropPulseConfirmSec`, `panelEventsEnabled`).
+- 函数 / 变量：`camelCase`
+- 类：`PascalCase`
+- 常量：`UPPER_SNAKE_CASE`
+- 命名需体现语义，例如 `dropPulseConfirmSec`、`panelEventsEnabled`。
 
-### Types and Validation (without TypeScript)
+### 类型与输入校验（非 TS）
 
-- Guard and normalize untrusted values at boundaries:
-  - IPC payloads.
-  - Config loaded from disk.
-  - DOM event-derived data.
-- Follow existing normalization approach in `src/main/config-store.js`:
-  - Clamp numeric ranges.
-  - Apply safe defaults.
-  - Filter invalid list entries.
+- 在边界层对不可信输入做防御与归一化：
+  - IPC payload
+  - 文件读取配置
+  - DOM 事件数据
+- 参考 `src/main/config-store.js` 的处理方式：
+  - 数值范围 clamp
+  - 安全默认值
+  - 过滤无效数组项
 
-### Error Handling
+### 错误处理
 
-- Use `try/catch` around filesystem, IPC, and routing operations.
-- Return safe fallbacks rather than crashing UI flows.
-- In renderer, surface user-facing status messages for recoverable failures.
-- In preload bridges, catch failures and return empty/safe values.
-- In main process, log operational details (`console.info/debug`) for drag/drop flows.
+- 文件系统、IPC、路由等操作必须用 `try/catch`。
+- 可恢复错误应返回安全兜底，不应直接导致 UI 崩溃。
+- 渲染层应对可恢复错误给出用户提示。
+- preload 层失败时返回空/安全值。
+- 主进程保留必要运行日志（`console.info/debug`）。
 
-### IPC and Security
+### IPC 与安全
 
-- Keep `contextIsolation: true` and `nodeIntegration: false`.
-- Expose minimal APIs via preload `contextBridge`.
-- Do not leak unrestricted Node access into renderer global scope.
-- Prefer `ipcRenderer.invoke` for request/response and `send` for event-style signals.
+- 保持 `contextIsolation: true`、`nodeIntegration: false`。
+- 仅通过 preload `contextBridge` 暴露最小 API。
+- 禁止向 renderer 全局泄露 Node 能力。
+- 请求响应优先 `ipcRenderer.invoke`，事件通知用 `send`。
 
-### UI / Renderer Practices
+### UI / Renderer 实践
 
-- Maintain current behavior contracts:
-  - Drag success usually silent.
-  - Cancel/failure may notify.
-  - Drop targets and panel close behavior are intentional and tested.
-- Avoid large DOM rewrites when a small targeted change works.
-- Preserve Chinese UI copy style where already used.
+- 保持既有交互契约：
+  - 拖拽成功通常静默；
+  - 取消/失败可提示；
+  - drop target 与 panel 关闭行为是经过测试约束的。
+- 优先小范围定点修改，避免大规模 DOM 重构。
+- 已有中文文案风格需保持一致。
 
-### Testing Conventions
+### 测试规范
 
-- Test framework: `node:test` + `node:assert/strict`.
-- Keep test names behavior-oriented (for example `"detects point inside top-edge hotzone"`).
-- Prefer deterministic tests with explicit numeric timings/positions.
-- When changing state machines, test both transition and emitted events.
+- 测试框架：`node:test` + `node:assert/strict`。
+- 测试名要表达行为意图（如 `"detects point inside top-edge hotzone"`）。
+- 测试数据尽量确定性（明确数值与时序）。
+- 状态机改动需覆盖“状态迁移 + 事件发射”。
 
-## Files and Areas to Treat Carefully
+## 高风险文件（谨慎修改）
 
-- `src/main/main.js`: central orchestration; regressions are high-impact.
-- `src/main/drag-session-controller.js`: drag lifecycle timing-sensitive.
-- `src/main/hotzone.js`: geometry logic used by trigger detection.
-- `src/main/config-store.js`: default values + normalization rules.
-- `src/renderer/panel-controller.js`: dense drag/drop hit-testing logic.
+- `src/main/main.js`：主编排核心，回归风险高。
+- `src/main/drag-session-controller.js`：拖拽生命周期时序敏感。
+- `src/main/hotzone.js`：几何命中逻辑。
+- `src/main/config-store.js`：默认值与归一化核心。
+- `src/renderer/panel-controller.js`：命中测试与交互逻辑密集。
 
-## Agent Execution Guidance
+## 助手执行规范
 
-- Prefer minimal, surgical edits.
-- Do not change unrelated behavior while implementing a fix/feature.
-- If adding config fields:
-  1. Add defaults.
-  2. Add normalization/merge behavior.
-  3. Wire IPC/UI.
-  4. Add/update tests.
-- Verify with targeted tests first, then full test run.
-- Follow `docs/versioning.zh-CN.md` for all agent-created commits (fallback: `docs/versioning.md`):
-  1. After each code commit, append the commit summary to `COMMIT_HISTORY.md`.
-  2. Then ask the user whether to bump version.
-  3. Show bump rationale and recommended `MAJOR.MINOR.PATCH` level.
-  4. Before changing version, check whether there are multiple commits since last release entry.
-  5. If multiple commits exist, merge them into one release note summary, then bump version once.
-  6. Only bump `package.json` version after explicit user confirmation.
+- 优先最小、精准改动。
+- 实现功能时禁止顺带改动无关行为。
+- 若新增配置字段，必须同时完成：
+  1. 默认值（defaults）
+  2. 归一化 / merge
+  3. IPC / UI 接线
+  4. 测试补齐
+- 先跑针对性测试，再跑全量测试。
+- 所有由助手产生的版本流程，遵循 `docs/versioning.zh-CN.md`（缺失时看 `docs/versioning.md`）：
+  1. 每次代码提交后，**立即**将该提交摘要写入 `COMMIT_HISTORY.md`。
+  2. 若 `COMMIT_HISTORY.md` 未包含最新提交 hash / message，任务不得结束。
+  3. `COMMIT_HISTORY.md` 在同一日期段内必须严格按时间顺序（旧 -> 新）。
+  4. 版本记录必须绑定真实变更 `package.json` 的提交 hash，禁止使用 `HEAD` 占位。
+  5. “下次升版本需合并的提交数”以“最后一次版本记录之后的非 release 提交”顺序统计，禁止主观估算。
+  6. 然后询问用户是否升版本。
+  7. 给出升版本建议（`MAJOR` / `MINOR` / `PATCH`）与理由。
+  8. 改版本前先确认自上个 release 以来是否存在多次提交。
+  9. 若存在多次提交，先合并为一条 release 摘要，再统一升一次版本。
+  10. 未获用户明确确认，禁止修改 `package.json` 版本号。
+  11. 任务结束前按以下顺序做最终检查：
+      - 最新提交已记录到 `COMMIT_HISTORY.md`
+      - 版本升级决策已获用户确认
+      - 若版本变更：`package.json` 与 `COMMIT_HISTORY.md` 已同步
+      - 若版本变更：`RELEASE_HISTORY.md` 已记录该版本窗口内合并提交
 
-## Known Operational Notes
+## 已知运行注意事项
 
-- Packaging may fail in restricted network setups when Electron binaries cannot be downloaded.
-- If `npm run start` fails due to Electron download/proxy issues, resolve local network/DNS first.
+- 受限网络环境下，Electron 二进制下载可能失败，导致打包失败。
+- 若 `npm run start` 因 Electron 下载/代理问题失败，请先排查本机网络与 DNS。

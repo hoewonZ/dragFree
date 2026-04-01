@@ -81,6 +81,8 @@ const HOTZONE_TAB_RAIL_GAP = 8;
 const HOTZONE_TAB_RAIL_TOTAL_WIDTH = HOTZONE_TAB_RAIL_WIDTH + HOTZONE_TAB_RAIL_GAP;
 const DROP_RESULT_HINT_VISIBLE_MS = 1500;
 const DRAG_FAIL_LOG_FILE_NAME = "drag_fail_logs";
+const RELEASE_HISTORY_FILE = "RELEASE_HISTORY.md";
+const COPYRIGHT_NOTICE_FILE = "COPYRIGHT_NOTICE.md";
 
 function getDragErrorZhMessage(code) {
   switch (code) {
@@ -393,6 +395,98 @@ function showConfigWindow() {
   sendConfigWindowShown();
 }
 
+function readBundledTextFile(fileName) {
+  try {
+    const targetPath = join(app.getAppPath(), fileName);
+    return readFileSync(targetPath, "utf8");
+  } catch {
+    return "";
+  }
+}
+
+function getReleaseHistoryContent() {
+  const history = readBundledTextFile(RELEASE_HISTORY_FILE).trim();
+  if (history.length > 0) {
+    return history;
+  }
+  return `未找到 ${RELEASE_HISTORY_FILE}，暂时无法展示更新日志。`;
+}
+
+function getCopyrightNotice() {
+  const text = readBundledTextFile(COPYRIGHT_NOTICE_FILE).trim();
+  if (text.length > 0) {
+    return text;
+  }
+  return `未找到 ${COPYRIGHT_NOTICE_FILE}，请确认该文件已随安装包发布。`;
+}
+
+async function showTrayUpdateLogDialog() {
+  const currentVersion = app.getVersion();
+  const detail = getReleaseHistoryContent();
+  await dialog.showMessageBox({
+    type: "info",
+    title: "更新日志",
+    message: `dragFree v${currentVersion} 更新日志（完整）`,
+    detail,
+    buttons: ["确定"],
+    defaultId: 0,
+    noLink: true
+  });
+}
+
+async function showTrayCopyrightDialog() {
+  await dialog.showMessageBox({
+    type: "info",
+    title: "版权声明",
+    message: "dragFree 版权声明",
+    detail: getCopyrightNotice(),
+    buttons: ["确定"],
+    defaultId: 0,
+    noLink: true
+  });
+}
+
+function buildTrayContextMenu() {
+  const currentVersion = app.getVersion();
+  return Menu.buildFromTemplate([
+    {
+      label: "打开配置",
+      click: () => {
+        showConfigWindow();
+      }
+    },
+    {
+      label: "更新日志",
+      click: () => {
+        void showTrayUpdateLogDialog();
+      }
+    },
+    {
+      label: "版权声明",
+      click: () => {
+        void showTrayCopyrightDialog();
+      }
+    },
+    {
+      type: "separator"
+    },
+    {
+      label: "退出",
+      click: () => {
+        app.isQuiting = true;
+        app.quit();
+      }
+    },
+    {
+      type: "separator"
+    },
+    {
+      label: `当前版本 v${currentVersion}`,
+      enabled: false
+    }
+  ]);
+}
+
 function applyLaunchOnStartupSetting() {
   const enabled = config?.behavior?.launchOnStartup === true;
   if (!app.isPackaged) {
@@ -420,24 +514,7 @@ function createTray() {
   tray = new Tray(createTrayIcon());
   tray.setToolTip("dragFree");
 
-  const contextMenu = Menu.buildFromTemplate([
-    {
-      label: "打开配置",
-      click: () => {
-        showConfigWindow();
-      }
-    },
-    {
-      type: "separator"
-    },
-    {
-      label: "退出",
-      click: () => {
-        app.isQuiting = true;
-        app.quit();
-      }
-    }
-  ]);
+  const contextMenu = buildTrayContextMenu();
 
   tray.setContextMenu(contextMenu);
 
