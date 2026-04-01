@@ -617,17 +617,24 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
-function positionPanelForCurrentEdge(displayBounds, cursorX = null) {
+function positionPanelForCurrentEdge(displayBounds, cursorX = null, cursorY = null) {
   const panel = ensurePanelWindow();
   const panelWidth = PANEL_WIDTH;
+  const panelHeight = PANEL_HEIGHT;
   const preferredCenterX = Number.isFinite(cursorX)
     ? cursorX
     : displayBounds.x + displayBounds.width / 2;
+  const preferredCenterY = Number.isFinite(cursorY)
+    ? cursorY
+    : displayBounds.y + displayBounds.height / 2;
   const rawX = preferredCenterX - panelWidth / 2;
+  const rawY = preferredCenterY - panelHeight / 2;
   const minX = displayBounds.x;
   const maxX = displayBounds.x + displayBounds.width - panelWidth;
+  const minY = displayBounds.y;
+  const maxY = displayBounds.y + displayBounds.height - panelHeight;
   const x = Math.round(clamp(rawX, minX, maxX));
-  const y = Math.round(displayBounds.y + 4);
+  const y = Math.round(clamp(rawY, minY, maxY));
 
   panel.setBounds({ x, y, width: PANEL_WIDTH, height: PANEL_HEIGHT });
   if (dragController) {
@@ -647,7 +654,7 @@ function handleDragEvent(event) {
 
     const cursorPoint = screen.getCursorScreenPoint();
     const display = screen.getDisplayNearestPoint(cursorPoint);
-    positionPanelForCurrentEdge(display.bounds, cursorPoint.x);
+    positionPanelForCurrentEdge(display.bounds, cursorPoint.x, cursorPoint.y);
     panel.webContents.send("panel-config", {
       folders: config.folders,
       behavior: config.behavior
@@ -1107,7 +1114,7 @@ function showQuickOpenWindow(anchorPoint = null) {
     ? { x: Math.round(anchorPoint.x), y: Math.round(anchorPoint.y) }
     : screen.getCursorScreenPoint();
   const display = screen.getDisplayNearestPoint(cursorPoint);
-  positionQuickOpenForCurrentEdge(display.bounds, cursorPoint.x);
+  positionQuickOpenForCurrentEdge(display.bounds, cursorPoint.x, cursorPoint.y);
   panel.webContents.send("quick-open-config", {
     folders: config.folders,
     behavior: config.behavior
@@ -1177,17 +1184,24 @@ function applyInteractionModeFromMain(requested, reason = "shortcut") {
   }
 }
 
-function positionQuickOpenForCurrentEdge(displayBounds, cursorX = null) {
+function positionQuickOpenForCurrentEdge(displayBounds, cursorX = null, cursorY = null) {
   const panel = ensureQuickOpenWindow();
   const panelWidth = QUICK_OPEN_WIDTH;
+  const panelHeight = QUICK_OPEN_HEIGHT;
   const preferredCenterX = Number.isFinite(cursorX)
     ? cursorX
     : displayBounds.x + displayBounds.width / 2;
+  const preferredCenterY = Number.isFinite(cursorY)
+    ? cursorY
+    : displayBounds.y + displayBounds.height / 2;
   const rawX = preferredCenterX - panelWidth / 2;
+  const rawY = preferredCenterY - panelHeight / 2;
   const minX = displayBounds.x;
   const maxX = displayBounds.x + displayBounds.width - panelWidth;
+  const minY = displayBounds.y;
+  const maxY = displayBounds.y + displayBounds.height - panelHeight;
   const x = Math.round(clamp(rawX, minX, maxX));
-  const y = Math.round(displayBounds.y + 4);
+  const y = Math.round(clamp(rawY, minY, maxY));
 
   panel.setBounds({ x, y, width: QUICK_OPEN_WIDTH, height: QUICK_OPEN_HEIGHT });
 }
