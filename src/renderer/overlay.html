@@ -269,6 +269,8 @@
         displayTextColor: "#f5f8ff",
         displayTextBold: false,
         displayTextSizeLevel: 0,
+        textLimitEnabled: true,
+        dragTextAppendWithNewline: true,
         cancelRegionPx: 48,
         debugVisible: true
       };
@@ -311,6 +313,8 @@
               textColor: hotzoneState.displayTextColor,
               textBold: hotzoneState.displayTextBold,
               textSizeLevel: hotzoneState.displayTextSizeLevel,
+              textLimitEnabled: hotzoneState.textLimitEnabled !== false,
+              dragTextAppendWithNewline: hotzoneState.dragTextAppendWithNewline !== false,
               interactionMode
             });
             return { ok: true, text: hotzoneState.displayText };
@@ -353,6 +357,14 @@
       function detectFileDrag(dataTransfer) {
         const types = Array.from(dataTransfer?.types ?? []);
         return types.includes("Files");
+      }
+
+      function getDraggedPlainText(dataTransfer) {
+        if (!dataTransfer || typeof dataTransfer.getData !== "function") {
+          return "";
+        }
+        const value = dataTransfer.getData("text/plain");
+        return typeof value === "string" ? value : "";
       }
 
       function clamp(value, min, max) {
@@ -400,6 +412,8 @@
           color,
           titleBarColor,
           displayTextSizeLevel,
+          textLimitEnabled: state.textLimitEnabled !== false,
+          dragTextAppendWithNewline: state.dragTextAppendWithNewline !== false,
           textTabs: Array.isArray(state.textTabs) ? state.textTabs : hotzoneState.textTabs,
           activeTextTabId:
             typeof state.activeTextTabId === "string" && state.activeTextTabId.length > 0
@@ -768,6 +782,8 @@
           textColor: hotzoneState.displayTextColor,
           textBold: hotzoneState.displayTextBold,
           textSizeLevel: hotzoneState.displayTextSizeLevel,
+          textLimitEnabled: hotzoneState.textLimitEnabled !== false,
+          dragTextAppendWithNewline: hotzoneState.dragTextAppendWithNewline !== false,
           interactionMode,
           pinned: hotzoneState.pinned === true,
           collapsed,
@@ -856,6 +872,13 @@
           updateEditorVisibility();
           window.overlayApi.emitDragEnd();
           return;
+        }
+        const isDroppedFile = detectFileDrag(event.dataTransfer);
+        if (!isDroppedFile && interactionMode === "drag") {
+          const droppedText = getDraggedPlainText(event.dataTransfer);
+          if (droppedText.trim().length > 0) {
+            displayEditor.appendDroppedTextAndEdit(droppedText);
+          }
         }
         isFileDragging = false;
         updateEditorVisibility();

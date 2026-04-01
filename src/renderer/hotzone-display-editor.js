@@ -6,6 +6,7 @@
   const TEXT_SIZE_LEVEL_COUNT = 10;
   const TAB_LONG_PRESS_MS = 520;
   const TAB_MAX_COUNT = 8;
+  const LIMITED_TEXT_MAX_LENGTH = 1000;
 
   function ensureStyle() {
     if (document.getElementById(STYLE_ID)) {
@@ -300,7 +301,8 @@
     document.head.appendChild(style);
   }
 
-  function normalizeText(input) {
+  function normalizeText(input, options = {}) {
+    const textLimitEnabled = options.textLimitEnabled !== false;
     if (typeof input !== "string") {
       return DEFAULT_TEXT;
     }
@@ -308,7 +310,11 @@
     if (!normalized) {
       return DEFAULT_TEXT;
     }
-    return normalized.slice(0, 500);
+    return textLimitEnabled ? normalized.slice(0, LIMITED_TEXT_MAX_LENGTH) : normalized;
+  }
+
+  function normalizeCurrentText(state, input) {
+    return normalizeText(input, { textLimitEnabled: state.textLimitEnabled });
   }
 
   function normalizeTabId(input, fallback) {
@@ -318,7 +324,7 @@
     return fallback;
   }
 
-  function normalizeTextTabs(inputTabs, fallbackText) {
+  function normalizeTextTabs(inputTabs, fallbackText, options = {}) {
     const source = Array.isArray(inputTabs) ? inputTabs : [];
     const normalized = source
       .map((item, index) => {
@@ -327,14 +333,14 @@
         }
         return {
           id: normalizeTabId(item.id, `tab-${index + 1}`),
-          text: normalizeText(item.text)
+          text: normalizeText(item.text, options)
         };
       })
       .filter((item) => item !== null);
     if (normalized.length > 0) {
       return normalized.slice(0, TAB_MAX_COUNT);
     }
-    return [{ id: "tab-1", text: normalizeText(fallbackText) }];
+    return [{ id: "tab-1", text: normalizeText(fallbackText, options) }];
   }
 
   function normalizeTextSizeLevel(input) {
@@ -432,7 +438,7 @@
 
     const editor = document.createElement("textarea");
     editor.id = "hotzone-text-editor";
-    editor.maxLength = 500;
+    editor.maxLength = LIMITED_TEXT_MAX_LENGTH;
 
     // Remove legacy debug node from static markup and re-use text content.
     const initialText = typeof displayEl.textContent === "string" ? displayEl.textContent : DEFAULT_TEXT;
@@ -487,11 +493,22 @@
       displayCount: 1,
       textSizeLevel: 0,
       interactionMode: "drag",
+      textLimitEnabled: true,
+      dragTextAppendWithNewline: true,
       textTabs: normalizeTextTabs([], initialText),
       activeTextTabId: "tab-1",
       deleteMode: false
     };
     let tabLongPressTimer = null;
+    let maxLengthWarningShown = false;
+
+    function alertTextTruncated(reason = "save") {
+      const hint =
+        reason === "drop"
+          ? "拖拽追加后文本超过上限（1000字），超出部分将被截断。"
+          : "文本最多仅支持 1000 个字符，超出部分将被截断。";
+      window.alert(hint);
+    }
 
     function renderPinState() {
       pinBtn.dataset.pinned = state.pinned ? "true" : "false";
@@ -546,7 +563,7 @@
         return;
       }
       state.activeTextTabId = target.id;
-      state.text = normalizeText(target.text);
+      state.text = normalizeCurrentText(state, target.text);
       state.draft = state.text;
     }
 
@@ -566,8 +583,8 @@
         return true;
       }
       const active = getActiveTab();
-      const persisted = normalizeText(active?.text ?? state.text);
-      const draft = normalizeText(editor.value);
+      const persisted = normalizeCurrentText(state, active?.text ?? state.text);
+      const draft = normalizeCurrentText(state, editor.value);
       if (draft === persisted) {
         return true;
       }
@@ -620,7 +637,7 @@
       if (!target) {
         return;
       }
-      const preview = normalizeText(target.text).slice(0, 20);
+      const preview = normalizeCurrentText(state, target.text).slice(0, 20);
       const ok = window.confirm(`确认删除该标签页？\n${preview}${target.text.length > 20 ? "..." : ""}`);
       if (!ok) {
         return;
@@ -654,7 +671,7 @@
         }
         const label = buildTabLabel(index);
         item.textContent = label;
-        item.title = normalizeText(tab.text);
+        item.title = normalizeCurrentText(state, tab.text);
         item.setAttribute("data-no-drag", "true");
 
         const del = document.createElement("button");
@@ -745,7 +762,7 @@
     }
 
     function renderDisplay(rect) {
-      const normalized = normalizeText(state.text);
+      const normalized = normalizeCurrentText(state, state.text);
       displayScroll.textContent = normalized;
       displayScroll.classList.remove("readonly");
       displayScroll.classList.remove("compact");
@@ -819,7 +836,8 @@
       }
 
       state.editing = true;
-      state.draft = normalizeText(state.text);
+      state.draft = normalizeCurrentText(state, state.text);
+      maxLengthWarningShown = false;
       render();
     }
 
@@ -830,7 +848,7 @@
     }
 
     async function cancelEditing() {
-      state.draft = normalizeText(state.text);
+      state.draft = normalizeCurrentText(state, state.text);
       await stopEditing();
     }
 
@@ -840,7 +858,7 @@
       }
 
       state.saving = true;
-      const normalized = normalizeText(editor.value);
+      const normalized = normalizeCurrentText(state, editor.value);
       const active = getActiveTab();
       if (active) {
         state.textTabs = state.textTabs.map((tab) => (tab.id === active.id ? { ...tab, text: normalized } : tab));
@@ -853,7 +871,7 @@
       state.saving = false;
 
       if (result?.ok) {
-        state.text = normalizeText(result.text ?? normalized);
+        state.text = normalizeCurrentText(state, result.text ?? normalized);
         state.draft = state.text;
       }
 
@@ -996,6 +1014,14 @@
 
     editor.addEventListener("input", () => {
       state.draft = editor.value;
+      if (state.textLimitEnabled !== false && editor.value.length >= LIMITED_TEXT_MAX_LENGTH && !maxLengthWarningShown) {
+        maxLengthWarningShown = true;
+        alertTextTruncated();
+        return;
+      }
+      if (state.textLimitEnabled === false || editor.value.length < LIMITED_TEXT_MAX_LENGTH) {
+        maxLengthWarningShown = false;
+      }
     });
 
     window.addEventListener("resize", () => {
@@ -1003,17 +1029,41 @@
     });
 
     return {
+      appendDroppedTextAndEdit(droppedText) {
+        if (!state.enabled || !state.locked || state.saving) {
+          return { ok: false, reason: "disabled" };
+        }
+        const raw = typeof droppedText === "string" ? droppedText.replace(/\r\n/g, "\n") : "";
+        if (!raw.trim()) {
+          return { ok: false, reason: "empty" };
+        }
+        const base = state.editing ? state.draft : normalizeCurrentText(state, state.text);
+        const separator = state.dragTextAppendWithNewline && base && raw ? "\n" : "";
+        const nextDraft = `${base}${separator}${raw}`;
+        const shouldLimit = state.textLimitEnabled !== false;
+        const willTruncate = shouldLimit && nextDraft.length > LIMITED_TEXT_MAX_LENGTH;
+        if (willTruncate) {
+          alertTextTruncated("drop");
+        }
+        state.draft = shouldLimit ? nextDraft.slice(0, LIMITED_TEXT_MAX_LENGTH) : nextDraft;
+        state.editing = true;
+        maxLengthWarningShown = shouldLimit && state.draft.length >= LIMITED_TEXT_MAX_LENGTH;
+        render();
+        return { ok: true, truncated: willTruncate };
+      },
       update(next) {
+        const nextTextLimitEnabled = next.textLimitEnabled !== false;
         const fallbackText = typeof next.text === "string" ? next.text : state.text;
-        const incomingTabs = normalizeTextTabs(next.textTabs, fallbackText);
+        const incomingTabs = normalizeTextTabs(next.textTabs, fallbackText, { textLimitEnabled: nextTextLimitEnabled });
         state.textTabs = incomingTabs;
         const candidateActive =
           typeof next.activeTextTabId === "string" && next.activeTextTabId.trim().length > 0
             ? next.activeTextTabId.trim()
             : incomingTabs[0].id;
         state.activeTextTabId = incomingTabs.some((item) => item.id === candidateActive) ? candidateActive : incomingTabs[0].id;
+        state.textLimitEnabled = nextTextLimitEnabled;
         const active = getActiveTab();
-        state.text = normalizeText(active?.text ?? fallbackText);
+        state.text = normalizeCurrentText(state, active?.text ?? fallbackText);
         state.locked = next.locked === true;
         state.enabled = next.enabled === true;
         state.widthPx = Number.isFinite(next.widthPx) ? next.widthPx : state.widthPx;
@@ -1029,6 +1079,12 @@
         state.collapsed = typeof next.collapsed === "boolean" ? next.collapsed : state.collapsed;
         state.displayCount = Number.isFinite(next.displayCount) ? Math.max(1, Math.round(next.displayCount)) : state.displayCount;
         state.interactionMode = next.interactionMode === "quick-open" ? "quick-open" : "drag";
+        state.dragTextAppendWithNewline = next.dragTextAppendWithNewline !== false;
+        if (state.textLimitEnabled) {
+          editor.maxLength = LIMITED_TEXT_MAX_LENGTH;
+        } else {
+          editor.removeAttribute("maxlength");
+        }
         if (!state.enabled || state.collapsed) {
           state.deleteMode = false;
         }

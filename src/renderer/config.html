@@ -547,6 +547,16 @@
               </span>
               <span class="changed-tip" data-tip-for="hotzone-debug-log-enabled">已更改</span>
             </label>
+            <label class="toggle-row" style="grid-column: 1 / -1">
+              <input id="text-limit-enabled" type="checkbox" />
+              <span>启用文本上限（1000字）</span>
+              <span class="changed-tip" data-tip-for="text-limit-enabled">已更改</span>
+            </label>
+            <label class="toggle-row" style="grid-column: 1 / -1">
+              <input id="drag-text-append-with-newline" type="checkbox" />
+              <span>拖拽文字追加时默认先换行</span>
+              <span class="changed-tip" data-tip-for="drag-text-append-with-newline">已更改</span>
+            </label>
           </div>
       </section>
     </main>
@@ -572,6 +582,8 @@
       const openTargetFolderOnSuccessEl = document.getElementById("open-target-folder-on-success");
       const launchOnStartupEl = document.getElementById("launch-on-startup");
       const hotzoneDebugLogEnabledEl = document.getElementById("hotzone-debug-log-enabled");
+      const textLimitEnabledEl = document.getElementById("text-limit-enabled");
+      const dragTextAppendWithNewlineEl = document.getElementById("drag-text-append-with-newline");
       const panelViewModeEl = document.getElementById("panel-view-mode");
       const panelTileSizeWrapEl = document.getElementById("tile-size-wrap");
       const panelTileSizeEl = document.getElementById("panel-tile-size");
@@ -631,6 +643,11 @@
           pinned: typeof fallback.pinned === "boolean" ? fallback.pinned : true,
           displayTextColor: normalizeColor(hotzoneTextColorEl.value, fallback.displayTextColor ?? "#f5f8ff"),
           displayTextBold: hotzoneTextBoldEl.checked,
+          textLimitEnabled: textLimitEnabledEl.checked,
+          dragTextAppendWithNewline:
+            typeof fallback.dragTextAppendWithNewline === "boolean"
+              ? dragTextAppendWithNewlineEl.checked
+              : true,
           opacity: Math.round(opacity * 100) / 100,
           cancelRegionPx: fallback.cancelRegionPx ?? 48,
           debugVisible: fallback.debugVisible !== false
@@ -971,6 +988,8 @@
         openTargetFolderOnSuccessEl.checked = config.behavior?.openTargetFolderOnDropSuccess === true;
         launchOnStartupEl.checked = config.behavior?.launchOnStartup === true;
         hotzoneDebugLogEnabledEl.checked = config.hotzone?.hotzoneDebugLogEnabled === true;
+        textLimitEnabledEl.checked = config.hotzone?.textLimitEnabled !== false;
+        dragTextAppendWithNewlineEl.checked = config.hotzone?.dragTextAppendWithNewline !== false;
         panelViewModeEl.value =
           config.behavior?.panelViewMode === "tile"
             ? "tile"
@@ -999,6 +1018,8 @@
         openTargetFolderOnSuccessEl,
         launchOnStartupEl,
         hotzoneDebugLogEnabledEl,
+        textLimitEnabledEl,
+        dragTextAppendWithNewlineEl,
         panelViewModeEl,
         panelTileSizeEl
       ].forEach((el) => {

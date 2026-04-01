@@ -26,6 +26,8 @@ export const DEFAULT_CONFIG = {
     displayTextColor: "#f5f8ff",
     displayTextBold: false,
     displayTextSizeLevel: 0,
+    textLimitEnabled: true,
+    dragTextAppendWithNewline: true,
     cancelRegionPx: 48,
     debugVisible: true,
     hotzoneDebugLogEnabled: false
@@ -90,12 +92,19 @@ export function mergeConfig(partial = {}) {
   const color = normalizeHexColor(partial.hotzone?.color, DEFAULT_CONFIG.hotzone.color);
   const titleBarColor = normalizeHexColor(partial.hotzone?.titleBarColor, DEFAULT_CONFIG.hotzone.titleBarColor);
   const pinned = typeof partial.hotzone?.pinned === "boolean" ? partial.hotzone.pinned : DEFAULT_CONFIG.hotzone.pinned;
-  const displayText = normalizeDisplayText(partial.hotzone?.displayText, DEFAULT_CONFIG.hotzone.displayText);
+  const textLimitEnabled =
+    typeof partial.hotzone?.textLimitEnabled === "boolean"
+      ? partial.hotzone.textLimitEnabled
+      : DEFAULT_CONFIG.hotzone.textLimitEnabled;
+  const displayText = normalizeDisplayText(partial.hotzone?.displayText, DEFAULT_CONFIG.hotzone.displayText, {
+    textLimitEnabled
+  });
   const { textTabs, activeTextTabId, activeText } = normalizeHotzoneTextTabs({
     textTabs: partial.hotzone?.textTabs,
     activeTextTabId: partial.hotzone?.activeTextTabId,
     displayText,
-    fallbackText: DEFAULT_CONFIG.hotzone.displayText
+    fallbackText: DEFAULT_CONFIG.hotzone.displayText,
+    textLimitEnabled
   });
   const displayTextColor = normalizeHexColor(
     partial.hotzone?.displayTextColor,
@@ -109,6 +118,10 @@ export function mergeConfig(partial = {}) {
     partial.hotzone?.displayTextSizeLevel,
     DEFAULT_CONFIG.hotzone.displayTextSizeLevel
   );
+  const dragTextAppendWithNewline =
+    typeof partial.hotzone?.dragTextAppendWithNewline === "boolean"
+      ? partial.hotzone.dragTextAppendWithNewline
+      : DEFAULT_CONFIG.hotzone.dragTextAppendWithNewline;
   const cancelRegionPx = normalizePositiveInt(
     partial.hotzone?.cancelRegionPx,
     DEFAULT_CONFIG.hotzone.cancelRegionPx
@@ -168,6 +181,8 @@ export function mergeConfig(partial = {}) {
       displayTextColor,
       displayTextBold,
       displayTextSizeLevel,
+      textLimitEnabled,
+      dragTextAppendWithNewline,
       cancelRegionPx,
       debugVisible,
       hotzoneDebugLogEnabled
@@ -272,7 +287,8 @@ function normalizeHexColor(value, fallback) {
   return fallback;
 }
 
-function normalizeDisplayText(value, fallback) {
+function normalizeDisplayText(value, fallback, options = {}) {
+  const textLimitEnabled = options.textLimitEnabled !== false;
   if (typeof value !== "string") {
     return fallback;
   }
@@ -282,17 +298,17 @@ function normalizeDisplayText(value, fallback) {
     return fallback;
   }
 
-  return trimmed.slice(0, 500);
+  return textLimitEnabled ? trimmed.slice(0, 1000) : trimmed;
 }
 
-function normalizeHotzoneTextTabs({ textTabs, activeTextTabId, displayText, fallbackText }) {
-  const fallback = normalizeDisplayText(fallbackText, DEFAULT_CONFIG.hotzone.displayText);
+function normalizeHotzoneTextTabs({ textTabs, activeTextTabId, displayText, fallbackText, textLimitEnabled }) {
+  const fallback = normalizeDisplayText(fallbackText, DEFAULT_CONFIG.hotzone.displayText, { textLimitEnabled });
   const inputTabs = Array.isArray(textTabs) ? textTabs : [];
   const normalizedTabs = inputTabs
-    .map((item, index) => normalizeTextTab(item, index))
+    .map((item, index) => normalizeTextTab(item, index, textLimitEnabled))
     .filter((item) => item !== null);
   if (normalizedTabs.length === 0) {
-    const singleText = normalizeDisplayText(displayText, fallback);
+    const singleText = normalizeDisplayText(displayText, fallback, { textLimitEnabled });
     return {
       textTabs: [{ id: "tab-1", text: singleText }],
       activeTextTabId: "tab-1",
@@ -310,12 +326,12 @@ function normalizeHotzoneTextTabs({ textTabs, activeTextTabId, displayText, fall
   };
 }
 
-function normalizeTextTab(item, index) {
+function normalizeTextTab(item, index, textLimitEnabled) {
   if (!item || typeof item !== "object") {
     return null;
   }
   const id = typeof item.id === "string" && item.id.trim().length > 0 ? item.id.trim() : `tab-${index + 1}`;
-  const text = normalizeDisplayText(item.text, DEFAULT_CONFIG.hotzone.displayText);
+  const text = normalizeDisplayText(item.text, DEFAULT_CONFIG.hotzone.displayText, { textLimitEnabled });
   return { id, text };
 }
 

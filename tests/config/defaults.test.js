@@ -40,6 +40,8 @@ test("default config uses copy and immediate expand", () => {
   assert.equal(DEFAULT_CONFIG.hotzone.displayTextColor, "#f5f8ff");
   assert.equal(DEFAULT_CONFIG.hotzone.displayTextBold, false);
   assert.equal(DEFAULT_CONFIG.hotzone.displayTextSizeLevel, 0);
+  assert.equal(DEFAULT_CONFIG.hotzone.textLimitEnabled, true);
+  assert.equal(DEFAULT_CONFIG.hotzone.dragTextAppendWithNewline, true);
   assert.equal(DEFAULT_CONFIG.hotzone.hotzoneDebugLogEnabled, false);
   assert.equal(DEFAULT_CONFIG.notification.onSuccess, false);
   assert.equal(DEFAULT_CONFIG.notification.onCancelled, true);
@@ -117,6 +119,40 @@ test("mergeConfig normalizes hotzone text tabs and active tab", () => {
   assert.equal(merged.hotzone.textTabs[0].id, "tab-1");
   assert.equal(merged.hotzone.activeTextTabId, "tab-1");
   assert.equal(merged.hotzone.displayText, "A");
+});
+
+test("mergeConfig normalizes drag text append newline option", () => {
+  const mergedDisabled = mergeConfig({
+    hotzone: {
+      dragTextAppendWithNewline: false
+    }
+  });
+  const mergedInvalid = mergeConfig({
+    hotzone: {
+      dragTextAppendWithNewline: "nope"
+    }
+  });
+  assert.equal(mergedDisabled.hotzone.dragTextAppendWithNewline, false);
+  assert.equal(mergedInvalid.hotzone.dragTextAppendWithNewline, true);
+});
+
+test("mergeConfig supports optional text limit", () => {
+  const longText = "a".repeat(1200);
+  const mergedLimited = mergeConfig({
+    hotzone: {
+      textLimitEnabled: true,
+      displayText: longText
+    }
+  });
+  const mergedUnlimited = mergeConfig({
+    hotzone: {
+      textLimitEnabled: false,
+      displayText: longText
+    }
+  });
+  assert.equal(mergedLimited.hotzone.displayText.length, 1000);
+  assert.equal(mergedUnlimited.hotzone.displayText.length, 1200);
+  assert.equal(mergedUnlimited.hotzone.textLimitEnabled, false);
 });
 
 test("session min size stays at fixed hotzone minimums", () => {
