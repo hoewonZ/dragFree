@@ -719,6 +719,56 @@
                 </span>
                 <span class="changed-tip" data-tip-for="drag-text-append-with-newline">已更改</span>
               </label>
+              <label class="toggle-row">
+                <input id="hotzone-bg-enabled" type="checkbox" />
+                <span>启用热区背景图</span>
+                <span class="changed-tip" data-tip-for="hotzone-bg-enabled">已更改</span>
+              </label>
+              <label>
+                <span class="label-row">
+                  <span>背景图填充模式</span>
+                  <span class="changed-tip" data-tip-for="hotzone-bg-fill-mode">已更改</span>
+                </span>
+                <select id="hotzone-bg-fill-mode">
+                  <option value="cover">铺满裁切（cover）</option>
+                  <option value="contain">完整显示（contain）</option>
+                  <option value="stretch">拉伸填满（stretch）</option>
+                  <option value="tile">平铺（tile）</option>
+                </select>
+              </label>
+              <label>
+                <span class="label-row">
+                  <span>背景图对齐</span>
+                  <span class="changed-tip" data-tip-for="hotzone-bg-position">已更改</span>
+                </span>
+                <select id="hotzone-bg-position">
+                  <option value="center center">居中</option>
+                  <option value="left center">左侧居中</option>
+                  <option value="right center">右侧居中</option>
+                  <option value="center top">顶部居中</option>
+                  <option value="center bottom">底部居中</option>
+                </select>
+              </label>
+              <label>
+                <span class="label-row">
+                  <span>背景图文件</span>
+                  <span class="changed-tip" data-tip-for="hotzone-bg-path">已更改</span>
+                </span>
+                <span class="color-row" style="gap: 6px">
+                  <button id="hotzone-bg-pick" type="button">选择图片</button>
+                  <input id="hotzone-bg-path" type="text" readonly placeholder="未选择背景图" />
+                </span>
+              </label>
+              <label>
+                <span class="label-row">
+                  <span>背景图透明度（0-1）</span>
+                  <span class="changed-tip" data-tip-for="hotzone-bg-opacity">已更改</span>
+                </span>
+                <span class="color-row" style="gap: 10px">
+                  <input id="hotzone-bg-opacity" type="range" min="0" max="1" step="0.01" />
+                  <span id="hotzone-bg-opacity-value" style="min-width: 44px; font-size: 12px; color: #435474">1.00</span>
+                </span>
+              </label>
             </div>
             <div class="toggle-group">
               <div class="toggle-group-title">系统开关</div>
@@ -765,6 +815,13 @@
       const hotzoneDebugLogEnabledEl = document.getElementById("hotzone-debug-log-enabled");
       const textLimitEnabledEl = document.getElementById("text-limit-enabled");
       const dragTextAppendWithNewlineEl = document.getElementById("drag-text-append-with-newline");
+      const hotzoneBgEnabledEl = document.getElementById("hotzone-bg-enabled");
+      const hotzoneBgFillModeEl = document.getElementById("hotzone-bg-fill-mode");
+      const hotzoneBgPositionEl = document.getElementById("hotzone-bg-position");
+      const hotzoneBgPickEl = document.getElementById("hotzone-bg-pick");
+      const hotzoneBgPathEl = document.getElementById("hotzone-bg-path");
+      const hotzoneBgOpacityEl = document.getElementById("hotzone-bg-opacity");
+      const hotzoneBgOpacityValueEl = document.getElementById("hotzone-bg-opacity-value");
       const panelViewModeEl = document.getElementById("panel-view-mode");
       const panelTileSizeWrapEl = document.getElementById("tile-size-wrap");
       const panelTileSizeEl = document.getElementById("panel-tile-size");
@@ -807,6 +864,23 @@
         return /^#[0-9a-fA-F]{6}$/.test(candidate) ? candidate.toLowerCase() : fallback;
       }
 
+      function normalizeBgFillMode(value, fallback = "cover") {
+        return value === "contain" || value === "stretch" || value === "tile" ? value : fallback;
+      }
+
+      function normalizeBgPosition(value, fallback = "center center") {
+        const allowed = new Set(["center center", "left center", "right center", "center top", "center bottom"]);
+        return allowed.has(value) ? value : fallback;
+      }
+
+      function normalizeUnit(value, fallback) {
+        const parsed = Number.parseFloat(value);
+        if (!Number.isFinite(parsed)) {
+          return fallback;
+        }
+        return Math.min(1, Math.max(0, parsed));
+      }
+
       function collectHotzoneDraft(baseHotzone = null) {
         const fallback = baseHotzone || config.hotzone || {};
         const opacityParsed = Number.parseFloat(hotzoneOpacityEl.value);
@@ -830,6 +904,12 @@
             typeof fallback.dragTextAppendWithNewline === "boolean"
               ? dragTextAppendWithNewlineEl.checked
               : true,
+          backgroundImageEnabled: hotzoneBgEnabledEl.checked,
+          backgroundImagePath: typeof hotzoneBgPathEl.value === "string" ? hotzoneBgPathEl.value.trim() : "",
+          backgroundFillMode: normalizeBgFillMode(hotzoneBgFillModeEl.value, fallback.backgroundFillMode ?? "cover"),
+          backgroundPosition: normalizeBgPosition(hotzoneBgPositionEl.value, fallback.backgroundPosition ?? "center center"),
+          backgroundRepeat: hotzoneBgFillModeEl.value === "tile" ? "repeat" : "no-repeat",
+          backgroundOpacity: Math.round(normalizeUnit(hotzoneBgOpacityEl.value, fallback.backgroundOpacity ?? 1) * 100) / 100,
           opacity: Math.round(opacity * 100) / 100,
           cancelRegionPx: fallback.cancelRegionPx ?? 48,
           debugVisible: fallback.debugVisible !== false
@@ -840,6 +920,10 @@
         const parsed = Number.parseFloat(hotzoneOpacityEl.value);
         const safe = Number.isFinite(parsed) ? Math.min(1, Math.max(0, parsed)) : 0.08;
         hotzoneOpacityValueEl.textContent = safe.toFixed(2);
+      }
+
+      function updateHotzoneBgOpacityLabel() {
+        hotzoneBgOpacityValueEl.textContent = normalizeUnit(hotzoneBgOpacityEl.value, 1).toFixed(2);
       }
 
       function markFieldChanged(fieldId) {
@@ -1025,12 +1109,24 @@
           color: "#467eff",
           titleBarColor: "#0c1220",
           displayTextColor: "#f5f8ff",
-          displayTextBold: false
+          displayTextBold: false,
+          backgroundImageEnabled: false,
+          backgroundImagePath: "",
+          backgroundFillMode: "cover",
+          backgroundPosition: "center center",
+          backgroundRepeat: "no-repeat",
+          backgroundOpacity: 1
         };
         hotzoneColorEl.value = "#467eff";
         hotzoneTitlebarColorEl.value = "#0c1220";
         hotzoneTextColorEl.value = "#f5f8ff";
         hotzoneTextBoldEl.checked = false;
+        hotzoneBgEnabledEl.checked = false;
+        hotzoneBgPathEl.value = "";
+        hotzoneBgFillModeEl.value = "cover";
+        hotzoneBgPositionEl.value = "center center";
+        hotzoneBgOpacityEl.value = "1.00";
+        updateHotzoneBgOpacityLabel();
         hotzoneOpacityEl.value = HOTZONE_FIXED.opacity.toFixed(2);
         updateHotzoneOpacityLabel();
       }
@@ -1174,6 +1270,12 @@
         hotzoneDebugLogEnabledEl.checked = config.hotzone?.hotzoneDebugLogEnabled === true;
         textLimitEnabledEl.checked = config.hotzone?.textLimitEnabled !== false;
         dragTextAppendWithNewlineEl.checked = config.hotzone?.dragTextAppendWithNewline !== false;
+        hotzoneBgEnabledEl.checked = config.hotzone?.backgroundImageEnabled === true;
+        hotzoneBgPathEl.value = typeof config.hotzone?.backgroundImagePath === "string" ? config.hotzone.backgroundImagePath : "";
+        hotzoneBgFillModeEl.value = normalizeBgFillMode(config.hotzone?.backgroundFillMode, "cover");
+        hotzoneBgPositionEl.value = normalizeBgPosition(config.hotzone?.backgroundPosition, "center center");
+        hotzoneBgOpacityEl.value = normalizeUnit(config.hotzone?.backgroundOpacity, 1).toFixed(2);
+        updateHotzoneBgOpacityLabel();
         panelViewModeEl.value =
           config.behavior?.panelViewMode === "tile"
             ? "tile"
@@ -1204,6 +1306,11 @@
         hotzoneDebugLogEnabledEl,
         textLimitEnabledEl,
         dragTextAppendWithNewlineEl,
+        hotzoneBgEnabledEl,
+        hotzoneBgFillModeEl,
+        hotzoneBgPositionEl,
+        hotzoneBgPathEl,
+        hotzoneBgOpacityEl,
         panelViewModeEl,
         panelTileSizeEl
       ].forEach((el) => {
@@ -1215,6 +1322,9 @@
           if (el === panelViewModeEl) {
             syncTileSizeVisibility();
           }
+          if (el === hotzoneBgOpacityEl) {
+            updateHotzoneBgOpacityLabel();
+          }
           scheduleAutoSave();
         });
         el.addEventListener("change", () => {
@@ -1224,6 +1334,9 @@
           }
           if (el === panelViewModeEl) {
             syncTileSizeVisibility();
+          }
+          if (el === hotzoneBgOpacityEl) {
+            updateHotzoneBgOpacityLabel();
           }
           if (el === defaultActionEl || el === launchOnStartupEl || el === hotzoneDebugLogEnabledEl) {
             void flushPendingSave({ silent: true });
@@ -1240,8 +1353,29 @@
         markFieldChanged("hotzone-text-color");
         markFieldChanged("hotzone-text-bold");
         markFieldChanged("hotzone-opacity");
+        markFieldChanged("hotzone-bg-enabled");
+        markFieldChanged("hotzone-bg-fill-mode");
+        markFieldChanged("hotzone-bg-position");
+        markFieldChanged("hotzone-bg-path");
+        markFieldChanged("hotzone-bg-opacity");
         scheduleAutoSave();
         setStatus("已恢复固定触发方式默认热区。正在自动保存...");
+      });
+
+      hotzoneBgPickEl.addEventListener("click", async () => {
+        try {
+          const api = getApi();
+          const picked = await api.pickHotzoneImage();
+          if (!picked) {
+            return;
+          }
+          hotzoneBgPathEl.value = picked;
+          markFieldChanged("hotzone-bg-path");
+          scheduleAutoSave();
+          setStatus("背景图已导入应用背景库，正在自动保存...");
+        } catch (error) {
+          setStatus(`选择背景图失败：${error instanceof Error ? error.message : "未知错误"}`);
+        }
       });
 
       addFolderEl.addEventListener("click", async () => {

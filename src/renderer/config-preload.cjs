@@ -10,6 +10,9 @@ contextBridge.exposeInMainWorld("configApi", {
   pickFolder() {
     return ipcRenderer.invoke("config:pick-folder");
   },
+  pickHotzoneImage() {
+    return ipcRenderer.invoke("config:pick-hotzone-image");
+  },
   isReady() {
     return true;
   },

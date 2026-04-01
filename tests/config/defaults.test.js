@@ -42,6 +42,12 @@ test("default config uses copy and immediate expand", () => {
   assert.equal(DEFAULT_CONFIG.hotzone.displayTextSizeLevel, 0);
   assert.equal(DEFAULT_CONFIG.hotzone.textLimitEnabled, true);
   assert.equal(DEFAULT_CONFIG.hotzone.dragTextAppendWithNewline, true);
+  assert.equal(DEFAULT_CONFIG.hotzone.backgroundImageEnabled, false);
+  assert.equal(DEFAULT_CONFIG.hotzone.backgroundImagePath, "");
+  assert.equal(DEFAULT_CONFIG.hotzone.backgroundFillMode, "cover");
+  assert.equal(DEFAULT_CONFIG.hotzone.backgroundPosition, "center center");
+  assert.equal(DEFAULT_CONFIG.hotzone.backgroundRepeat, "no-repeat");
+  assert.equal(DEFAULT_CONFIG.hotzone.backgroundOpacity, 1);
   assert.equal(DEFAULT_CONFIG.hotzone.hotzoneDebugLogEnabled, false);
   assert.equal(DEFAULT_CONFIG.notification.onSuccess, false);
   assert.equal(DEFAULT_CONFIG.notification.onCancelled, true);
@@ -153,6 +159,41 @@ test("mergeConfig supports optional text limit", () => {
   assert.equal(mergedLimited.hotzone.displayText.length, 1000);
   assert.equal(mergedUnlimited.hotzone.displayText.length, 1200);
   assert.equal(mergedUnlimited.hotzone.textLimitEnabled, false);
+});
+
+test("mergeConfig normalizes hotzone background image settings", () => {
+  const merged = mergeConfig({
+    hotzone: {
+      backgroundImageEnabled: true,
+      backgroundImagePath: "  C:/images/a.png  ",
+      backgroundFillMode: "tile",
+      backgroundPosition: "center top",
+      backgroundRepeat: "repeat",
+      backgroundOpacity: 0.35
+    }
+  });
+  const mergedInvalid = mergeConfig({
+    hotzone: {
+      backgroundImageEnabled: "yes",
+      backgroundImagePath: 123,
+      backgroundFillMode: "invalid",
+      backgroundPosition: "",
+      backgroundRepeat: "invalid",
+      backgroundOpacity: 10
+    }
+  });
+  assert.equal(merged.hotzone.backgroundImageEnabled, true);
+  assert.equal(merged.hotzone.backgroundImagePath, "C:/images/a.png");
+  assert.equal(merged.hotzone.backgroundFillMode, "tile");
+  assert.equal(merged.hotzone.backgroundPosition, "center top");
+  assert.equal(merged.hotzone.backgroundRepeat, "repeat");
+  assert.equal(merged.hotzone.backgroundOpacity, 0.35);
+  assert.equal(mergedInvalid.hotzone.backgroundImageEnabled, false);
+  assert.equal(mergedInvalid.hotzone.backgroundImagePath, "");
+  assert.equal(mergedInvalid.hotzone.backgroundFillMode, "cover");
+  assert.equal(mergedInvalid.hotzone.backgroundPosition, "center center");
+  assert.equal(mergedInvalid.hotzone.backgroundRepeat, "no-repeat");
+  assert.equal(mergedInvalid.hotzone.backgroundOpacity, 1);
 });
 
 test("session min size stays at fixed hotzone minimums", () => {

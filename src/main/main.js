@@ -12,8 +12,8 @@ import {
 } from "electron";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { basename, dirname, join } from "node:path";
-import { access, appendFile, mkdir, readdir } from "node:fs/promises";
+import { basename, dirname, extname, join } from "node:path";
+import { access, appendFile, copyFile, mkdir, readdir } from "node:fs/promises";
 
 import {
   HOTZONE_MIN_HEIGHT,
@@ -83,6 +83,8 @@ const DROP_RESULT_HINT_VISIBLE_MS = 1500;
 const DRAG_FAIL_LOG_FILE_NAME = "drag_fail_logs";
 const RELEASE_HISTORY_FILE = "RELEASE_HISTORY.md";
 const COPYRIGHT_NOTICE_FILE = "COPYRIGHT_NOTICE.md";
+const HOTZONE_BACKGROUND_DIR = "backgrounds";
+const HOTZONE_BACKGROUND_ALLOWED_EXT = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif"]);
 
 function getDragErrorZhMessage(code) {
   switch (code) {
@@ -1423,6 +1425,36 @@ async function showOpenDirectoryDialogForContext({ title }) {
   }
 }
 
+function getHotzoneBackgroundLibraryPath() {
+  return join(app.getPath("userData"), "dragfree", HOTZONE_BACKGROUND_DIR);
+}
+
+function getPreferredImagePickerDefaultPath() {
+  const configuredFolder = Array.isArray(config?.folders) ? config.folders[0]?.path : null;
+  if (typeof configuredFolder === "string" && configuredFolder.trim()) {
+    return configuredFolder.trim();
+  }
+  return getHotzoneBackgroundLibraryPath();
+}
+
+async function importHotzoneBackgroundImage(sourcePath) {
+  const extension = extname(sourcePath || "").toLowerCase();
+  if (!HOTZONE_BACKGROUND_ALLOWED_EXT.has(extension)) {
+    throw new Error("unsupported_image_type");
+  }
+  const libraryDir = getHotzoneBackgroundLibraryPath();
+  await mkdir(libraryDir, { recursive: true });
+  const baseName = basename(sourcePath, extension)
+    .replace(/[^\w.\-]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 48) || "image";
+  const stamp = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+  const targetName = `${baseName}-${stamp}${extension}`;
+  const targetPath = join(libraryDir, targetName);
+  await copyFile(sourcePath, targetPath);
+  return targetPath;
+}
+
 ipcMain.on("overlay:drag-position", (_event, payload) => {
   if (getInteractionMode() !== "drag") {
     return;
@@ -1918,6 +1950,33 @@ ipcMain.handle("config:pick-folder", async () => {
   }
 
   return result.filePaths[0];
+});
+
+ipcMain.handle("config:pick-hotzone-image", async () => {
+  const options = {
+    title: "选择热区背景图",
+    properties: ["openFile"],
+    defaultPath: getPreferredImagePickerDefaultPath(),
+    filters: [
+      {
+        name: "图片文件",
+        extensions: ["png", "jpg", "jpeg", "webp", "gif"]
+      }
+    ]
+  };
+  const parentWindow = getDialogParentWindow();
+  const result = parentWindow
+    ? await dialog.showOpenDialog(parentWindow, options)
+    : await dialog.showOpenDialog(options);
+  if (result.canceled || result.filePaths.length === 0) {
+    return null;
+  }
+  try {
+    return await importHotzoneBackgroundImage(result.filePaths[0]);
+  } catch (error) {
+    console.warn("[dragFree] import background image failed:", error);
+    return null;
+  }
 });
 
 ipcMain.handle("config:save", async (_event, nextConfig) => {

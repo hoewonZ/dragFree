@@ -30,6 +30,13 @@
         box-sizing: border-box;
       }
 
+      #hotzone-bg {
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        pointer-events: none;
+      }
+
       #hotzone-titlebar {
         position: absolute;
         left: 0;
@@ -211,6 +218,7 @@
     <div id="hotzone-titlebar"></div>
     <div id="hotzone-tab-rail"></div>
     <div id="hotzone">
+      <div id="hotzone-bg"></div>
       <button id="mode-toggle" type="button" data-editing="false" aria-label="切换编辑模式">🔒 锁定</button>
       <div id="editor-layer">
         <div id="move-hit"></div>
@@ -231,6 +239,7 @@
       const titlebar = document.getElementById("hotzone-titlebar");
       const modeToggle = document.getElementById("mode-toggle");
       const debug = document.getElementById("debug");
+      const hotzoneBg = document.getElementById("hotzone-bg");
       const moveHit = document.getElementById("move-hit");
       const tabRail = document.getElementById("hotzone-tab-rail");
 
@@ -271,6 +280,12 @@
         displayTextSizeLevel: 0,
         textLimitEnabled: true,
         dragTextAppendWithNewline: true,
+        backgroundImageEnabled: false,
+        backgroundImagePath: "",
+        backgroundFillMode: "cover",
+        backgroundPosition: "center center",
+        backgroundRepeat: "no-repeat",
+        backgroundOpacity: 1,
         cancelRegionPx: 48,
         debugVisible: true
       };
@@ -466,6 +481,17 @@
         const displayTextSizeLevel = Number.isFinite(rawTextSizeLevel)
           ? clamp(Math.round(rawTextSizeLevel), 0, 9)
           : 0;
+        const backgroundFillMode =
+          state.backgroundFillMode === "contain" || state.backgroundFillMode === "stretch" || state.backgroundFillMode === "tile"
+            ? state.backgroundFillMode
+            : "cover";
+        const backgroundPosition =
+          typeof state.backgroundPosition === "string" && state.backgroundPosition.trim()
+            ? state.backgroundPosition.trim()
+            : "center center";
+        const backgroundRepeat = backgroundFillMode === "tile" ? "repeat" : "no-repeat";
+        const parsedBackgroundOpacity = Number(state.backgroundOpacity);
+        const backgroundOpacity = Number.isFinite(parsedBackgroundOpacity) ? clamp(parsedBackgroundOpacity, 0, 1) : 1;
 
         return {
           ...state,
@@ -480,6 +506,12 @@
           displayTextSizeLevel,
           textLimitEnabled: state.textLimitEnabled !== false,
           dragTextAppendWithNewline: state.dragTextAppendWithNewline !== false,
+          backgroundImageEnabled: state.backgroundImageEnabled === true,
+          backgroundImagePath: typeof state.backgroundImagePath === "string" ? state.backgroundImagePath.trim() : "",
+          backgroundFillMode,
+          backgroundPosition,
+          backgroundRepeat,
+          backgroundOpacity: Math.round(backgroundOpacity * 100) / 100,
           textTabs: Array.isArray(state.textTabs) ? state.textTabs : hotzoneState.textTabs,
           activeTextTabId:
             typeof state.activeTextTabId === "string" && state.activeTextTabId.length > 0
@@ -549,9 +581,43 @@
         return `rgba(${r}, ${g}, ${b}, ${clamp(alpha, 0, 1)})`;
       }
 
+      function toBackgroundImageUrl(filePath) {
+        if (typeof filePath !== "string" || !filePath.trim()) {
+          return "";
+        }
+        const trimmed = filePath.trim();
+        if (/^file:\/\//i.test(trimmed)) {
+          return trimmed;
+        }
+        const normalized = trimmed.replace(/\\/g, "/").replace(/^\/+/, "");
+        return `file:///${encodeURI(normalized)}`;
+      }
+
       function applyHotzoneVisual() {
         applyHotzoneGeometry();
         hotzone.style.backgroundColor = hexToRgba(hotzoneState.color, hotzoneState.opacity);
+        hotzone.style.backgroundImage = "none";
+        const bgUrl = toBackgroundImageUrl(hotzoneState.backgroundImagePath);
+        if (hotzoneState.backgroundImageEnabled && bgUrl) {
+          hotzoneBg.style.backgroundImage = `url("${bgUrl}")`;
+          hotzoneBg.style.backgroundPosition = hotzoneState.backgroundPosition || "center center";
+          hotzoneBg.style.backgroundRepeat = hotzoneState.backgroundFillMode === "tile" ? "repeat" : "no-repeat";
+          hotzoneBg.style.backgroundSize =
+            hotzoneState.backgroundFillMode === "contain"
+              ? "contain"
+              : hotzoneState.backgroundFillMode === "stretch"
+                ? "100% 100%"
+                : hotzoneState.backgroundFillMode === "tile"
+                  ? "auto"
+                  : "cover";
+          hotzoneBg.style.opacity = String(hotzoneState.backgroundOpacity ?? 1);
+        } else {
+          hotzoneBg.style.backgroundImage = "none";
+          hotzoneBg.style.backgroundPosition = "center center";
+          hotzoneBg.style.backgroundRepeat = "no-repeat";
+          hotzoneBg.style.backgroundSize = "auto";
+          hotzoneBg.style.opacity = "0";
+        }
         const titleAlpha = clamp(hotzoneState.opacity, 0.05, 0.92);
         const borderAlpha = clamp(hotzoneState.opacity + 0.24, 0.12, 1);
         const dividerAlpha = clamp(hotzoneState.opacity + 0.16, 0.1, 0.9);

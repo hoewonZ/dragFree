@@ -28,6 +28,12 @@ export const DEFAULT_CONFIG = {
     displayTextSizeLevel: 0,
     textLimitEnabled: true,
     dragTextAppendWithNewline: true,
+    backgroundImageEnabled: false,
+    backgroundImagePath: "",
+    backgroundFillMode: "cover",
+    backgroundPosition: "center center",
+    backgroundRepeat: "no-repeat",
+    backgroundOpacity: 1,
     cancelRegionPx: 48,
     debugVisible: true,
     hotzoneDebugLogEnabled: false
@@ -122,6 +128,30 @@ export function mergeConfig(partial = {}) {
     typeof partial.hotzone?.dragTextAppendWithNewline === "boolean"
       ? partial.hotzone.dragTextAppendWithNewline
       : DEFAULT_CONFIG.hotzone.dragTextAppendWithNewline;
+  const backgroundImageEnabled =
+    typeof partial.hotzone?.backgroundImageEnabled === "boolean"
+      ? partial.hotzone.backgroundImageEnabled
+      : DEFAULT_CONFIG.hotzone.backgroundImageEnabled;
+  const backgroundImagePath = normalizeBackgroundImagePath(
+    partial.hotzone?.backgroundImagePath,
+    DEFAULT_CONFIG.hotzone.backgroundImagePath
+  );
+  const backgroundFillMode = normalizeBackgroundFillMode(
+    partial.hotzone?.backgroundFillMode,
+    DEFAULT_CONFIG.hotzone.backgroundFillMode
+  );
+  const backgroundPosition = normalizeBackgroundPosition(
+    partial.hotzone?.backgroundPosition,
+    DEFAULT_CONFIG.hotzone.backgroundPosition
+  );
+  const backgroundRepeat = normalizeBackgroundRepeat(
+    partial.hotzone?.backgroundRepeat,
+    DEFAULT_CONFIG.hotzone.backgroundRepeat
+  );
+  const backgroundOpacity = normalizeUnitNumber(
+    partial.hotzone?.backgroundOpacity,
+    DEFAULT_CONFIG.hotzone.backgroundOpacity
+  );
   const cancelRegionPx = normalizePositiveInt(
     partial.hotzone?.cancelRegionPx,
     DEFAULT_CONFIG.hotzone.cancelRegionPx
@@ -183,6 +213,12 @@ export function mergeConfig(partial = {}) {
       displayTextSizeLevel,
       textLimitEnabled,
       dragTextAppendWithNewline,
+      backgroundImageEnabled,
+      backgroundImagePath,
+      backgroundFillMode,
+      backgroundPosition,
+      backgroundRepeat,
+      backgroundOpacity,
       cancelRegionPx,
       debugVisible,
       hotzoneDebugLogEnabled
@@ -228,6 +264,49 @@ function normalizePulseLevel(value) {
 
 function normalizeInteractionMode(value) {
   return value === "quick-open" ? "quick-open" : "drag";
+}
+
+function normalizeBackgroundImagePath(value, fallback) {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+  return value.trim();
+}
+
+function normalizeBackgroundFillMode(value, fallback) {
+  if (value === "contain" || value === "stretch" || value === "tile") {
+    return value;
+  }
+  return fallback;
+}
+
+function normalizeBackgroundPosition(value, fallback) {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) {
+    return fallback;
+  }
+  if (normalized === "center") {
+    return "center center";
+  }
+  const allowed = new Set(["left", "center", "right", "top", "bottom"]);
+  const parts = normalized.split(/\s+/).filter(Boolean);
+  if (parts.length === 1 && allowed.has(parts[0])) {
+    return `${parts[0]} center`;
+  }
+  if (parts.length === 2 && allowed.has(parts[0]) && allowed.has(parts[1])) {
+    return `${parts[0]} ${parts[1]}`;
+  }
+  return fallback;
+}
+
+function normalizeBackgroundRepeat(value, fallback) {
+  if (value === "repeat") {
+    return "repeat";
+  }
+  return fallback;
 }
 
 function normalizePositiveInt(value, fallback, minValue = 1) {
