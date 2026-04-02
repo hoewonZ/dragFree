@@ -249,6 +249,7 @@
 
       let displayBounds = { x: 0, y: 0, width: 1920, height: 1080 };
       let virtualBounds = { x: 0, y: 0, width: 1920, height: 1080 };
+      let currentDisplayBounds = { x: 0, y: 0, width: 1920, height: 1080 };
       let overlayBounds = { x: 0, y: 0, width: 1920, height: 1080 };
       let hotzoneBounds = { x: 0, y: 0, width: 1920, height: 1080 };
       let headerHeight = 28;
@@ -455,18 +456,18 @@
       }
 
       function sanitizeHotzone(state) {
-        const maxWidth = Math.max(1, displayBounds.width);
-        const maxHeight = Math.max(1, displayBounds.height);
+        const maxWidth = Math.max(1, currentDisplayBounds.width);
+        const maxHeight = Math.max(1, currentDisplayBounds.height);
         const widthPx = Math.min(maxWidth, Math.max(minWidthPx, Math.round(Number(state.widthPx) || 200)));
         const heightPx = Math.min(maxHeight, Math.max(minHeightPx, Math.round(Number(state.heightPx) || 300)));
-        const centeredX = Math.round(displayBounds.x + (displayBounds.width - widthPx) / 2);
+        const centeredX = Math.round(currentDisplayBounds.x + (currentDisplayBounds.width - widthPx) / 2);
         const rawX = state.xPx === null || state.xPx === undefined ? centeredX : Math.round(Number(state.xPx));
-        const rawY = Number.isFinite(Number(state.yPx)) ? Math.round(Number(state.yPx)) : displayBounds.y;
+        const rawY = Number.isFinite(Number(state.yPx)) ? Math.round(Number(state.yPx)) : currentDisplayBounds.y;
 
-        const xClampMin = displayBounds.x;
-        const xClampMax = displayBounds.x + displayBounds.width - widthPx;
-        const yClampMin = displayBounds.y;
-        const yClampMax = displayBounds.y + displayBounds.height - headerHeight;
+        const xClampMin = virtualBounds.x + tabRailWidth + tabRailGap;
+        const xClampMax = Math.max(xClampMin, virtualBounds.x + virtualBounds.width - widthPx);
+        const yClampMin = virtualBounds.y;
+        const yClampMax = Math.max(yClampMin, virtualBounds.y + virtualBounds.height - headerHeight);
 
         const xPx = clamp(rawX, xClampMin, xClampMax);
         const yPx = clamp(rawY, yClampMin, yClampMax);
@@ -871,6 +872,7 @@
       window.overlayApi.onConfig((payload) => {
         displayBounds = payload.displayBounds ?? displayBounds;
         virtualBounds = payload.virtualBounds ?? virtualBounds;
+        currentDisplayBounds = payload.currentDisplayBounds ?? currentDisplayBounds;
         overlayBounds = payload.overlayBounds ?? overlayBounds;
         hotzoneBounds = payload.hotzoneBounds ?? hotzoneBounds;
         headerHeight = Math.max(0, Math.round(Number(payload.headerHeight) || 0));
@@ -884,6 +886,7 @@
         hotzone.style.height = `${Math.max(1, hotzoneBounds.height - headerHeight)}px`;
         document.documentElement.style.setProperty("--header-height", `${headerHeight}px`);
         document.documentElement.style.setProperty("--tab-rail-width", `${tabRailWidth}px`);
+        isFileDragging = false;
         isEditing = false;
         hotzoneState = sanitizeHotzone(payload.hotzone ?? hotzoneState);
         window.overlayApi.emitDebugSnapshot({

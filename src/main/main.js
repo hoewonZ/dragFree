@@ -67,6 +67,7 @@ let sessionMinHeightPx = HOTZONE_MIN_HEIGHT;
 let dragSessionDropAction = null;
 let panelTabShortcutRegistered = false;
 let modeToggleShortcutRegistered = false;
+const knownDisplayBoundsById = new Map();
 
 const PANEL_WIDTH = 560;
 const PANEL_HEIGHT = 620;
@@ -803,7 +804,7 @@ function stopDragMonitor() {
 function recreateDragController() {
   const effectiveHotzone = overlayHotzonePreview ?? config.hotzone;
   dragController = new DragSessionController({
-    displayBounds: activeDisplayBounds,
+    displayBounds: getVirtualDisplayBounds(),
     hotzone: effectiveHotzone,
     onEvent: handleDragEvent
   });
@@ -818,14 +819,25 @@ function getDisplayById(displayId) {
   return allDisplays.find((item) => String(item.id) === String(displayId)) ?? null;
 }
 
+function rememberDisplayBoundsSnapshot() {
+  const allDisplays = screen.getAllDisplays();
+  for (const item of allDisplays) {
+    knownDisplayBoundsById.set(String(item.id), { ...item.bounds });
+  }
+}
+
 function resolveDisplayForHotzone(hotzone) {
+  const preferredDisplay = hotzone?.preferredDisplayId ? getDisplayById(hotzone.preferredDisplayId) : null;
+  if (preferredDisplay) {
+    return preferredDisplay;
+  }
+
   const configuredDisplay = hotzone?.displayId ? getDisplayById(hotzone.displayId) : null;
   if (configuredDisplay) {
     return configuredDisplay;
   }
 
-  const preferredDisplay = hotzone?.preferredDisplayId ? getDisplayById(hotzone.preferredDisplayId) : null;
-  return preferredDisplay ?? screen.getPrimaryDisplay();
+  return screen.getPrimaryDisplay();
 }
 
 function getVirtualDisplayBounds() {
@@ -855,9 +867,11 @@ function getVirtualDisplayBounds() {
 }
 
 function getOverlayConfigPayload(hotzone, overlayBounds, hotzoneBounds, headerHeight = HOTZONE_HEADER_HEIGHT) {
+  const virtualBounds = getVirtualDisplayBounds();
   return {
-    displayBounds: activeDisplayBounds,
-    virtualBounds: getVirtualDisplayBounds(),
+    displayBounds: virtualBounds,
+    virtualBounds,
+    currentDisplayBounds: activeDisplayBounds,
     overlayBounds,
     hotzoneBounds,
     hotzone,
@@ -886,6 +900,46 @@ function clampHotzoneRectForHeader(displayBounds, hotzoneRect) {
   };
 }
 
+function clampHotzoneRectForVirtualDesktop(virtualBounds, hotzoneRect) {
+  const minX = virtualBounds.x;
+  const maxX = virtualBounds.x + Math.max(0, virtualBounds.width - hotzoneRect.width);
+  const minY = virtualBounds.y;
+  const maxY = virtualBounds.y + Math.max(0, virtualBounds.height - HOTZONE_HEADER_HEIGHT);
+  return {
+    ...hotzoneRect,
+    x: Math.round(clamp(hotzoneRect.x, minX, maxX)),
+    y: Math.round(clamp(hotzoneRect.y, minY, maxY))
+  };
+}
+
+function projectHotzoneRectByDisplayRatio(rect, fromBounds, toBounds) {
+  const fromWidth = Math.max(1, fromBounds.width);
+  const fromHeight = Math.max(1, fromBounds.height);
+  const ratioW = rect.width / fromWidth;
+  const ratioH = rect.height / fromHeight;
+  const nextWidth = Math.max(sessionMinWidthPx, Math.min(toBounds.width, Math.round(toBounds.width * ratioW)));
+  const nextHeight = Math.max(sessionMinHeightPx, Math.min(toBounds.height, Math.round(toBounds.height * ratioH)));
+
+  const fromXSpan = Math.max(1, fromBounds.width - rect.width);
+  const fromYMin = fromBounds.y;
+  const fromYMax = fromBounds.y + Math.max(0, fromBounds.height - HOTZONE_HEADER_HEIGHT);
+  const fromYSpan = Math.max(1, fromYMax - fromYMin);
+  const ratioX = clamp((rect.x - fromBounds.x) / fromXSpan, 0, 1);
+  const ratioY = clamp((rect.y - fromYMin) / fromYSpan, 0, 1);
+
+  const toXSpan = Math.max(0, toBounds.width - nextWidth);
+  const toYMin = toBounds.y;
+  const toYMax = toBounds.y + Math.max(0, toBounds.height - HOTZONE_HEADER_HEIGHT);
+  const toYSpan = Math.max(0, toYMax - toYMin);
+
+  return {
+    x: Math.round(toBounds.x + ratioX * toXSpan),
+    y: Math.round(toYMin + ratioY * toYSpan),
+    width: nextWidth,
+    height: nextHeight
+  };
+}
+
 function ensureWindowTopmost(windowRef) {
   if (!windowRef || windowRef.isDestroyed()) {
     return;
@@ -906,34 +960,86 @@ function applyOverlayPinnedState(pinned) {
 }
 
 function createOrUpdateOverlayWindow(options = {}) {
-  const { previewOnly = false, forceRendererSync = false, deferShowUntilReady = false } = options;
+  const {
+    previewOnly = false,
+    forceRendererSync = false,
+    deferShowUntilReady = false,
+    updatePreferredDisplay = true,
+    source = "sync"
+  } = options;
+  rememberDisplayBoundsSnapshot();
   const effectiveHotzone = overlayHotzonePreview ?? config.hotzone;
-  const source = overlayHotzonePreview ? "preview" : "config";
+  const sourceTag = overlayHotzonePreview ? `${source}:preview` : source;
   let display = resolveDisplayForHotzone(effectiveHotzone);
+  const virtualBounds = getVirtualDisplayBounds();
   let nextHotzone = {
     ...effectiveHotzone,
     displayId: getDisplayId(display)
   };
   let hotzoneRect = clampHotzoneRectForHeader(display.bounds, getHotzoneRect(display.bounds, nextHotzone));
+  if (Number.isFinite(nextHotzone.xPx)) {
+    hotzoneRect.x = Math.round(nextHotzone.xPx);
+  }
+  if (Number.isFinite(nextHotzone.yPx)) {
+    hotzoneRect.y = Math.round(nextHotzone.yPx);
+  }
 
   if (previewOnly) {
     hotzoneRect = clampHotzoneRectForHeader(display.bounds, getHotzoneRect(display.bounds, nextHotzone));
+    if (Number.isFinite(nextHotzone.xPx)) {
+      hotzoneRect.x = Math.round(nextHotzone.xPx);
+    }
+    if (Number.isFinite(nextHotzone.yPx)) {
+      hotzoneRect.y = Math.round(nextHotzone.yPx);
+    }
   }
-
-  const minHotzoneX = display.bounds.x + HOTZONE_TAB_RAIL_TOTAL_WIDTH;
-  const maxHotzoneX = display.bounds.x + display.bounds.width - hotzoneRect.width;
-  hotzoneRect = {
-    ...hotzoneRect,
-    x: Math.round(clamp(hotzoneRect.x, minHotzoneX, Math.max(minHotzoneX, maxHotzoneX)))
+  hotzoneRect = clampHotzoneRectForVirtualDesktop(virtualBounds, hotzoneRect);
+  const centerPoint = {
+    x: Math.round(hotzoneRect.x + hotzoneRect.width / 2),
+    y: Math.round(hotzoneRect.y + hotzoneRect.height / 2)
   };
+  const nearestDisplay = screen.getDisplayNearestPoint(centerPoint);
+  display = nearestDisplay;
 
+  const previousDisplayId = String(effectiveHotzone.displayId ?? "");
+  const nextDisplayId = getDisplayId(display);
+  const movedAcrossDisplays = previousDisplayId !== "" && previousDisplayId !== String(nextDisplayId);
+  const canUpdatePreferredDisplay =
+    updatePreferredDisplay &&
+    screen.getAllDisplays().length > 1 &&
+    movedAcrossDisplays;
   nextHotzone = {
     ...nextHotzone,
+    displayId: nextDisplayId,
+    preferredDisplayId: canUpdatePreferredDisplay
+      ? nextDisplayId
+      : (config?.hotzone?.preferredDisplayId ?? effectiveHotzone.preferredDisplayId ?? effectiveHotzone.displayId ?? nextDisplayId),
     xPx: hotzoneRect.x,
     yPx: hotzoneRect.y,
     widthPx: hotzoneRect.width,
     heightPx: hotzoneRect.height
   };
+  const previousPreferredDisplayId = config?.hotzone?.preferredDisplayId ?? null;
+  const preferredDisplayChanged =
+    previousPreferredDisplayId !== (nextHotzone.preferredDisplayId ?? null);
+  if (preferredDisplayChanged) {
+    config = mergeConfig({
+      ...config,
+      hotzone: {
+        ...config.hotzone,
+        displayId: nextHotzone.displayId,
+        preferredDisplayId: nextHotzone.preferredDisplayId,
+        xPx: nextHotzone.xPx,
+        yPx: nextHotzone.yPx,
+        widthPx: nextHotzone.widthPx,
+        heightPx: nextHotzone.heightPx
+      }
+    });
+    markConfigDirty("preferred_display_changed");
+    void flushRuntimeConfigToDisk("preferred_display_changed_flush").catch((error) => {
+      console.warn("[dragFree] preferred display flush failed:", error);
+    });
+  }
   if (previewOnly) {
     overlayHotzonePreview = nextHotzone;
   }
@@ -976,7 +1082,7 @@ function createOrUpdateOverlayWindow(options = {}) {
     previewOnly,
     forceRendererSync,
     deferShowUntilReady,
-    source,
+    source: sourceTag,
     editing: false,
     selectedDisplayId: getDisplayId(display),
     activeDisplayBounds: display.bounds,
@@ -1175,7 +1281,7 @@ function applyInteractionModeFromMain(requested, reason = "shortcut") {
       }
     });
     markConfigDirty(reason);
-    createOrUpdateOverlayWindow({ forceRendererSync: true });
+    createOrUpdateOverlayWindow({ forceRendererSync: true, source: "interaction_mode" });
     syncAllRendererConfigs();
     return { ok: true, mode: appliedMode };
   } catch (error) {
@@ -1218,7 +1324,7 @@ function scheduleHotzonePreviewUpdate() {
       clearTimeout(hotzonePreviewTimer);
       hotzonePreviewTimer = null;
     }
-    createOrUpdateOverlayWindow({ previewOnly: true });
+    createOrUpdateOverlayWindow({ previewOnly: true, source: "hotzone_preview" });
     return;
   }
 
@@ -1229,7 +1335,7 @@ function scheduleHotzonePreviewUpdate() {
   hotzonePreviewTimer = setTimeout(() => {
     hotzonePreviewTimer = null;
     hotzonePreviewLastAppliedAt = Date.now();
-    createOrUpdateOverlayWindow({ previewOnly: true });
+    createOrUpdateOverlayWindow({ previewOnly: true, source: "hotzone_preview" });
   }, HOTZONE_PREVIEW_THROTTLE_MS - elapsed);
 }
 
@@ -1238,33 +1344,47 @@ function handleDisplayTopologyChanged() {
     return;
   }
 
+  const currentHotzone = overlayHotzonePreview ?? config.hotzone;
   const preferredDisplay = config.hotzone?.preferredDisplayId
     ? getDisplayById(config.hotzone.preferredDisplayId)
     : null;
   const runtimeDisplay = preferredDisplay ?? screen.getPrimaryDisplay();
   const runtimeDisplayId = getDisplayId(runtimeDisplay);
-  if (config.hotzone.displayId !== runtimeDisplayId) {
-    config = mergeConfig({
-      ...config,
-      hotzone: {
-        ...config.hotzone,
-        displayId: runtimeDisplayId
-      }
-    });
-  }
+  const sourceBounds =
+    knownDisplayBoundsById.get(String(currentHotzone?.displayId)) ??
+    activeDisplayBounds ??
+    runtimeDisplay.bounds;
+  const baseRect = {
+    x: Number.isFinite(currentHotzone?.xPx) ? Math.round(currentHotzone.xPx) : sourceBounds.x,
+    y: Number.isFinite(currentHotzone?.yPx) ? Math.round(currentHotzone.yPx) : sourceBounds.y,
+    width: Math.max(sessionMinWidthPx, Number(currentHotzone?.widthPx) || 200),
+    height: Math.max(sessionMinHeightPx, Number(currentHotzone?.heightPx) || 300)
+  };
+  const projectedRect = clampHotzoneRectForVirtualDesktop(
+    getVirtualDisplayBounds(),
+    projectHotzoneRectByDisplayRatio(baseRect, sourceBounds, runtimeDisplay.bounds)
+  );
+  const runtimeHotzone = {
+    ...currentHotzone,
+    displayId: runtimeDisplayId,
+    preferredDisplayId: config.hotzone?.preferredDisplayId ?? currentHotzone?.preferredDisplayId ?? null,
+    xPx: projectedRect.x,
+    yPx: projectedRect.y,
+    widthPx: projectedRect.width,
+    heightPx: projectedRect.height
+  };
 
-  if (overlayHotzonePreview) {
-    const previewDisplay = resolveDisplayForHotzone(overlayHotzonePreview);
-    const previewDisplayId = getDisplayId(previewDisplay);
-    if (overlayHotzonePreview.displayId !== previewDisplayId) {
-      overlayHotzonePreview = {
-        ...overlayHotzonePreview,
-        displayId: previewDisplayId
-      };
+  overlayHotzonePreview = runtimeHotzone;
+  config = mergeConfig({
+    ...config,
+    hotzone: {
+      ...config.hotzone,
+      ...runtimeHotzone,
+      preferredDisplayId: config.hotzone?.preferredDisplayId ?? runtimeHotzone.preferredDisplayId
     }
-  }
+  });
 
-  createOrUpdateOverlayWindow();
+  createOrUpdateOverlayWindow({ updatePreferredDisplay: false, source: "display_topology" });
   setHotzoneEnabled(overlayEventsEnabled);
 }
 
@@ -1294,13 +1414,27 @@ function buildCommittedHotzone(baseHotzone) {
   };
   const resolvedDisplay = screen.getDisplayNearestPoint(centerPoint);
   const resolvedDisplayId = getDisplayId(resolvedDisplay);
+  const canUpdatePreferredDisplay = screen.getAllDisplays().length > 1;
+  const sourceDisplay = baseHotzone?.displayId ? getDisplayById(baseHotzone.displayId) : null;
   const normalizedBase = {
     ...baseHotzone,
     displayId: resolvedDisplayId,
-    preferredDisplayId: resolvedDisplayId,
+    preferredDisplayId: canUpdatePreferredDisplay
+      ? resolvedDisplayId
+      : (baseHotzone.preferredDisplayId ?? baseHotzone.displayId ?? resolvedDisplayId),
     pinned: baseHotzone.pinned === true
   };
-  const rect = getHotzoneRect(resolvedDisplay.bounds, normalizedBase);
+  const baseRect = getHotzoneRect(
+    sourceDisplay?.bounds ?? resolvedDisplay.bounds,
+    {
+      ...normalizedBase,
+      displayId: sourceDisplay ? getDisplayId(sourceDisplay) : resolvedDisplayId
+    }
+  );
+  const rect =
+    sourceDisplay && String(sourceDisplay.id) !== String(resolvedDisplay.id)
+      ? projectHotzoneRectByDisplayRatio(baseRect, sourceDisplay.bounds, resolvedDisplay.bounds)
+      : getHotzoneRect(resolvedDisplay.bounds, normalizedBase);
   return {
     ...normalizedBase,
     xPx: rect.x,
@@ -2322,6 +2456,7 @@ async function bootstrap() {
     }
   });
   updateSessionMinSize(config.hotzone);
+  rememberDisplayBoundsSnapshot();
   await syncHotzoneDebugLoggerFromConfig();
   markConfigPersisted("bootstrap_loaded");
   logStartupStep("bootstrap:config-merge:done");
