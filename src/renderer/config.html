@@ -719,6 +719,16 @@
                 </span>
                 <span class="changed-tip" data-tip-for="drag-text-append-with-newline">已更改</span>
               </label>
+              <label class="toggle-row" style="align-items: flex-start">
+                <input id="allow-cross-screen-move" type="checkbox" />
+                <span>
+                  允许跨屏拖动热区
+                  <span class="muted" style="display: block; margin-top: 4px; font-weight: 400; font-size: 12px">
+                    跨屏移动可能出现界面“假死”的状态，点击折叠▼按钮手动刷新后再试，该功能建议关闭。
+                  </span>
+                </span>
+                <span class="changed-tip" data-tip-for="allow-cross-screen-move">已更改</span>
+              </label>
               <label class="toggle-row">
                 <input id="hotzone-bg-enabled" type="checkbox" />
                 <span>启用热区背景图</span>
@@ -825,6 +835,7 @@
       const hotzoneDebugLogEnabledEl = document.getElementById("hotzone-debug-log-enabled");
       const textLimitEnabledEl = document.getElementById("text-limit-enabled");
       const dragTextAppendWithNewlineEl = document.getElementById("drag-text-append-with-newline");
+      const allowCrossScreenMoveEl = document.getElementById("allow-cross-screen-move");
       const hotzoneBgEnabledEl = document.getElementById("hotzone-bg-enabled");
       const hotzoneBgFillModeEl = document.getElementById("hotzone-bg-fill-mode");
       const hotzoneBgPositionEl = document.getElementById("hotzone-bg-position");
@@ -924,6 +935,10 @@
             typeof fallback.dragTextAppendWithNewline === "boolean"
               ? dragTextAppendWithNewlineEl.checked
               : true,
+          allowCrossScreenMove:
+            typeof fallback.allowCrossScreenMove === "boolean"
+              ? allowCrossScreenMoveEl.checked
+              : false,
           backgroundImageEnabled: hotzoneBgEnabledEl.checked,
           backgroundImagePath: typeof hotzoneBgPathEl.value === "string" ? hotzoneBgPathEl.value.trim() : "",
           backgroundFillMode: normalizeBgFillMode(hotzoneBgFillModeEl.value, fallback.backgroundFillMode ?? "cover"),
@@ -1135,6 +1150,7 @@
           titleBarColor: "#0c1220",
           displayTextColor: "#f5f8ff",
           displayTextBold: false,
+          allowCrossScreenMove: false,
           backgroundImageEnabled: false,
           backgroundImagePath: "",
           backgroundFillMode: "cover",
@@ -1298,6 +1314,7 @@
         hotzoneDebugLogEnabledEl.checked = config.hotzone?.hotzoneDebugLogEnabled === true;
         textLimitEnabledEl.checked = config.hotzone?.textLimitEnabled !== false;
         dragTextAppendWithNewlineEl.checked = config.hotzone?.dragTextAppendWithNewline !== false;
+        allowCrossScreenMoveEl.checked = config.hotzone?.allowCrossScreenMove === true;
         hotzoneBgEnabledEl.checked = config.hotzone?.backgroundImageEnabled === true;
         hotzoneBgPathEl.value = typeof config.hotzone?.backgroundImagePath === "string" ? config.hotzone.backgroundImagePath : "";
         hotzoneBgFillModeEl.value = normalizeBgFillMode(config.hotzone?.backgroundFillMode, "cover");
@@ -1336,6 +1353,7 @@
         hotzoneDebugLogEnabledEl,
         textLimitEnabledEl,
         dragTextAppendWithNewlineEl,
+        allowCrossScreenMoveEl,
         hotzoneBgEnabledEl,
         hotzoneBgFillModeEl,
         hotzoneBgPositionEl,
@@ -1390,6 +1408,7 @@
         markFieldChanged("hotzone-text-color");
         markFieldChanged("hotzone-text-bold");
         markFieldChanged("hotzone-opacity");
+        markFieldChanged("allow-cross-screen-move");
         markFieldChanged("hotzone-bg-enabled");
         markFieldChanged("hotzone-bg-fill-mode");
         markFieldChanged("hotzone-bg-position");

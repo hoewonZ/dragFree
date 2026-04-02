@@ -28,6 +28,7 @@ export const DEFAULT_CONFIG = {
     displayTextSizeLevel: 0,
     textLimitEnabled: true,
     dragTextAppendWithNewline: true,
+    allowCrossScreenMove: false,
     backgroundImageEnabled: false,
     backgroundImagePath: "",
     backgroundFillMode: "cover",
@@ -129,6 +130,10 @@ export function mergeConfig(partial = {}) {
     typeof partial.hotzone?.dragTextAppendWithNewline === "boolean"
       ? partial.hotzone.dragTextAppendWithNewline
       : DEFAULT_CONFIG.hotzone.dragTextAppendWithNewline;
+  const allowCrossScreenMove =
+    typeof partial.hotzone?.allowCrossScreenMove === "boolean"
+      ? partial.hotzone.allowCrossScreenMove
+      : DEFAULT_CONFIG.hotzone.allowCrossScreenMove;
   const backgroundImageEnabled =
     typeof partial.hotzone?.backgroundImageEnabled === "boolean"
       ? partial.hotzone.backgroundImageEnabled
@@ -218,6 +223,7 @@ export function mergeConfig(partial = {}) {
       displayTextSizeLevel,
       textLimitEnabled,
       dragTextAppendWithNewline,
+      allowCrossScreenMove,
       backgroundImageEnabled,
       backgroundImagePath,
       backgroundFillMode,

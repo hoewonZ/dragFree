@@ -42,6 +42,7 @@ test("default config uses copy and immediate expand", () => {
   assert.equal(DEFAULT_CONFIG.hotzone.displayTextSizeLevel, 0);
   assert.equal(DEFAULT_CONFIG.hotzone.textLimitEnabled, true);
   assert.equal(DEFAULT_CONFIG.hotzone.dragTextAppendWithNewline, true);
+  assert.equal(DEFAULT_CONFIG.hotzone.allowCrossScreenMove, false);
   assert.equal(DEFAULT_CONFIG.hotzone.backgroundImageEnabled, false);
   assert.equal(DEFAULT_CONFIG.hotzone.backgroundImagePath, "");
   assert.equal(DEFAULT_CONFIG.hotzone.backgroundFillMode, "cover");
@@ -141,6 +142,21 @@ test("mergeConfig normalizes drag text append newline option", () => {
   });
   assert.equal(mergedDisabled.hotzone.dragTextAppendWithNewline, false);
   assert.equal(mergedInvalid.hotzone.dragTextAppendWithNewline, true);
+});
+
+test("mergeConfig normalizes cross-screen move option", () => {
+  const mergedEnabled = mergeConfig({
+    hotzone: {
+      allowCrossScreenMove: true
+    }
+  });
+  const mergedInvalid = mergeConfig({
+    hotzone: {
+      allowCrossScreenMove: "yes"
+    }
+  });
+  assert.equal(mergedEnabled.hotzone.allowCrossScreenMove, true);
+  assert.equal(mergedInvalid.hotzone.allowCrossScreenMove, false);
 });
 
 test("mergeConfig supports optional text limit", () => {

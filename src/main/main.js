@@ -912,6 +912,18 @@ function clampHotzoneRectForVirtualDesktop(virtualBounds, hotzoneRect) {
   };
 }
 
+function clampHotzoneRectForDisplay(displayBounds, hotzoneRect) {
+  const minX = displayBounds.x + HOTZONE_TAB_RAIL_TOTAL_WIDTH;
+  const maxX = displayBounds.x + Math.max(0, displayBounds.width - hotzoneRect.width);
+  const minY = displayBounds.y;
+  const maxY = displayBounds.y + Math.max(0, displayBounds.height - HOTZONE_HEADER_HEIGHT);
+  return {
+    ...hotzoneRect,
+    x: Math.round(clamp(hotzoneRect.x, minX, maxX)),
+    y: Math.round(clamp(hotzoneRect.y, minY, maxY))
+  };
+}
+
 function projectHotzoneRectByDisplayRatio(rect, fromBounds, toBounds) {
   const fromWidth = Math.max(1, fromBounds.width);
   const fromHeight = Math.max(1, fromBounds.height);
@@ -971,6 +983,9 @@ function createOrUpdateOverlayWindow(options = {}) {
   const effectiveHotzone = overlayHotzonePreview ?? config.hotzone;
   const sourceTag = overlayHotzonePreview ? `${source}:preview` : source;
   let display = resolveDisplayForHotzone(effectiveHotzone);
+  const fallbackDisplay = display;
+  const allowCrossScreenMove =
+    source === "cycle_display" || config?.hotzone?.allowCrossScreenMove === true;
   const virtualBounds = getVirtualDisplayBounds();
   let nextHotzone = {
     ...effectiveHotzone,
@@ -1000,6 +1015,10 @@ function createOrUpdateOverlayWindow(options = {}) {
   };
   const nearestDisplay = screen.getDisplayNearestPoint(centerPoint);
   display = nearestDisplay;
+  if (!allowCrossScreenMove) {
+    display = fallbackDisplay;
+    hotzoneRect = clampHotzoneRectForDisplay(display.bounds, hotzoneRect);
+  }
 
   const previousDisplayId = String(effectiveHotzone.displayId ?? "");
   const nextDisplayId = getDisplayId(display);
@@ -1412,9 +1431,15 @@ function buildCommittedHotzone(baseHotzone) {
     x: Math.round(rawX + widthPx / 2),
     y: Math.round(rawY + heightPx / 2)
   };
-  const resolvedDisplay = screen.getDisplayNearestPoint(centerPoint);
+  const allowCrossScreenMove = config?.hotzone?.allowCrossScreenMove === true;
+  const fallbackDisplay = resolveDisplayForHotzone(baseHotzone);
+  const resolvedDisplay = allowCrossScreenMove
+    ? screen.getDisplayNearestPoint(centerPoint)
+    : fallbackDisplay;
   const resolvedDisplayId = getDisplayId(resolvedDisplay);
-  const canUpdatePreferredDisplay = screen.getAllDisplays().length > 1;
+  const canUpdatePreferredDisplay =
+    allowCrossScreenMove &&
+    screen.getAllDisplays().length > 1;
   const sourceDisplay = baseHotzone?.displayId ? getDisplayById(baseHotzone.displayId) : null;
   const normalizedBase = {
     ...baseHotzone,
@@ -2382,7 +2407,7 @@ ipcMain.handle("overlay:cycle-display", async () => {
   });
   overlayHotzonePreview = config.hotzone;
   markConfigDirty("overlay_cycle_display");
-  rebuildOverlayWindow({ forceRendererSync: true });
+  rebuildOverlayWindow({ forceRendererSync: true, source: "cycle_display" });
 
   return {
     ok: true,
