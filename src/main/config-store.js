@@ -34,6 +34,7 @@ export const DEFAULT_CONFIG = {
     backgroundPosition: "center center",
     backgroundRepeat: "no-repeat",
     backgroundOpacity: 1,
+    backgroundScale: 1,
     cancelRegionPx: 48,
     debugVisible: true,
     hotzoneDebugLogEnabled: false
@@ -152,6 +153,10 @@ export function mergeConfig(partial = {}) {
     partial.hotzone?.backgroundOpacity,
     DEFAULT_CONFIG.hotzone.backgroundOpacity
   );
+  const backgroundScale = normalizeBackgroundScale(
+    partial.hotzone?.backgroundScale,
+    DEFAULT_CONFIG.hotzone.backgroundScale
+  );
   const cancelRegionPx = normalizePositiveInt(
     partial.hotzone?.cancelRegionPx,
     DEFAULT_CONFIG.hotzone.cancelRegionPx
@@ -219,6 +224,7 @@ export function mergeConfig(partial = {}) {
       backgroundPosition,
       backgroundRepeat,
       backgroundOpacity,
+      backgroundScale,
       cancelRegionPx,
       debugVisible,
       hotzoneDebugLogEnabled
@@ -307,6 +313,14 @@ function normalizeBackgroundRepeat(value, fallback) {
     return "repeat";
   }
   return fallback;
+}
+
+function normalizeBackgroundScale(value, fallback) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+  return Math.min(3, Math.max(0.5, Math.round(parsed * 100) / 100));
 }
 
 function normalizePositiveInt(value, fallback, minValue = 1) {

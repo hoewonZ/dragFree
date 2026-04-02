@@ -48,6 +48,7 @@ test("default config uses copy and immediate expand", () => {
   assert.equal(DEFAULT_CONFIG.hotzone.backgroundPosition, "center center");
   assert.equal(DEFAULT_CONFIG.hotzone.backgroundRepeat, "no-repeat");
   assert.equal(DEFAULT_CONFIG.hotzone.backgroundOpacity, 1);
+  assert.equal(DEFAULT_CONFIG.hotzone.backgroundScale, 1);
   assert.equal(DEFAULT_CONFIG.hotzone.hotzoneDebugLogEnabled, false);
   assert.equal(DEFAULT_CONFIG.notification.onSuccess, false);
   assert.equal(DEFAULT_CONFIG.notification.onCancelled, true);
@@ -169,7 +170,8 @@ test("mergeConfig normalizes hotzone background image settings", () => {
       backgroundFillMode: "tile",
       backgroundPosition: "center top",
       backgroundRepeat: "repeat",
-      backgroundOpacity: 0.35
+      backgroundOpacity: 0.35,
+      backgroundScale: 1.8
     }
   });
   const mergedInvalid = mergeConfig({
@@ -179,7 +181,8 @@ test("mergeConfig normalizes hotzone background image settings", () => {
       backgroundFillMode: "invalid",
       backgroundPosition: "",
       backgroundRepeat: "invalid",
-      backgroundOpacity: 10
+      backgroundOpacity: 10,
+      backgroundScale: 99
     }
   });
   assert.equal(merged.hotzone.backgroundImageEnabled, true);
@@ -188,12 +191,14 @@ test("mergeConfig normalizes hotzone background image settings", () => {
   assert.equal(merged.hotzone.backgroundPosition, "center top");
   assert.equal(merged.hotzone.backgroundRepeat, "repeat");
   assert.equal(merged.hotzone.backgroundOpacity, 0.35);
+  assert.equal(merged.hotzone.backgroundScale, 1.8);
   assert.equal(mergedInvalid.hotzone.backgroundImageEnabled, false);
   assert.equal(mergedInvalid.hotzone.backgroundImagePath, "");
   assert.equal(mergedInvalid.hotzone.backgroundFillMode, "cover");
   assert.equal(mergedInvalid.hotzone.backgroundPosition, "center center");
   assert.equal(mergedInvalid.hotzone.backgroundRepeat, "no-repeat");
   assert.equal(mergedInvalid.hotzone.backgroundOpacity, 1);
+  assert.equal(mergedInvalid.hotzone.backgroundScale, 3);
 });
 
 test("session min size stays at fixed hotzone minimums", () => {

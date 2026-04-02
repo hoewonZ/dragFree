@@ -28,6 +28,7 @@
         border-bottom: 1px solid var(--hotzone-frame-color, rgba(255, 255, 255, 0.22));
         border-top: none;
         box-sizing: border-box;
+        overflow: hidden;
       }
 
       #hotzone-bg {
@@ -286,6 +287,7 @@
         backgroundPosition: "center center",
         backgroundRepeat: "no-repeat",
         backgroundOpacity: 1,
+        backgroundScale: 1,
         cancelRegionPx: 48,
         debugVisible: true
       };
@@ -492,6 +494,8 @@
         const backgroundRepeat = backgroundFillMode === "tile" ? "repeat" : "no-repeat";
         const parsedBackgroundOpacity = Number(state.backgroundOpacity);
         const backgroundOpacity = Number.isFinite(parsedBackgroundOpacity) ? clamp(parsedBackgroundOpacity, 0, 1) : 1;
+        const parsedBackgroundScale = Number(state.backgroundScale);
+        const backgroundScale = Number.isFinite(parsedBackgroundScale) ? clamp(parsedBackgroundScale, 0.5, 3) : 1;
 
         return {
           ...state,
@@ -512,6 +516,7 @@
           backgroundPosition,
           backgroundRepeat,
           backgroundOpacity: Math.round(backgroundOpacity * 100) / 100,
+          backgroundScale: Math.round(backgroundScale * 100) / 100,
           textTabs: Array.isArray(state.textTabs) ? state.textTabs : hotzoneState.textTabs,
           activeTextTabId:
             typeof state.activeTextTabId === "string" && state.activeTextTabId.length > 0
@@ -611,12 +616,16 @@
                   ? "auto"
                   : "cover";
           hotzoneBg.style.opacity = String(hotzoneState.backgroundOpacity ?? 1);
+          hotzoneBg.style.transform = `scale(${hotzoneState.backgroundScale ?? 1})`;
+          hotzoneBg.style.transformOrigin = hotzoneState.backgroundPosition || "center center";
         } else {
           hotzoneBg.style.backgroundImage = "none";
           hotzoneBg.style.backgroundPosition = "center center";
           hotzoneBg.style.backgroundRepeat = "no-repeat";
           hotzoneBg.style.backgroundSize = "auto";
           hotzoneBg.style.opacity = "0";
+          hotzoneBg.style.transform = "scale(1)";
+          hotzoneBg.style.transformOrigin = "center center";
         }
         const titleAlpha = clamp(hotzoneState.opacity, 0.05, 0.92);
         const borderAlpha = clamp(hotzoneState.opacity + 0.24, 0.12, 1);

@@ -769,6 +769,16 @@
                   <span id="hotzone-bg-opacity-value" style="min-width: 44px; font-size: 12px; color: #435474">1.00</span>
                 </span>
               </label>
+              <label>
+                <span class="label-row">
+                  <span>背景图缩放（0.5-3）</span>
+                  <span class="changed-tip" data-tip-for="hotzone-bg-scale">已更改</span>
+                </span>
+                <span class="color-row" style="gap: 10px">
+                  <input id="hotzone-bg-scale" type="range" min="0.5" max="3" step="0.01" />
+                  <span id="hotzone-bg-scale-value" style="min-width: 44px; font-size: 12px; color: #435474">1.00</span>
+                </span>
+              </label>
             </div>
             <div class="toggle-group">
               <div class="toggle-group-title">系统开关</div>
@@ -822,6 +832,8 @@
       const hotzoneBgPathEl = document.getElementById("hotzone-bg-path");
       const hotzoneBgOpacityEl = document.getElementById("hotzone-bg-opacity");
       const hotzoneBgOpacityValueEl = document.getElementById("hotzone-bg-opacity-value");
+      const hotzoneBgScaleEl = document.getElementById("hotzone-bg-scale");
+      const hotzoneBgScaleValueEl = document.getElementById("hotzone-bg-scale-value");
       const panelViewModeEl = document.getElementById("panel-view-mode");
       const panelTileSizeWrapEl = document.getElementById("tile-size-wrap");
       const panelTileSizeEl = document.getElementById("panel-tile-size");
@@ -881,6 +893,14 @@
         return Math.min(1, Math.max(0, parsed));
       }
 
+      function normalizeBgScale(value, fallback = 1) {
+        const parsed = Number.parseFloat(value);
+        if (!Number.isFinite(parsed)) {
+          return fallback;
+        }
+        return Math.min(3, Math.max(0.5, parsed));
+      }
+
       function collectHotzoneDraft(baseHotzone = null) {
         const fallback = baseHotzone || config.hotzone || {};
         const opacityParsed = Number.parseFloat(hotzoneOpacityEl.value);
@@ -910,6 +930,7 @@
           backgroundPosition: normalizeBgPosition(hotzoneBgPositionEl.value, fallback.backgroundPosition ?? "center center"),
           backgroundRepeat: hotzoneBgFillModeEl.value === "tile" ? "repeat" : "no-repeat",
           backgroundOpacity: Math.round(normalizeUnit(hotzoneBgOpacityEl.value, fallback.backgroundOpacity ?? 1) * 100) / 100,
+          backgroundScale: Math.round(normalizeBgScale(hotzoneBgScaleEl.value, fallback.backgroundScale ?? 1) * 100) / 100,
           opacity: Math.round(opacity * 100) / 100,
           cancelRegionPx: fallback.cancelRegionPx ?? 48,
           debugVisible: fallback.debugVisible !== false
@@ -924,6 +945,10 @@
 
       function updateHotzoneBgOpacityLabel() {
         hotzoneBgOpacityValueEl.textContent = normalizeUnit(hotzoneBgOpacityEl.value, 1).toFixed(2);
+      }
+
+      function updateHotzoneBgScaleLabel() {
+        hotzoneBgScaleValueEl.textContent = normalizeBgScale(hotzoneBgScaleEl.value, 1).toFixed(2);
       }
 
       function markFieldChanged(fieldId) {
@@ -1115,7 +1140,8 @@
           backgroundFillMode: "cover",
           backgroundPosition: "center center",
           backgroundRepeat: "no-repeat",
-          backgroundOpacity: 1
+          backgroundOpacity: 1,
+          backgroundScale: 1
         };
         hotzoneColorEl.value = "#467eff";
         hotzoneTitlebarColorEl.value = "#0c1220";
@@ -1127,6 +1153,8 @@
         hotzoneBgPositionEl.value = "center center";
         hotzoneBgOpacityEl.value = "1.00";
         updateHotzoneBgOpacityLabel();
+        hotzoneBgScaleEl.value = "1.00";
+        updateHotzoneBgScaleLabel();
         hotzoneOpacityEl.value = HOTZONE_FIXED.opacity.toFixed(2);
         updateHotzoneOpacityLabel();
       }
@@ -1276,6 +1304,8 @@
         hotzoneBgPositionEl.value = normalizeBgPosition(config.hotzone?.backgroundPosition, "center center");
         hotzoneBgOpacityEl.value = normalizeUnit(config.hotzone?.backgroundOpacity, 1).toFixed(2);
         updateHotzoneBgOpacityLabel();
+        hotzoneBgScaleEl.value = normalizeBgScale(config.hotzone?.backgroundScale, 1).toFixed(2);
+        updateHotzoneBgScaleLabel();
         panelViewModeEl.value =
           config.behavior?.panelViewMode === "tile"
             ? "tile"
@@ -1311,6 +1341,7 @@
         hotzoneBgPositionEl,
         hotzoneBgPathEl,
         hotzoneBgOpacityEl,
+        hotzoneBgScaleEl,
         panelViewModeEl,
         panelTileSizeEl
       ].forEach((el) => {
@@ -1325,6 +1356,9 @@
           if (el === hotzoneBgOpacityEl) {
             updateHotzoneBgOpacityLabel();
           }
+          if (el === hotzoneBgScaleEl) {
+            updateHotzoneBgScaleLabel();
+          }
           scheduleAutoSave();
         });
         el.addEventListener("change", () => {
@@ -1337,6 +1371,9 @@
           }
           if (el === hotzoneBgOpacityEl) {
             updateHotzoneBgOpacityLabel();
+          }
+          if (el === hotzoneBgScaleEl) {
+            updateHotzoneBgScaleLabel();
           }
           if (el === defaultActionEl || el === launchOnStartupEl || el === hotzoneDebugLogEnabledEl) {
             void flushPendingSave({ silent: true });
@@ -1358,6 +1395,7 @@
         markFieldChanged("hotzone-bg-position");
         markFieldChanged("hotzone-bg-path");
         markFieldChanged("hotzone-bg-opacity");
+        markFieldChanged("hotzone-bg-scale");
         scheduleAutoSave();
         setStatus("已恢复固定触发方式默认热区。正在自动保存...");
       });
