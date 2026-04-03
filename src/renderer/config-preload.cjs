@@ -13,6 +13,9 @@ contextBridge.exposeInMainWorld("configApi", {
   pickHotzoneImage() {
     return ipcRenderer.invoke("config:pick-hotzone-image");
   },
+  openHotzoneBackgroundLibrary() {
+    return ipcRenderer.invoke("config:open-hotzone-background-library");
+  },
   isReady() {
     return true;
   },

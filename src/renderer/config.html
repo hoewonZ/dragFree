@@ -194,6 +194,11 @@
         z-index: 2;
       }
 
+      .modal-head h3 {
+        font-weight: 600;
+        color: #2f4677;
+      }
+
       .modal-section-label {
         margin: 0 0 10px;
         font-size: 13px;
@@ -203,6 +208,36 @@
 
       .modal-section-label.spaced {
         margin-top: 18px;
+      }
+
+      .top-bar h3 {
+        font-weight: 600;
+        color: #2f4677;
+      }
+
+      .settings-panel-body .label-row > span:first-child:not(.changed-tip) {
+        font-weight: 600;
+        color: #2f4677;
+      }
+
+      .settings-panel-body .color-setting-head > span:first-child {
+        font-weight: 600;
+        color: #2f4677;
+      }
+
+      .settings-panel-body .opacity-head > span:first-child:not(.changed-tip) {
+        font-weight: 600;
+        color: #2f4677;
+      }
+
+      .settings-panel-body label.toggle-row > span:not(.changed-tip) {
+        font-weight: 600;
+        color: #2f4677;
+      }
+
+      .settings-panel-body label.toggle-row > span:not(.changed-tip) .muted {
+        font-weight: 400;
+        color: #5c6d8a;
       }
 
       .modal-actions {
@@ -288,6 +323,81 @@
         margin-top: 6px;
       }
 
+      .hotzone-bg-file-row {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        align-items: center;
+        gap: 8px;
+        margin-top: 6px;
+        width: 100%;
+        min-width: 0;
+      }
+
+      .hotzone-bg-name-wrap {
+        flex: 1 1 0;
+        min-width: 0;
+        overflow: hidden;
+      }
+
+      .hotzone-bg-pick-btn {
+        flex: 0 0 auto;
+        margin: 0;
+        padding: 6px 14px;
+        min-height: 30px;
+        box-sizing: border-box;
+        white-space: nowrap;
+        font-size: 12px;
+        line-height: 1.2;
+        border: 1px solid #c5d4f0;
+        border-radius: 8px;
+        background: #fff;
+        color: #2f4677;
+        cursor: pointer;
+      }
+
+      .hotzone-bg-pick-btn:hover {
+        background: #f0f5ff;
+        border-color: #9eb6e8;
+      }
+
+      .hotzone-bg-path-text {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
+        padding: 0;
+        font-size: 12px;
+        line-height: 1.35;
+        color: #435474;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .hotzone-bg-path-text.muted {
+        color: #6a7892;
+      }
+
+      .hotzone-bg-library-link {
+        flex: 0 0 auto;
+        margin: 0;
+        padding: 0;
+        border: none;
+        background: none;
+        color: #2563eb;
+        font-size: 12px;
+        line-height: 1.3;
+        white-space: nowrap;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        cursor: pointer;
+      }
+
+      .hotzone-bg-library-link:hover {
+        color: #1d4ed8;
+      }
+
       .color-settings {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -318,6 +428,23 @@
         margin-left: 2px;
       }
 
+      .color-inline.color-with-hex {
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .color-hex-input {
+        width: 6.85em;
+        max-width: 100%;
+        margin: 0;
+        padding: 3px 8px;
+        font-size: 12px;
+        font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+        border: 1px solid #ccd8f0;
+        border-radius: 6px;
+        box-sizing: border-box;
+      }
+
       .settings-group-card {
         grid-column: 1 / -1;
         border: 1px solid #d7e2f8;
@@ -330,6 +457,10 @@
         display: grid;
         gap: 10px;
         grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .settings-group-grid > label {
+        min-width: 0;
       }
 
       .display-settings-footer {
@@ -434,15 +565,47 @@
         color: #2f4677;
       }
 
-      .toggle-split-row {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px;
+      .hotzone-text-style-row {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
         align-items: center;
+        gap: 10px;
+        width: 100%;
+        min-width: 0;
       }
 
-      .toggle-split-row .toggle-row {
+      .hotzone-text-style-row > .toggle-row {
+        flex: 0 0 auto;
         margin-top: 0;
+      }
+
+      .hotzone-text-color-block {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 6px;
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+
+      .hotzone-text-color-block .color-setting-head {
+        flex: 0 0 auto;
+        white-space: nowrap;
+      }
+
+      .hotzone-text-color-block .color-inline.color-with-hex {
+        margin-left: 0;
+        flex: 0 1 auto;
+        min-width: 0;
+        flex-wrap: nowrap;
+        gap: 6px;
+      }
+
+      .hotzone-text-color-block .color-hex-input {
+        flex: 0 1 6.85em;
+        min-width: 5em;
+        max-width: 100%;
       }
 
       #hotzone-color::-webkit-color-swatch-wrapper,
@@ -693,13 +856,27 @@
           <div class="grid">
             <div class="settings-group-card">
               <div class="color-settings">
+                <p class="muted" style="grid-column: 1 / -1; margin: 0 0 4px; font-size: 11px; line-height: 1.35">
+                  推荐在右侧使用十六进制（#RRGGBB）填写；点击左侧色块可打开系统调色板选色。
+                </p>
                 <div class="color-setting-item">
                   <span class="color-setting-head">
                     <span>热区颜色</span>
                     <span class="changed-tip" data-tip-for="hotzone-color">已更改</span>
                   </span>
-                  <span class="color-inline">
+                  <span class="color-inline color-with-hex">
                     <input id="hotzone-color" type="color" />
+                    <input
+                      type="text"
+                      class="color-hex-input"
+                      id="hotzone-color-hex"
+                      spellcheck="false"
+                      maxlength="7"
+                      autocomplete="off"
+                      placeholder="#RRGGBB"
+                      title="十六进制颜色，例如 #467eff"
+                      aria-label="热区颜色（十六进制）"
+                    />
                   </span>
                 </div>
                 <div class="color-setting-item">
@@ -707,8 +884,19 @@
                     <span>标题栏颜色</span>
                     <span class="changed-tip" data-tip-for="hotzone-titlebar-color">已更改</span>
                   </span>
-                  <span class="color-inline">
+                  <span class="color-inline color-with-hex">
                     <input id="hotzone-titlebar-color" type="color" />
+                    <input
+                      type="text"
+                      class="color-hex-input"
+                      id="hotzone-titlebar-color-hex"
+                      spellcheck="false"
+                      maxlength="7"
+                      autocomplete="off"
+                      placeholder="#RRGGBB"
+                      title="十六进制颜色，例如 #0c1220"
+                      aria-label="标题栏颜色（十六进制）"
+                    />
                   </span>
                 </div>
               </div>
@@ -804,21 +992,32 @@
           <div class="grid">
             <div class="toggle-group">
               <div class="toggle-group-title">热区设置</div>
-              <div class="toggle-split-row">
+              <div class="hotzone-text-style-row">
                 <label class="toggle-row">
                   <input id="hotzone-text-bold" type="checkbox" />
                   <span>展示文本加粗</span>
                   <span class="changed-tip" data-tip-for="hotzone-text-bold">已更改</span>
                 </label>
-                <label class="color-setting-item">
+                <div class="hotzone-text-color-block">
                   <span class="color-setting-head">
                     <span>展示文本颜色</span>
                     <span class="changed-tip" data-tip-for="hotzone-text-color">已更改</span>
                   </span>
-                  <span class="color-inline">
+                  <span class="color-inline color-with-hex">
                     <input id="hotzone-text-color" type="color" />
+                    <input
+                      type="text"
+                      class="color-hex-input"
+                      id="hotzone-text-color-hex"
+                      spellcheck="false"
+                      maxlength="7"
+                      autocomplete="off"
+                      placeholder="#RRGGBB"
+                      title="十六进制颜色，例如 #f5f8ff"
+                      aria-label="展示文本颜色（十六进制）"
+                    />
                   </span>
-                </label>
+                </div>
               </div>
               <label class="toggle-row">
                 <input id="text-limit-enabled" type="checkbox" />
@@ -880,10 +1079,21 @@
                   <span>背景图文件</span>
                   <span class="changed-tip" data-tip-for="hotzone-bg-path">已更改</span>
                 </span>
-                <span class="color-row" style="gap: 6px">
-                  <button id="hotzone-bg-pick" type="button">选择图片</button>
-                  <input id="hotzone-bg-path" type="text" readonly placeholder="未选择背景图" />
-                </span>
+                <div class="hotzone-bg-file-row">
+                  <button id="hotzone-bg-pick" type="button" class="hotzone-bg-pick-btn">选择图片</button>
+                  <div class="hotzone-bg-name-wrap">
+                    <span id="hotzone-bg-path-display" class="hotzone-bg-path-text muted" title="">未选择</span>
+                  </div>
+                  <button
+                    type="button"
+                    class="hotzone-bg-library-link"
+                    id="hotzone-bg-open-library"
+                    title="打开应用保存背景图的文件夹"
+                  >
+                    打开
+                  </button>
+                  <input id="hotzone-bg-path" type="hidden" value="" />
+                </div>
               </label>
               <label>
                 <span class="label-row">
@@ -959,6 +1169,8 @@
       const hotzoneBgPositionEl = document.getElementById("hotzone-bg-position");
       const hotzoneBgPickEl = document.getElementById("hotzone-bg-pick");
       const hotzoneBgPathEl = document.getElementById("hotzone-bg-path");
+      const hotzoneBgPathDisplayEl = document.getElementById("hotzone-bg-path-display");
+      const hotzoneBgOpenLibraryEl = document.getElementById("hotzone-bg-open-library");
       const hotzoneBgOpacityEl = document.getElementById("hotzone-bg-opacity");
       const hotzoneBgOpacityValueEl = document.getElementById("hotzone-bg-opacity-value");
       const hotzoneBgScaleEl = document.getElementById("hotzone-bg-scale");
@@ -1008,6 +1220,63 @@
       function normalizeColor(value, fallback) {
         const candidate = typeof value === "string" ? value.trim() : "";
         return /^#[0-9a-fA-F]{6}$/.test(candidate) ? candidate.toLowerCase() : fallback;
+      }
+
+      const COLOR_HEX_PAIRS = [
+        { colorId: "hotzone-color", fallback: "#467eff" },
+        { colorId: "hotzone-titlebar-color", fallback: "#0c1220" },
+        { colorId: "hotzone-text-color", fallback: "#f5f8ff" }
+      ];
+
+      function syncHexFieldFromColorInput(colorInputId) {
+        const colorEl = document.getElementById(colorInputId);
+        const hexEl = document.getElementById(`${colorInputId}-hex`);
+        if (!colorEl || !hexEl) {
+          return;
+        }
+        const pair = COLOR_HEX_PAIRS.find((p) => p.colorId === colorInputId);
+        const fb = pair?.fallback ?? "#000000";
+        hexEl.value = normalizeColor(colorEl.value, fb);
+      }
+
+      function syncAllColorHexFields() {
+        for (const { colorId } of COLOR_HEX_PAIRS) {
+          syncHexFieldFromColorInput(colorId);
+        }
+      }
+
+      function applyHexStringToColorInput(colorInputId, hexRaw) {
+        const colorEl = document.getElementById(colorInputId);
+        const hexEl = document.getElementById(`${colorInputId}-hex`);
+        if (!colorEl || !hexEl) {
+          return;
+        }
+        const pair = COLOR_HEX_PAIRS.find((p) => p.colorId === colorInputId);
+        const fb = pair?.fallback ?? colorEl.value;
+        const raw = typeof hexRaw === "string" ? hexRaw.trim() : "";
+        const withHash = raw.startsWith("#") ? raw : `#${raw}`;
+        if (!/^#[0-9a-fA-F]{6}$/i.test(withHash)) {
+          hexEl.value = normalizeColor(colorEl.value, fb);
+          setStatus("请输入 6 位十六进制颜色，例如 #467eff。");
+          return;
+        }
+        const hex = withHash.toLowerCase();
+        colorEl.value = hex;
+        hexEl.value = hex;
+        markFieldChanged(colorInputId);
+        scheduleAutoSave();
+      }
+
+      function bindColorHexFields() {
+        for (const { colorId } of COLOR_HEX_PAIRS) {
+          const hexEl = document.getElementById(`${colorId}-hex`);
+          if (!hexEl) {
+            continue;
+          }
+          hexEl.addEventListener("change", () => {
+            applyHexStringToColorInput(colorId, hexEl.value);
+          });
+        }
       }
 
       function normalizeBgFillMode(value, fallback = "cover") {
@@ -1087,6 +1356,32 @@
 
       function updateHotzoneBgScaleLabel() {
         hotzoneBgScaleValueEl.textContent = normalizeBgScale(hotzoneBgScaleEl.value, 1).toFixed(2);
+      }
+
+      function fileNameFromFullPath(pathStr) {
+        if (typeof pathStr !== "string" || !pathStr.trim()) {
+          return "";
+        }
+        const normalized = pathStr.trim().replace(/[/\\]+/g, "/");
+        const parts = normalized.split("/");
+        return parts[parts.length - 1] || normalized;
+      }
+
+      function syncHotzoneBgPathDisplay() {
+        if (!hotzoneBgPathDisplayEl || !hotzoneBgPathEl) {
+          return;
+        }
+        const v = typeof hotzoneBgPathEl.value === "string" ? hotzoneBgPathEl.value.trim() : "";
+        if (v) {
+          const nameOnly = fileNameFromFullPath(v);
+          hotzoneBgPathDisplayEl.textContent = nameOnly || v;
+          hotzoneBgPathDisplayEl.title = v;
+          hotzoneBgPathDisplayEl.classList.remove("muted");
+        } else {
+          hotzoneBgPathDisplayEl.textContent = "未选择";
+          hotzoneBgPathDisplayEl.title = "";
+          hotzoneBgPathDisplayEl.classList.add("muted");
+        }
       }
 
       function markFieldChanged(fieldId) {
@@ -1317,6 +1612,7 @@
         hotzoneTextBoldEl.checked = false;
         hotzoneBgEnabledEl.checked = false;
         hotzoneBgPathEl.value = "";
+        syncHotzoneBgPathDisplay();
         hotzoneBgFillModeEl.value = "cover";
         hotzoneBgPositionEl.value = "center center";
         hotzoneBgOpacityEl.value = "1.00";
@@ -1325,6 +1621,7 @@
         updateHotzoneBgScaleLabel();
         hotzoneOpacityEl.value = HOTZONE_FIXED.opacity.toFixed(2);
         updateHotzoneOpacityLabel();
+        syncAllColorHexFields();
       }
 
       function createFolderId() {
@@ -1677,6 +1974,7 @@
         allowCrossScreenMoveEl.checked = config.hotzone?.allowCrossScreenMove === true;
         hotzoneBgEnabledEl.checked = config.hotzone?.backgroundImageEnabled === true;
         hotzoneBgPathEl.value = typeof config.hotzone?.backgroundImagePath === "string" ? config.hotzone.backgroundImagePath : "";
+        syncHotzoneBgPathDisplay();
         hotzoneBgFillModeEl.value = normalizeBgFillMode(config.hotzone?.backgroundFillMode, "cover");
         hotzoneBgPositionEl.value = normalizeBgPosition(config.hotzone?.backgroundPosition, "center center");
         hotzoneBgOpacityEl.value = normalizeUnit(config.hotzone?.backgroundOpacity, 1).toFixed(2);
@@ -1694,6 +1992,7 @@
               ? "medium"
               : "large";
         syncTileSizeVisibility();
+        syncAllColorHexFields();
         renderFolders();
       }
 
@@ -1717,7 +2016,6 @@
         hotzoneBgEnabledEl,
         hotzoneBgFillModeEl,
         hotzoneBgPositionEl,
-        hotzoneBgPathEl,
         hotzoneBgOpacityEl,
         hotzoneBgScaleEl,
         panelViewModeEl,
@@ -1737,6 +2035,9 @@
           if (el === hotzoneBgScaleEl) {
             updateHotzoneBgScaleLabel();
           }
+          if (el === hotzoneColorEl || el === hotzoneTitlebarColorEl || el === hotzoneTextColorEl) {
+            syncHexFieldFromColorInput(el.id);
+          }
           scheduleAutoSave();
         });
         el.addEventListener("change", () => {
@@ -1753,6 +2054,9 @@
           if (el === hotzoneBgScaleEl) {
             updateHotzoneBgScaleLabel();
           }
+          if (el === hotzoneColorEl || el === hotzoneTitlebarColorEl || el === hotzoneTextColorEl) {
+            syncHexFieldFromColorInput(el.id);
+          }
           if (el === defaultActionEl || el === launchOnStartupEl || el === hotzoneDebugLogEnabledEl) {
             void flushPendingSave({ silent: true });
           } else {
@@ -1760,6 +2064,8 @@
           }
         });
       });
+
+      bindColorHexFields();
 
       resetHotzoneEl.addEventListener("click", () => {
         applyHotzoneDefaults();
@@ -1787,6 +2093,7 @@
             return;
           }
           hotzoneBgPathEl.value = picked;
+          syncHotzoneBgPathDisplay();
           markFieldChanged("hotzone-bg-path");
           scheduleAutoSave();
           setStatus("背景图已导入应用背景库，正在自动保存...");
@@ -1794,6 +2101,26 @@
           setStatus(`选择背景图失败：${error instanceof Error ? error.message : "未知错误"}`);
         }
       });
+
+      if (hotzoneBgOpenLibraryEl) {
+        hotzoneBgOpenLibraryEl.addEventListener("click", async () => {
+          try {
+            const api = getApi();
+            if (typeof api.openHotzoneBackgroundLibrary !== "function") {
+              setStatus("无法打开文件夹：配置接口未就绪。");
+              return;
+            }
+            const result = await api.openHotzoneBackgroundLibrary();
+            if (!result || result.ok !== true) {
+              setStatus(`打开图片存储文件夹失败：${result?.error || "未知错误"}`);
+              return;
+            }
+            setStatus("已打开图片存储文件夹。");
+          } catch (error) {
+            setStatus(`打开图片存储文件夹失败：${error instanceof Error ? error.message : "未知错误"}`);
+          }
+        });
+      }
 
       addFolderEl.addEventListener("click", async () => {
         try {

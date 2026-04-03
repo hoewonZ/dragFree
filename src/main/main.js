@@ -1588,14 +1588,6 @@ function getHotzoneBackgroundLibraryPath() {
   return join(app.getPath("userData"), "dragfree", HOTZONE_BACKGROUND_DIR);
 }
 
-function getPreferredImagePickerDefaultPath() {
-  const configuredFolder = Array.isArray(config?.folders) ? config.folders[0]?.path : null;
-  if (typeof configuredFolder === "string" && configuredFolder.trim()) {
-    return configuredFolder.trim();
-  }
-  return getHotzoneBackgroundLibraryPath();
-}
-
 async function importHotzoneBackgroundImage(sourcePath) {
   const extension = extname(sourcePath || "").toLowerCase();
   if (!HOTZONE_BACKGROUND_ALLOWED_EXT.has(extension)) {
@@ -1603,12 +1595,13 @@ async function importHotzoneBackgroundImage(sourcePath) {
   }
   const libraryDir = getHotzoneBackgroundLibraryPath();
   await mkdir(libraryDir, { recursive: true });
-  const baseName = basename(sourcePath, extension)
-    .replace(/[^\w.\-]+/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .slice(0, 48) || "image";
-  const stamp = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
-  const targetName = `${baseName}-${stamp}${extension}`;
+  const baseFromSource = basename(sourcePath, extension);
+  const safeBase =
+    baseFromSource
+      .replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_")
+      .replace(/^[.\s]+|[.\s]+$/g, "")
+      .slice(0, 180) || "image";
+  const targetName = `${safeBase}${extension}`;
   const targetPath = join(libraryDir, targetName);
   await copyFile(sourcePath, targetPath);
   return targetPath;
@@ -2112,10 +2105,12 @@ ipcMain.handle("config:pick-folder", async () => {
 });
 
 ipcMain.handle("config:pick-hotzone-image", async () => {
+  const libraryDir = getHotzoneBackgroundLibraryPath();
+  await mkdir(libraryDir, { recursive: true });
   const options = {
     title: "选择热区背景图",
     properties: ["openFile"],
-    defaultPath: getPreferredImagePickerDefaultPath(),
+    defaultPath: libraryDir,
     filters: [
       {
         name: "图片文件",
@@ -2135,6 +2130,21 @@ ipcMain.handle("config:pick-hotzone-image", async () => {
   } catch (error) {
     console.warn("[dragFree] import background image failed:", error);
     return null;
+  }
+});
+
+ipcMain.handle("config:open-hotzone-background-library", async () => {
+  try {
+    const dir = getHotzoneBackgroundLibraryPath();
+    await mkdir(dir, { recursive: true });
+    const err = await shell.openPath(dir);
+    if (err) {
+      return { ok: false, error: err };
+    }
+    return { ok: true };
+  } catch (error) {
+    console.warn("[dragFree] open hotzone background library failed:", error);
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
   }
 });
 

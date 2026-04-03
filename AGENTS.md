@@ -167,6 +167,7 @@ node --test --test-name-pattern="hotzone"
 
 ## 助手执行规范
 
+- **三份元文档的提交策略**：`RELEASE_HISTORY.md`、`COMMIT_HISTORY.md`、`AGENTS.md` **仅在维护者需要时再提交**。助手可以按规范**编辑**其内容，但完成常规功能/修复后，**不要**默认将这三份文件与业务代码**同一次** `git add` / `git commit`；除非用户明确要求一并提交。向用户说明提交范围时，应区分「业务提交」与「历史/规范文档（由你按需另提）」。
 - 优先最小、精准改动。
 - 实现功能时禁止顺带改动无关行为。
 - 若新增配置字段，必须同时完成：
@@ -176,18 +177,23 @@ node --test --test-name-pattern="hotzone"
   4. 测试补齐
 - 先跑针对性测试，再跑全量测试。
 - 所有由助手产生的版本流程，遵循 `docs/versioning.zh-CN.md`（缺失时看 `docs/versioning.md`）：
-  1. 每次代码提交后，**立即**将该提交摘要写入 `COMMIT_HISTORY.md`。
-  2. 若 `COMMIT_HISTORY.md` 未包含最新提交 hash / message，任务不得结束。
+  1. **`COMMIT_HISTORY.md` 与 `git commit` 的配合（两阶段）**
+     - **提交前**：在对应日期段追加一条**摘要**；该行哈希位使用 `` `pending` `` 占位（不写本次提交 hash）。
+     - **下一次准备提交前**：若文件中存在仍为 `` `pending` `` 的上一条记录，先用 `git rev-parse --short HEAD`（或等价命令）查询**当前 HEAD**（即上一笔已落地的提交），将**该** `` `pending` `` 替换为真实短 hash；然后再为**即将进行的**本次工作追加新的 `` `pending` `` 摘要行。
+     - 若不存在未补全的 `` `pending` ``，则仅追加新的 `` `pending` `` 摘要行。
+  2. 若用户要求某次提交**不写入** `COMMIT_HISTORY.md`（例如回退到某版本且不在历史中保留该条），按用户指示处理；常规功能/修复提交仍应记录摘要。
   3. `COMMIT_HISTORY.md` 在同一日期段内必须严格按时间顺序（旧 -> 新）。
-  4. `COMMIT_HISTORY.md` 只记录正常功能/修复提交，不记录 release 提交项。
-  5. “下次升版本需合并的提交数”以“最后一次版本记录之后的正常提交”顺序统计，禁止主观估算。
-  6. 然后询问用户是否升版本。
-  7. 给出升版本建议（`MAJOR` / `MINOR` / `PATCH`）与理由。
-  8. 改版本前先确认自上个 release 以来是否存在多次提交。
-  9. 若存在多次提交，先合并为一条 release 摘要，再统一升一次版本。
-  10. 未获用户明确确认，禁止修改 `package.json` 版本号。
-  11. 任务结束前按以下顺序做最终检查：
-      - 最新提交已记录到 `COMMIT_HISTORY.md`
+  4. 每条摘要尽量 **一行**，只写增改了什么，与 `COMMIT_HISTORY.md` 顶部收录规则一致；不写冗长分号链或实现细节。
+  5. `COMMIT_HISTORY.md` 只记录正常功能/修复提交，不记录 release 提交项。
+  6. **历史文档收录排除**：不将**仅**变更 `RELEASE_HISTORY.md`、`COMMIT_HISTORY.md`、`AGENTS.md`（可单独或组合）的维护性提交写入 `COMMIT_HISTORY.md` 与 `RELEASE_HISTORY.md` 的版本窗口摘要；Git 对象仍保留。若同一次提交除上述文件外还包含功能/修复代码或 `package.json` 版本变更，则照常收录并在摘要中写清业务含义（及版本变化，如有）。
+  7. “下次升版本需合并的提交数”以“最后一次版本记录之后的正常提交”顺序统计，禁止主观估算。
+  8. 然后询问用户是否升版本。
+  9. 给出升版本建议（`MAJOR` / `MINOR` / `PATCH`）与理由。
+  10. 改版本前先确认自上个 release 以来是否存在多次提交。
+  11. 若存在多次提交，先合并为一条 release 摘要，再统一升一次版本。
+  12. 未获用户明确确认，禁止修改 `package.json` 版本号。
+  13. 任务结束前按以下顺序做最终检查：
+      - 本次工作对应的摘要已按上述两阶段规则处理（含补全上一条 `` `pending` `` 的 hash，若适用）
       - 版本升级决策已获用户确认
       - 若版本变更：`package.json` 与 `COMMIT_HISTORY.md` 已同步
       - 若版本变更：`RELEASE_HISTORY.md` 已记录“版本变更信息 + 版本窗口内所有提交摘要”，且不写 release commit 字段
