@@ -177,10 +177,10 @@ node --test --test-name-pattern="hotzone"
   4. 测试补齐
 - 先跑针对性测试，再跑全量测试。
 - 所有由助手产生的版本流程，遵循 `docs/versioning.zh-CN.md`（缺失时看 `docs/versioning.md`）：
-  1. **`COMMIT_HISTORY.md` 与 `git commit` 的配合（两阶段）**
-     - **提交前**：在对应日期段追加一条**摘要**；该行哈希位使用 `` `pending` `` 占位（不写本次提交 hash）。
-     - **下一次准备提交前**：若文件中存在仍为 `` `pending` `` 的上一条记录，先用 `git rev-parse --short HEAD`（或等价命令）查询**当前 HEAD**（即上一笔已落地的提交），将**该** `` `pending` `` 替换为真实短 hash；然后再为**即将进行的**本次工作追加新的 `` `pending` `` 摘要行。
-     - 若不存在未补全的 `` `pending` ``，则仅追加新的 `` `pending` `` 摘要行。
+  1. **`COMMIT_HISTORY.md` 写入策略（真实 hash，单阶段）**
+     - **提交后**：业务代码提交完成后，用 `git rev-parse --short HEAD`（或等价命令）获取**本次提交**的真实短 hash。
+     - **写入**：在对应日期段追加一条摘要行（哈希位写真实 short hash；不使用 `` `pending` `` 占位）。
+     - **提交策略**：该步骤默认只更新工作区文件，不与业务代码同一次 `git add` / `git commit`；除非用户明确要求把历史文件与业务代码一并提交。
   2. 若用户要求某次提交**不写入** `COMMIT_HISTORY.md`（例如回退到某版本且不在历史中保留该条），按用户指示处理；常规功能/修复提交仍应记录摘要。
   3. `COMMIT_HISTORY.md` 在同一日期段内必须严格按时间顺序（旧 -> 新）。
   4. 每条摘要尽量 **一行**，只写增改了什么，与 `COMMIT_HISTORY.md` 顶部收录规则一致；不写冗长分号链或实现细节。
@@ -193,9 +193,9 @@ node --test --test-name-pattern="hotzone"
   11. 若存在多次提交，先合并为一条 release 摘要，再统一升一次版本。
   12. 未获用户明确确认，禁止修改 `package.json` 版本号。
   13. 任务结束前按以下顺序做最终检查：
-      - 本次工作对应的摘要已按上述两阶段规则处理（含补全上一条 `` `pending` `` 的 hash，若适用）
+      - 本次工作对应的摘要已写入 `COMMIT_HISTORY.md`（使用真实 short hash）
       - 版本升级决策已获用户确认
-      - 若版本变更：`package.json` 与 `COMMIT_HISTORY.md` 已同步
+      - 若版本变更：`package.json` 与 `RELEASE_HISTORY.md` 已同步（用于打包/更新日志展示）
       - 若版本变更：`RELEASE_HISTORY.md` 已记录“版本变更信息 + 版本窗口内所有提交摘要”，且不写 release commit 字段
 
 ## 已知运行注意事项
