@@ -94,3 +94,9 @@
 - **版本变更**：`0.2.0 -> 0.3.0`（MINOR）。
 - **窗口内提交摘要**（自 `b5ab5db` 之后，不含仅维护 `RELEASE_HISTORY.md` / `COMMIT_HISTORY.md` / `AGENTS.md` 的提交）：
   - `f15b29a` feat(config)：热区背景图改为缩略图预览；叠放布局修复与图同显「未选择」；移除选择按钮与打开背景库，点击缩略图选图/替换。
+
+## v0.4.0（自 v0.3.0）
+
+- **版本变更**：`0.3.0 -> 0.4.0`（MINOR）。版本号在发布提交中与 `RELEASE_HISTORY.md` 一并更新（本说明不重复列出单独的版本号提升提交）。
+- **窗口内提交摘要**（自 `f15b29a` 之后，不含仅维护 `RELEASE_HISTORY.md` / `COMMIT_HISTORY.md` / `AGENTS.md` 的提交）：
+  - `f9f33e1` 热区导出 Word（.docx）、配置目录 `favorite-links` 与 Windows 常用文件夹快捷方式同步、另存为热区所在屏；补充 `docs/user-guide.zh-CN.md`。
