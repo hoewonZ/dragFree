@@ -17,6 +17,7 @@ function normalizeFolder(item, fallbackIdPrefix = "node") {
 }
 
 export function createQuickOpenController({ root }) {
+  const panelRoot = root.querySelector(".panel");
   const breadcrumbsContainer = root.querySelector("[data-breadcrumbs]");
   const listItemsContainer = root.querySelector("[data-directory-items]");
   const listContainer = root.querySelector("[data-directory-list]");
@@ -29,6 +30,8 @@ export function createQuickOpenController({ root }) {
   let folders = [];
   let breadcrumbSeparator = "/";
   let hoverDelayMs = HOVER_QUERY_DELAY_MS;
+  let panelViewMode = "list";
+  let panelTileSize = "large";
 
   let activePathChain = [];
   let currentPath = null;
@@ -42,6 +45,28 @@ export function createQuickOpenController({ root }) {
   let scrollZoneDirection = null;
 
   const childrenCache = new Map();
+
+  function applyViewModeClass() {
+    if (!panelRoot) {
+      return;
+    }
+    panelRoot.classList.remove("panel-view-list", "panel-view-tile");
+    panelRoot.classList.remove("panel-tile-large", "panel-tile-medium", "panel-tile-small");
+
+    if (panelViewMode === "tile") {
+      panelRoot.classList.add("panel-view-tile");
+      panelRoot.classList.add(
+        panelTileSize === "small"
+          ? "panel-tile-small"
+          : panelTileSize === "medium"
+            ? "panel-tile-medium"
+            : "panel-tile-large"
+      );
+      return;
+    }
+
+    panelRoot.classList.add("panel-view-list");
+  }
 
   if (scrollZoneUp) {
     scrollZoneUp.addEventListener("mouseenter", () => {
@@ -371,6 +396,14 @@ export function createQuickOpenController({ root }) {
     folders = Array.isArray(payload.folders) ? payload.folders : [];
     breadcrumbSeparator = payload.behavior?.breadcrumbSeparator === ">" ? ">" : "/";
     hoverDelayMs = Math.max(200, Math.min(3000, Number(payload.behavior?.quickOpenHoverDelayMs) || 500));
+    panelViewMode = payload.behavior?.panelViewMode === "tile" ? "tile" : "list";
+    panelTileSize =
+      payload.behavior?.panelTileSize === "small"
+        ? "small"
+        : payload.behavior?.panelTileSize === "medium"
+          ? "medium"
+          : "large";
+    applyViewModeClass();
     childrenCache.clear();
     clearPendingHover();
     requestSeq += 1;
