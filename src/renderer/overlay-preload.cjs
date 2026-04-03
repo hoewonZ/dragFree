@@ -48,5 +48,11 @@ contextBridge.exposeInMainWorld("overlayApi", {
     } catch {
       return "";
     }
+  },
+  exportTabDocx(payload) {
+    return ipcRenderer.invoke("overlay:export-docx", payload);
+  },
+  exportTabDocxSaveDialog() {
+    return ipcRenderer.invoke("overlay:export-docx-save-dialog");
   }
 });

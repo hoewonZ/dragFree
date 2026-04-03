@@ -267,6 +267,35 @@
         background: rgba(70, 126, 255, 0.24);
       }
 
+      .hz-share-wrap {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        flex: 0 0 auto;
+      }
+
+      .hz-share-btn {
+        width: 24px;
+        height: 24px;
+        border: none;
+        background: transparent;
+        color: rgba(245, 248, 255, 0.88);
+        cursor: pointer;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        vertical-align: middle;
+      }
+
+      .hz-share-btn:hover {
+        color: rgba(180, 220, 255, 0.98);
+      }
+
+      .hz-share-btn svg {
+        display: block;
+      }
+
       .hotzone-text-action {
         width: auto;
         height: auto;
@@ -558,6 +587,20 @@
     interactionModeBtn.title = "切换到快速打开模式";
     interactionModeBtn.setAttribute("data-no-drag", "true");
 
+    const shareWrap = document.createElement("div");
+    shareWrap.className = "hz-share-wrap";
+    shareWrap.setAttribute("data-no-drag", "true");
+
+    const shareBtn = document.createElement("button");
+    shareBtn.type = "button";
+    shareBtn.className = "hz-share-btn";
+    shareBtn.title = "导出为 Word（系统保存对话框，默认打开常用文件夹快捷方式目录）";
+    shareBtn.setAttribute("data-no-drag", "true");
+    shareBtn.innerHTML =
+      "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.02.17-.04.33-.04.5 0 1.1.9 2 2 2s2-.9 2-2-.9-2-2-2z\"/></svg>";
+
+    shareWrap.appendChild(shareBtn);
+
     const moreBtn = document.createElement("button");
     moreBtn.type = "button";
     moreBtn.className = "hotzone-header-more";
@@ -607,6 +650,7 @@
     headerLeft.appendChild(displayBtn);
     headerLeft.appendChild(textSizeDownBtn);
     headerLeft.appendChild(textSizeUpBtn);
+    headerLeft.appendChild(shareWrap);
     headerLeft.appendChild(interactionModeBtn);
     headerLeft.appendChild(moreBtn);
     headerLeft.appendChild(moreMenu);
@@ -655,6 +699,7 @@
       activeTextTabId: "tab-1",
       deleteMode: false
     };
+    const exportApi = overlayApi;
     let tabLongPressTimer = null;
     let maxLengthWarningShown = false;
     const headerTools = [
@@ -663,6 +708,7 @@
       { key: "display", button: displayBtn, label: "切换显示器" },
       { key: "text-down", button: textSizeDownBtn, label: "减小文本" },
       { key: "text-up", button: textSizeUpBtn, label: "增大文本" },
+      { key: "share", button: shareBtn, label: "导出为 Word" },
       { key: "mode", button: interactionModeBtn, label: "切换模式" }
     ];
     let headerMenuOpen = false;
@@ -818,6 +864,56 @@
 
     function getActiveTab() {
       return state.textTabs.find((item) => item.id === state.activeTextTabId) ?? state.textTabs[0] ?? null;
+    }
+
+    function getExportPlainText() {
+      const active = getActiveTab();
+      if (!active) {
+        return "";
+      }
+      if (state.editing) {
+        return normalizeCurrentText(state, editor.value);
+      }
+      return normalizeCurrentText(state, active.text);
+    }
+
+    async function tryWriteDocx(fullPath, text) {
+      if (!exportApi || typeof exportApi.exportTabDocx !== "function") {
+        window.alert("导出功能不可用。");
+        return;
+      }
+      let result = await exportApi.exportTabDocx({ fullPath, text, overwrite: false });
+      if (result?.ok) {
+        window.alert("已导出。");
+        return;
+      }
+      if (result?.code === "EEXIST") {
+        if (!window.confirm("该位置已存在同名文件，是否覆盖？")) {
+          return;
+        }
+        result = await exportApi.exportTabDocx({ fullPath, text, overwrite: true });
+        if (result?.ok) {
+          window.alert("已导出。");
+        } else {
+          window.alert(result?.message || "导出失败。");
+        }
+        return;
+      }
+      window.alert(result?.message || "导出失败。");
+    }
+
+    async function handleExportOther() {
+      closeHeaderMenu();
+      if (!exportApi || typeof exportApi.exportTabDocxSaveDialog !== "function") {
+        window.alert("导出功能不可用。");
+        return;
+      }
+      const dlg = await exportApi.exportTabDocxSaveDialog();
+      if (!dlg?.ok || dlg.cancelled || typeof dlg.filePath !== "string" || !dlg.filePath.trim()) {
+        return;
+      }
+      const text = getExportPlainText();
+      await tryWriteDocx(dlg.filePath.trim(), text);
     }
 
     function setActiveTab(tabId) {
@@ -1218,6 +1314,19 @@
     });
 
     moreBtn.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+
+    shareBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      headerMenuOpen = false;
+      moreMenu.classList.remove("show");
+      moreBtn.dataset.open = "false";
+      void handleExportOther();
+    });
+    shareBtn.addEventListener("pointerdown", (event) => {
       event.preventDefault();
       event.stopPropagation();
     });

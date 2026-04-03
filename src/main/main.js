@@ -13,7 +13,9 @@ import {
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { basename, dirname, extname, join } from "node:path";
-import { access, appendFile, copyFile, mkdir, readdir } from "node:fs/promises";
+import { constants as fsConstants } from "node:fs";
+import { access, appendFile, copyFile, mkdir, readdir, writeFile } from "node:fs/promises";
+import { Document, Packer, Paragraph, TextRun } from "docx";
 
 import {
   HOTZONE_MIN_HEIGHT,
@@ -26,6 +28,7 @@ import {
 import { DragSessionController } from "./drag-session-controller.js";
 import { inferAction, routeEntries } from "./file-router.js";
 import { getHotzoneRect } from "./hotzone.js";
+import { getFavoriteLinksDir, syncFavoriteLinkShortcuts } from "./favorite-links-sync.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -262,6 +265,9 @@ async function flushRuntimeConfigToDisk(reason) {
 
   config = await writeConfigToFile(configFilePath, config);
   markConfigPersisted(reason);
+  void syncFavoriteLinkShortcuts({ configFilePath, folders: config.folders }).catch((error) => {
+    console.warn("[dragFree] favorite-links sync failed:", error instanceof Error ? error.message : error);
+  });
   return {
     ok: true,
     skipped: false,
@@ -875,6 +881,7 @@ function getOverlayConfigPayload(hotzone, overlayBounds, hotzoneBounds, headerHe
     overlayBounds,
     hotzoneBounds,
     hotzone,
+    folders: Array.isArray(config?.folders) ? config.folders : [],
     interactionMode: getInteractionMode(),
     headerHeight,
     collapsed: overlayCollapsed,
@@ -884,6 +891,62 @@ function getOverlayConfigPayload(hotzone, overlayBounds, hotzoneBounds, headerHe
     tabRailGap: HOTZONE_TAB_RAIL_GAP,
     displayCount: screen.getAllDisplays().length
   };
+}
+
+async function buildPlainTextDocxBuffer(text) {
+  const raw = typeof text === "string" ? text : "";
+  const lines = raw.split(/\r?\n/);
+  const children = lines.map((line) => {
+    const t = line.length === 0 ? "\u00a0" : line;
+    return new Paragraph({
+      children: [new TextRun({ text: t })]
+    });
+  });
+  if (children.length === 0) {
+    children.push(new Paragraph({ children: [new TextRun({ text: "\u00a0" })] }));
+  }
+  const doc = new Document({
+    sections: [
+      {
+        children
+      }
+    ]
+  });
+  return Packer.toBuffer(doc);
+}
+
+async function writePlainTextDocxFile(fullPath, text, overwrite) {
+  if (typeof fullPath !== "string" || !fullPath.trim()) {
+    return { ok: false, code: "EINVAL", message: "路径无效。" };
+  }
+  try {
+    await access(fullPath, fsConstants.F_OK);
+    if (!overwrite) {
+      return { ok: false, code: "EEXIST" };
+    }
+  } catch (error) {
+    if (error?.code !== "ENOENT") {
+      return {
+        ok: false,
+        code: error?.code || "EACCESS",
+        message: error instanceof Error ? error.message : "无法访问目标路径。"
+      };
+    }
+  }
+  try {
+    const buf = await buildPlainTextDocxBuffer(text);
+    await writeFile(fullPath, buf);
+    return { ok: true };
+  } catch (error) {
+    if (error?.code === "EACCES" || error?.code === "EPERM") {
+      return { ok: false, code: error.code, message: "无权限写入该位置。" };
+    }
+    return {
+      ok: false,
+      code: "EWRITE",
+      message: error instanceof Error ? error.message : "写入失败。"
+    };
+  }
 }
 
 function isSameRect(a, b) {
@@ -1584,6 +1647,47 @@ async function showOpenDirectoryDialogForContext({ title }) {
   }
 }
 
+/**
+ * 在热区所在显示器上弹出「另存为」：优先以 overlay 为父窗口（与热区同屏）；
+ * 若无 overlay，则在热区解析到的显示器工作区中心放置临时锚点窗口。
+ */
+async function showSaveDialogForHotzoneDisplay(saveOptions) {
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
+    return dialog.showSaveDialog(overlayWindow, saveOptions);
+  }
+
+  const hotzoneDisplay = resolveDisplayForHotzone(overlayHotzonePreview ?? config?.hotzone);
+  const wa = hotzoneDisplay.workArea;
+  const anchorX = Math.round(wa.x + wa.width / 2);
+  const anchorY = Math.round(wa.y + wa.height / 2);
+  const anchorWindow = new BrowserWindow({
+    width: 1,
+    height: 1,
+    x: anchorX,
+    y: anchorY,
+    show: false,
+    frame: false,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    skipTaskbar: true,
+    focusable: true,
+    transparent: true,
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  });
+
+  try {
+    return await dialog.showSaveDialog(anchorWindow, saveOptions);
+  } finally {
+    if (!anchorWindow.isDestroyed()) {
+      anchorWindow.destroy();
+    }
+  }
+}
+
 function getHotzoneBackgroundLibraryPath() {
   return join(app.getPath("userData"), "dragfree", HOTZONE_BACKGROUND_DIR);
 }
@@ -2021,6 +2125,31 @@ ipcMain.handle("overlay:open-external", async (_event, payload) => {
       error: error instanceof Error ? error.message : "open_external_failed"
     };
   }
+});
+
+ipcMain.handle("overlay:export-docx", async (_event, payload) => {
+  const fullPath = typeof payload?.fullPath === "string" ? payload.fullPath.trim() : "";
+  const text = typeof payload?.text === "string" ? payload.text : "";
+  const overwrite = payload?.overwrite === true;
+  return writePlainTextDocxFile(fullPath, text, overwrite);
+});
+
+ipcMain.handle("overlay:export-docx-save-dialog", async () => {
+  const favoriteLinksDir = getFavoriteLinksDir(configFilePath);
+  await mkdir(favoriteLinksDir, { recursive: true });
+  const result = await showSaveDialogForHotzoneDisplay({
+    title: "导出为 Word 文档",
+    defaultPath: join(favoriteLinksDir, "笔记.docx"),
+    filters: [{ name: "Word 文档", extensions: ["docx"] }]
+  });
+  if (result.canceled || !result.filePath) {
+    return { ok: false, cancelled: true };
+  }
+  let filePath = result.filePath.trim();
+  if (!filePath.toLowerCase().endsWith(".docx")) {
+    filePath = `${filePath}.docx`;
+  }
+  return { ok: true, filePath };
 });
 
 ipcMain.on("overlay:quick-open-trigger", (_event, payload) => {
@@ -2481,6 +2610,10 @@ async function bootstrap() {
   await syncHotzoneDebugLoggerFromConfig();
   markConfigPersisted("bootstrap_loaded");
   logStartupStep("bootstrap:config-merge:done");
+
+  void syncFavoriteLinkShortcuts({ configFilePath, folders: config.folders }).catch((error) => {
+    console.warn("[dragFree] favorite-links sync failed:", error instanceof Error ? error.message : error);
+  });
 
   applyLaunchOnStartupSetting();
 
