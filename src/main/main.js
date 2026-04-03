@@ -2133,21 +2133,6 @@ ipcMain.handle("config:pick-hotzone-image", async () => {
   }
 });
 
-ipcMain.handle("config:open-hotzone-background-library", async () => {
-  try {
-    const dir = getHotzoneBackgroundLibraryPath();
-    await mkdir(dir, { recursive: true });
-    const err = await shell.openPath(dir);
-    if (err) {
-      return { ok: false, error: err };
-    }
-    return { ok: true };
-  } catch (error) {
-    console.warn("[dragFree] open hotzone background library failed:", error);
-    return { ok: false, error: error instanceof Error ? error.message : String(error) };
-  }
-});
-
 ipcMain.handle("config:save", async (_event, nextConfig) => {
   try {
     const runtimeHotzone = overlayHotzonePreview ?? config.hotzone;

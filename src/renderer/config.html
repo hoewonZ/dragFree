@@ -334,68 +334,70 @@
         min-width: 0;
       }
 
-      .hotzone-bg-name-wrap {
-        flex: 1 1 0;
-        min-width: 0;
-        overflow: hidden;
-      }
-
-      .hotzone-bg-pick-btn {
-        flex: 0 0 auto;
-        margin: 0;
-        padding: 6px 14px;
-        min-height: 30px;
-        box-sizing: border-box;
-        white-space: nowrap;
-        font-size: 12px;
-        line-height: 1.2;
-        border: 1px solid #c5d4f0;
-        border-radius: 8px;
-        background: #fff;
-        color: #2f4677;
-        cursor: pointer;
-      }
-
-      .hotzone-bg-pick-btn:hover {
-        background: #f0f5ff;
-        border-color: #9eb6e8;
-      }
-
-      .hotzone-bg-path-text {
-        display: block;
-        width: 100%;
-        max-width: 100%;
-        margin: 0;
+      .hotzone-bg-thumb-hit {
+        position: relative;
+        width: 80px;
+        height: 56px;
         padding: 0;
-        font-size: 12px;
-        line-height: 1.35;
-        color: #435474;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-
-      .hotzone-bg-path-text.muted {
-        color: #6a7892;
-      }
-
-      .hotzone-bg-library-link {
-        flex: 0 0 auto;
         margin: 0;
-        padding: 0;
         border: none;
-        background: none;
-        color: #2563eb;
-        font-size: 12px;
-        line-height: 1.3;
-        white-space: nowrap;
-        text-decoration: underline;
-        text-underline-offset: 2px;
+        background: transparent;
         cursor: pointer;
+        flex-shrink: 0;
+        border-radius: 8px;
+        display: block;
+        text-align: left;
+        font: inherit;
+        color: inherit;
       }
 
-      .hotzone-bg-library-link:hover {
-        color: #1d4ed8;
+      .hotzone-bg-thumb-hit:hover .hotzone-bg-thumb:not([hidden]),
+      .hotzone-bg-thumb-hit:hover .hotzone-bg-thumb-placeholder:not([hidden]) {
+        filter: brightness(0.97);
+      }
+
+      .hotzone-bg-thumb-hit:focus-visible {
+        outline: 2px solid #3b82f6;
+        outline-offset: 2px;
+      }
+
+      .hotzone-bg-thumb-hit .hotzone-bg-thumb {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+        object-fit: cover;
+        border-radius: 8px;
+        border: 1px solid #ccd8f0;
+        background: #f5f8ff;
+        box-sizing: border-box;
+      }
+
+      .hotzone-bg-thumb-hit .hotzone-bg-thumb[hidden] {
+        display: none !important;
+      }
+
+      .hotzone-bg-thumb-hit .hotzone-bg-thumb-placeholder {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        border: 1px dashed #c5d4f0;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        color: #6a7892;
+        background: #fafbfe;
+        box-sizing: border-box;
+      }
+
+      .hotzone-bg-thumb-hit .hotzone-bg-thumb-placeholder[hidden] {
+        display: none !important;
       }
 
       .color-settings {
@@ -1080,17 +1082,22 @@
                   <span class="changed-tip" data-tip-for="hotzone-bg-path">已更改</span>
                 </span>
                 <div class="hotzone-bg-file-row">
-                  <button id="hotzone-bg-pick" type="button" class="hotzone-bg-pick-btn">选择图片</button>
-                  <div class="hotzone-bg-name-wrap">
-                    <span id="hotzone-bg-path-display" class="hotzone-bg-path-text muted" title="">未选择</span>
-                  </div>
                   <button
                     type="button"
-                    class="hotzone-bg-library-link"
-                    id="hotzone-bg-open-library"
-                    title="打开应用保存背景图的文件夹"
+                    class="hotzone-bg-thumb-hit"
+                    id="hotzone-bg-thumb-hit"
+                    aria-label="选择或替换背景图"
                   >
-                    打开
+                    <img
+                      id="hotzone-bg-thumb"
+                      class="hotzone-bg-thumb"
+                      alt=""
+                      width="80"
+                      height="56"
+                      hidden
+                      decoding="async"
+                    />
+                    <span id="hotzone-bg-thumb-placeholder" class="hotzone-bg-thumb-placeholder">未选择</span>
                   </button>
                   <input id="hotzone-bg-path" type="hidden" value="" />
                 </div>
@@ -1167,10 +1174,10 @@
       const hotzoneBgEnabledEl = document.getElementById("hotzone-bg-enabled");
       const hotzoneBgFillModeEl = document.getElementById("hotzone-bg-fill-mode");
       const hotzoneBgPositionEl = document.getElementById("hotzone-bg-position");
-      const hotzoneBgPickEl = document.getElementById("hotzone-bg-pick");
+      const hotzoneBgThumbHitEl = document.getElementById("hotzone-bg-thumb-hit");
       const hotzoneBgPathEl = document.getElementById("hotzone-bg-path");
-      const hotzoneBgPathDisplayEl = document.getElementById("hotzone-bg-path-display");
-      const hotzoneBgOpenLibraryEl = document.getElementById("hotzone-bg-open-library");
+      const hotzoneBgThumbEl = document.getElementById("hotzone-bg-thumb");
+      const hotzoneBgThumbPlaceholderEl = document.getElementById("hotzone-bg-thumb-placeholder");
       const hotzoneBgOpacityEl = document.getElementById("hotzone-bg-opacity");
       const hotzoneBgOpacityValueEl = document.getElementById("hotzone-bg-opacity-value");
       const hotzoneBgScaleEl = document.getElementById("hotzone-bg-scale");
@@ -1358,29 +1365,46 @@
         hotzoneBgScaleValueEl.textContent = normalizeBgScale(hotzoneBgScaleEl.value, 1).toFixed(2);
       }
 
-      function fileNameFromFullPath(pathStr) {
-        if (typeof pathStr !== "string" || !pathStr.trim()) {
+      function pathToFileUrl(absPath) {
+        if (typeof absPath !== "string" || !absPath.trim()) {
           return "";
         }
-        const normalized = pathStr.trim().replace(/[/\\]+/g, "/");
-        const parts = normalized.split("/");
-        return parts[parts.length - 1] || normalized;
+        const normalized = absPath.trim().replace(/\\/g, "/");
+        const withLeading = normalized.startsWith("/") ? normalized : `/${normalized}`;
+        return `file://${encodeURI(withLeading)}`;
       }
 
       function syncHotzoneBgPathDisplay() {
-        if (!hotzoneBgPathDisplayEl || !hotzoneBgPathEl) {
+        if (!hotzoneBgThumbEl || !hotzoneBgPathEl) {
           return;
         }
         const v = typeof hotzoneBgPathEl.value === "string" ? hotzoneBgPathEl.value.trim() : "";
         if (v) {
-          const nameOnly = fileNameFromFullPath(v);
-          hotzoneBgPathDisplayEl.textContent = nameOnly || v;
-          hotzoneBgPathDisplayEl.title = v;
-          hotzoneBgPathDisplayEl.classList.remove("muted");
+          const url = pathToFileUrl(v);
+          if (hotzoneBgThumbPlaceholderEl) {
+            hotzoneBgThumbPlaceholderEl.hidden = true;
+          }
+          hotzoneBgThumbEl.onload = null;
+          hotzoneBgThumbEl.onerror = () => {
+            hotzoneBgThumbEl.hidden = true;
+            hotzoneBgThumbEl.removeAttribute("src");
+            if (hotzoneBgThumbPlaceholderEl) {
+              hotzoneBgThumbPlaceholderEl.hidden = false;
+              hotzoneBgThumbPlaceholderEl.textContent = "无法预览";
+            }
+          };
+          hotzoneBgThumbEl.hidden = false;
+          hotzoneBgThumbEl.alt = "";
+          hotzoneBgThumbEl.src = url;
         } else {
-          hotzoneBgPathDisplayEl.textContent = "未选择";
-          hotzoneBgPathDisplayEl.title = "";
-          hotzoneBgPathDisplayEl.classList.add("muted");
+          hotzoneBgThumbEl.onload = null;
+          hotzoneBgThumbEl.onerror = null;
+          hotzoneBgThumbEl.removeAttribute("src");
+          hotzoneBgThumbEl.hidden = true;
+          if (hotzoneBgThumbPlaceholderEl) {
+            hotzoneBgThumbPlaceholderEl.hidden = false;
+            hotzoneBgThumbPlaceholderEl.textContent = "未选择";
+          }
         }
       }
 
@@ -2085,7 +2109,7 @@
         setStatus("已恢复固定触发方式默认热区。正在自动保存...");
       });
 
-      hotzoneBgPickEl.addEventListener("click", async () => {
+      async function pickHotzoneBackgroundImage() {
         try {
           const api = getApi();
           const picked = await api.pickHotzoneImage();
@@ -2100,25 +2124,11 @@
         } catch (error) {
           setStatus(`选择背景图失败：${error instanceof Error ? error.message : "未知错误"}`);
         }
-      });
+      }
 
-      if (hotzoneBgOpenLibraryEl) {
-        hotzoneBgOpenLibraryEl.addEventListener("click", async () => {
-          try {
-            const api = getApi();
-            if (typeof api.openHotzoneBackgroundLibrary !== "function") {
-              setStatus("无法打开文件夹：配置接口未就绪。");
-              return;
-            }
-            const result = await api.openHotzoneBackgroundLibrary();
-            if (!result || result.ok !== true) {
-              setStatus(`打开图片存储文件夹失败：${result?.error || "未知错误"}`);
-              return;
-            }
-            setStatus("已打开图片存储文件夹。");
-          } catch (error) {
-            setStatus(`打开图片存储文件夹失败：${error instanceof Error ? error.message : "未知错误"}`);
-          }
+      if (hotzoneBgThumbHitEl) {
+        hotzoneBgThumbHitEl.addEventListener("click", () => {
+          void pickHotzoneBackgroundImage();
         });
       }
 
