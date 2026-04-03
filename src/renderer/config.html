@@ -1646,7 +1646,6 @@
           remove.title = "删除";
           remove.addEventListener("click", () => {
             config.folders.splice(index, 1);
-            markFieldChanged("folders-list");
             renderFolders();
             showFolderRemovedTip();
             scheduleAutoSave();
@@ -1812,16 +1811,15 @@
           }
 
           const name = path.split(/[/\\]/).filter(Boolean).pop() || path;
-            config.folders.push({
-              id: createFolderId(),
-              name,
-              path
-            });
-            markFieldChanged("folders-list");
-            renderFolders();
-            showFolderAddedTip();
-            setStatus("已添加文件夹。正在自动保存...");
-            scheduleAutoSave();
+          config.folders.push({
+            id: createFolderId(),
+            name,
+            path
+          });
+          renderFolders();
+          showFolderAddedTip();
+          setStatus("已添加文件夹。正在自动保存...");
+          scheduleAutoSave();
           } catch (error) {
             setStatus(`添加文件夹失败：${error instanceof Error ? error.message : "未知错误"}`);
           }
