@@ -1624,7 +1624,7 @@ ipcMain.on("overlay:drag-position", (_event, payload) => {
   if (!dragController) {
     return;
   }
-  if (Array.isArray(payload.paths)) {
+  if (Array.isArray(payload.paths) && payload.paths.length > 0) {
     currentDragPaths = payload.paths;
   }
   dragController.handleDragPosition(payload);
@@ -1655,7 +1655,7 @@ ipcMain.on("panel:drag-position", (_event, payload) => {
   if (!dragController) {
     return;
   }
-  if (Array.isArray(payload.paths)) {
+  if (Array.isArray(payload.paths) && payload.paths.length > 0) {
     currentDragPaths = payload.paths;
   }
   dragController.handleDragPosition(payload);
@@ -2339,6 +2339,7 @@ ipcMain.handle("overlay:set-collapsed", async (_event, payload) => {
         dragController.endDrag();
       }
       stopDragMonitor();
+      currentDragPaths = [];
       setPanelEventsEnabled(false);
     }
     createOrUpdateOverlayWindow({ forceRendererSync: true });

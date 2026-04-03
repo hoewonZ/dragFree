@@ -136,3 +136,34 @@ test("does not close on brief leave and closes on sustained leave", () => {
   assert.equal(controller.getState(), "idle");
   assert.deepEqual(events.map((item) => item.type), ["panel-open", "panel-cancel", "panel-close"]);
 });
+
+test("does not open panel while file drag stays outside hotzone", () => {
+  const events = [];
+  const controller = new DragSessionController({
+    displayBounds,
+    hotzone,
+    onEvent: (event) => events.push(event)
+  });
+
+  controller.handleDragPosition({ x: 200, y: 500, paths: ["C:/tmp/a.txt"] }, 0);
+  controller.handleDragPosition({ x: 200, y: 500, paths: ["C:/tmp/a.txt"] }, 500);
+
+  assert.equal(controller.getState(), "idle");
+  assert.equal(events.length, 0);
+});
+
+test("repeated hotzone samples after open do not emit extra events", () => {
+  const events = [];
+  const controller = new DragSessionController({
+    displayBounds,
+    hotzone,
+    onEvent: (event) => events.push(event)
+  });
+
+  controller.handleDragPosition({ x: 900, y: 20, paths: ["C:/tmp/a.txt"] }, 0);
+  controller.handleDragPosition({ x: 900, y: 20, paths: ["C:/tmp/a.txt"] }, 800);
+
+  assert.equal(controller.getState(), "panel-active");
+  assert.deepEqual(events.map((item) => item.type), ["panel-open"]);
+});
+

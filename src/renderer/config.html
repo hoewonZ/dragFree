@@ -457,21 +457,24 @@
         grid-column: 1 / 2;
         min-width: 0;
         display: flex;
-        align-items: center;
-        gap: 8px;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 4px;
       }
 
       .folder-name {
-        flex: 0 0 auto;
+        min-width: 0;
         font-size: 13px;
         color: #1c2942;
         font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       .folder-path-inline {
-        flex: 1 1 auto;
         min-width: 0;
-        font-size: 13px;
+        font-size: 12px;
         color: #6a7892;
         white-space: nowrap;
         overflow: hidden;
@@ -482,7 +485,6 @@
         display: flex;
         gap: 6px;
         grid-column: 2 / 3;
-        grid-row: 1 / 3;
         align-self: center;
       }
 
@@ -1207,12 +1209,15 @@
 
           const name = document.createElement("div");
           name.className = "folder-name";
-          name.textContent = `${index + 1}. ${folder.name}`;
+          const labelText = `${index + 1}. ${folder.name}`;
+          name.textContent = labelText;
+          name.title = labelText;
 
           const path = document.createElement("div");
           path.className = "folder-path-inline";
-          path.textContent = typeof folder.path === "string" ? folder.path : "";
-          path.title = typeof folder.path === "string" ? folder.path : "";
+          const pathText = typeof folder.path === "string" ? folder.path : "";
+          path.textContent = pathText;
+          path.title = pathText;
 
           main.append(name, path);
 

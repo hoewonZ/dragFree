@@ -13,6 +13,7 @@ export class DragSessionController {
     this.panelBounds = null;
     this.openedAtMs = null;
     this.leftPanelAtMs = null;
+    this.fileDragSessionActive = false;
   }
 
   getState() {
@@ -22,15 +23,8 @@ export class DragSessionController {
   handleDragPosition(point, nowMs = Date.now()) {
     const hasDraggedFiles = Array.isArray(point?.paths) && point.paths.length > 0;
     const isLikelyFileDrag = point?.fileDrag === true;
-
-    if (this.state === "idle") {
-      if ((hasDraggedFiles || isLikelyFileDrag) && isPointInHotzone(point, this.displayBounds, this.hotzone)) {
-        this.state = "panel-active";
-        this.openedAtMs = nowMs;
-        this.leftPanelAtMs = null;
-        this.onEvent({ type: "panel-open", point });
-      }
-      return;
+    if (hasDraggedFiles || isLikelyFileDrag) {
+      this.fileDragSessionActive = true;
     }
 
     if (this.state === "panel-active") {
@@ -53,6 +47,16 @@ export class DragSessionController {
         this.closePanel(point);
       }
       return;
+    }
+
+    const hasDrag = this.fileDragSessionActive || hasDraggedFiles || isLikelyFileDrag;
+    const inHotzone = hasDrag && isPointInHotzone(point, this.displayBounds, this.hotzone);
+
+    if (inHotzone) {
+      this.state = "panel-active";
+      this.openedAtMs = nowMs;
+      this.leftPanelAtMs = null;
+      this.onEvent({ type: "panel-open", point });
     }
   }
 
@@ -95,6 +99,7 @@ export class DragSessionController {
     this.panelBounds = null;
     this.openedAtMs = null;
     this.leftPanelAtMs = null;
+    this.fileDragSessionActive = false;
   }
 }
 
