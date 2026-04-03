@@ -143,15 +143,25 @@
         margin-top: 10px;
         border: 1px solid #d7e2f8;
         border-radius: 12px;
-        padding: 14px;
+        padding: 0;
         background: #ffffff;
         display: none;
+        flex-direction: column;
+        min-height: 0;
         max-height: 42vh;
-        overflow: auto;
+        overflow: hidden;
       }
 
       .settings-panel.show {
-        display: block;
+        display: flex;
+      }
+
+      .settings-panel-body {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-x: hidden;
+        overflow-y: auto;
+        padding: 12px 14px 14px;
       }
 
       .card.settings-focus {
@@ -174,7 +184,14 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: 12px;
+        flex-shrink: 0;
+        padding: 14px 14px 12px;
+        margin-bottom: 0;
+        border-bottom: 1px solid #e8eef8;
+        background: #ffffff;
+        border-radius: 12px 12px 0 0;
+        box-shadow: 0 1px 0 rgba(23, 32, 51, 0.04);
+        z-index: 2;
       }
 
       .modal-section-label {
@@ -572,6 +589,7 @@
             <h3 style="margin: 0">配置</h3>
             <button id="save-display-config" type="button">收起设置</button>
           </div>
+          <div class="settings-panel-body">
           <div class="section-label-row">
             <div class="modal-section-label">显示设置</div>
             <button id="reset-hotzone" class="reset-link-btn" type="button">重置热区属性</button>
@@ -811,6 +829,7 @@
               </label>
             </div>
           </div>
+          </div>
       </section>
     </main>
 
@@ -986,12 +1005,20 @@
         configCardEl.classList.add("settings-focus");
         displayConfigModalEl.classList.add("show");
         openDisplayConfigEl.setAttribute("aria-pressed", "true");
+        const settingsBody = displayConfigModalEl.querySelector(".settings-panel-body");
+        if (settingsBody) {
+          settingsBody.scrollTop = 0;
+        }
       }
 
       function closeDisplayConfigModal() {
         configCardEl.classList.remove("settings-focus");
         displayConfigModalEl.classList.remove("show");
         openDisplayConfigEl.setAttribute("aria-pressed", "false");
+        const settingsBody = displayConfigModalEl.querySelector(".settings-panel-body");
+        if (settingsBody) {
+          settingsBody.scrollTop = 0;
+        }
       }
 
       function resetConfigViewOnWindowShown() {
