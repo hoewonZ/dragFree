@@ -763,11 +763,15 @@ function unregisterPanelTabShortcut() {
   panelTabShortcutRegistered = false;
 }
 
+// macOS：CommandOrControl 会映射为 ⌘，与 Spotlight（⌘+Space）冲突；统一用 Control+Space（⌃+Space）。
+// Windows / Linux：与原先 CommandOrControl+Space 一致（均为 Ctrl+空格）。
+const MODE_TOGGLE_ACCELERATOR = "Control+Space";
+
 function registerModeToggleShortcut() {
   if (modeToggleShortcutRegistered) {
     return;
   }
-  const ok = globalShortcut.register("CommandOrControl+Space", () => {
+  const ok = globalShortcut.register(MODE_TOGGLE_ACCELERATOR, () => {
     if (!config) {
       return;
     }
@@ -775,7 +779,7 @@ function registerModeToggleShortcut() {
     applyInteractionModeFromMain(nextMode, "shortcut_toggle_interaction_mode");
   });
   if (!ok) {
-    console.warn("[dragFree] globalShortcut register failed: CommandOrControl+Space");
+    console.warn(`[dragFree] globalShortcut register failed: ${MODE_TOGGLE_ACCELERATOR}`);
     return;
   }
   modeToggleShortcutRegistered = true;
@@ -785,7 +789,7 @@ function unregisterModeToggleShortcut() {
   if (!modeToggleShortcutRegistered) {
     return;
   }
-  globalShortcut.unregister("CommandOrControl+Space");
+  globalShortcut.unregister(MODE_TOGGLE_ACCELERATOR);
   modeToggleShortcutRegistered = false;
 }
 

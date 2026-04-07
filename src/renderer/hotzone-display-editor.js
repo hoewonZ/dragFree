@@ -10,6 +10,13 @@
   const HEADER_COMPACT_THRESHOLD_PX = 140;
   const HTTP_URL_REGEX = /https?:\/\/[^\s]+/gi;
 
+  function getModeToggleShortcutLabel() {
+    if (typeof navigator !== "undefined" && /Mac|iPhone|iPod|iPad/i.test(navigator.platform || "")) {
+      return "Control+空格（⌃+空格）";
+    }
+    return "Ctrl+Space";
+  }
+
   function ensureStyle() {
     if (document.getElementById(STYLE_ID)) {
       return;
@@ -739,8 +746,8 @@
       interactionModeBtn.textContent = state.interactionMode === "quick-open" ? "快开模式" : "拖拽模式";
       interactionModeBtn.title =
         state.interactionMode === "quick-open"
-          ? "切换到拖拽模式（快捷键：Ctrl+Space）"
-          : "切换到快速打开模式（快捷键：Ctrl+Space）";
+          ? `切换到拖拽模式（快捷键：${getModeToggleShortcutLabel()}）`
+          : `切换到快速打开模式（快捷键：${getModeToggleShortcutLabel()}）`;
     }
 
     function measureButtonWidth(button, fallback = 24) {
