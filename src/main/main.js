@@ -309,25 +309,30 @@ function createTrayIcon() {
       });
     };
 
-    if (process.platform === "win32") {
+    // Windows / macOS / Linux：多倍率 + 逻辑 16×16，与系统托盘/菜单栏尺寸一致。
+    // 若 macOS 仅用单张 tray-64.png，菜单栏上容易显得过大。
+    const representationMap = [
+      [1.0, 16],
+      [1.25, 20],
+      [1.5, 24],
+      [1.75, 28],
+      [2.0, 32],
+      [2.25, 36],
+      [2.5, 40],
+      [3.0, 48],
+      [4.0, 64]
+    ];
+
+    const useMultiScaleTray =
+      process.platform === "win32" ||
+      process.platform === "darwin" ||
+      process.platform === "linux";
+
+    if (useMultiScaleTray) {
       const icon = nativeImage.createEmpty();
-
-      const representationMap = [
-        [1.0, 16],
-        [1.25, 20],
-        [1.5, 24],
-        [1.75, 28],
-        [2.0, 32],
-        [2.25, 36],
-        [2.5, 40],
-        [3.0, 48],
-        [4.0, 64]
-      ];
-
       for (const [scaleFactor, pixelSize] of representationMap) {
         addTrayRepresentation(icon, scaleFactor, pixelSize);
       }
-
       return icon;
     }
 
