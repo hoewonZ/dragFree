@@ -100,3 +100,12 @@
 - **版本变更**：`0.3.0 -> 0.4.0`（MINOR）。版本号在发布提交中与 `RELEASE_HISTORY.md` 一并更新（本说明不重复列出单独的版本号提升提交）。
 - **窗口内提交摘要**（自 `f15b29a` 之后，不含仅维护 `RELEASE_HISTORY.md` / `COMMIT_HISTORY.md` / `AGENTS.md` 的提交）：
   - `f9f33e1` 热区导出 Word（.docx）、配置目录 `favorite-links` 与 Windows 常用文件夹快捷方式同步、另存为热区所在屏；补充 `docs/user-guide.zh-CN.md`。
+
+## v0.4.1（自 v0.4.0）
+
+- **版本变更**：`0.4.0 -> 0.4.1`（PATCH）。版本号在发布提交中与 `RELEASE_HISTORY.md` 一并更新（本说明不重复列出单独的版本号提升提交）。
+- **窗口内提交摘要**（自 `6f28a44` 之后，不含仅维护 `RELEASE_HISTORY.md` / `COMMIT_HISTORY.md` / `AGENTS.md` 的提交）：
+  - `c466364` fix(shortcut)：macOS 下模式切换快捷键改为 Control+空格。
+  - `47333db` fix(main)：macOS/Linux 托盘使用多倍率图标，逻辑尺寸 16×16。
+  - `1dd138a` fix(main)：快开/拖拽面板与新建文件夹窗统一 `screen-saver` 置顶，热区刷新后弹窗仍高于钉住热区。
+  - `a3638e2` fix(new-folder)：加高新建文件夹窗口并支持滚动与长路径折行，避免底部按钮被裁切。

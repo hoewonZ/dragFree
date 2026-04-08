@@ -1,6 +1,6 @@
 {
   "name": "dragfree",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "private": true,
   "description": "Drag routing desktop app built with Electron",
   "main": "src/main/main.js",
