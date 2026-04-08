@@ -5,9 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>新建文件夹</title>
     <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html,
       body {
+        height: 100%;
         margin: 0;
+      }
+
+      body {
         padding: 16px;
+        overflow-y: auto;
         font-family: "Segoe UI", "PingFang SC", sans-serif;
         color: #19253d;
         background: #f4f7fc;
@@ -29,6 +41,8 @@
         margin: 8px 0 0;
         font-size: 12px;
         color: #51627f;
+        overflow-wrap: anywhere;
+        word-break: break-word;
       }
 
       input {

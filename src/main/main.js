@@ -2570,7 +2570,7 @@ function showNewFolderWindow(parentPath) {
   closeNewFolderWindow();
 
   const width = 420;
-  const height = 220;
+  const height = 320;
   const { x, y } = resolveNewFolderWindowPosition(width, height);
 
   newFolderWindow = new BrowserWindow({
