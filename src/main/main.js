@@ -674,6 +674,7 @@ function handleDragEvent(event) {
       behavior: config.behavior
     });
     panel.showInactive();
+    ensureWindowTopmost(panel);
     startDragMonitor();
     return;
   }
@@ -1024,11 +1025,25 @@ function projectHotzoneRectByDisplayRatio(rect, fromBounds, toBounds) {
   };
 }
 
+const POPUP_ALWAYS_ON_TOP_LEVEL = "screen-saver";
+
 function ensureWindowTopmost(windowRef) {
   if (!windowRef || windowRef.isDestroyed()) {
     return;
   }
+  windowRef.setAlwaysOnTop(true, POPUP_ALWAYS_ON_TOP_LEVEL);
   windowRef.moveTop();
+}
+
+function raiseVisiblePopupsAboveHotzone() {
+  if (quickOpenWindow && !quickOpenWindow.isDestroyed() && quickOpenWindow.isVisible()) {
+    quickOpenWindow.setAlwaysOnTop(true, POPUP_ALWAYS_ON_TOP_LEVEL);
+    quickOpenWindow.moveTop();
+  }
+  if (panelWindow && !panelWindow.isDestroyed() && panelWindow.isVisible()) {
+    panelWindow.setAlwaysOnTop(true, POPUP_ALWAYS_ON_TOP_LEVEL);
+    panelWindow.moveTop();
+  }
 }
 
 function applyOverlayPinnedState(pinned) {
@@ -1037,10 +1052,11 @@ function applyOverlayPinnedState(pinned) {
   }
 
   const nextPinned = pinned === true;
-  overlayWindow.setAlwaysOnTop(nextPinned, nextPinned ? "screen-saver" : "normal");
+  overlayWindow.setAlwaysOnTop(nextPinned, nextPinned ? POPUP_ALWAYS_ON_TOP_LEVEL : "normal");
   if (nextPinned) {
     overlayWindow.moveTop();
   }
+  raiseVisiblePopupsAboveHotzone();
 }
 
 function createOrUpdateOverlayWindow(options = {}) {
@@ -2576,13 +2592,14 @@ function showNewFolderWindow(parentPath) {
     }
   });
 
-  newFolderWindow.setAlwaysOnTop(true, "screen-saver");
+  newFolderWindow.setAlwaysOnTop(true, POPUP_ALWAYS_ON_TOP_LEVEL);
   newFolderWindow.moveTop();
 
   newFolderWindow.loadFile(join(__dirname, "../renderer/new-folder.html"));
   newFolderWindow.once("ready-to-show", () => {
     newFolderWindow.show();
     newFolderWindow.focus();
+    newFolderWindow.setAlwaysOnTop(true, POPUP_ALWAYS_ON_TOP_LEVEL);
     newFolderWindow.moveTop();
     newFolderWindow.webContents.send("new-folder:init", { parentPath });
   });
