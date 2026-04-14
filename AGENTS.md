@@ -198,6 +198,7 @@ node --test --test-name-pattern="hotzone"
       - 若版本变更：`package.json` 与 `RELEASE_HISTORY.md` 已同步（用于打包/更新日志展示）
       - 若版本变更：`RELEASE_HISTORY.md` 已记录“版本变更信息 + 版本窗口内所有提交摘要”，且不写 release commit 字段
   14. **`npm run build:win` 成功即视为打包完成**：不要求助手再解压 `app.asar`、核对 `RELEASE_HISTORY.md` 是否打入包内、或手动运行安装包做验货；除非用户明确要求。
+  
 
 ## 已知运行注意事项
 
