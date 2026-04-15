@@ -28,6 +28,7 @@ import {
 import { DragSessionController } from "./drag-session-controller.js";
 import { inferAction, routeEntries } from "./file-router.js";
 import { getHotzoneRect } from "./hotzone.js";
+import { migrateLegacyDragfreeDataIfNeeded, resolveDragfreeDataRootFromApp } from "./app-data-root.js";
 import { getFavoriteLinksDir, syncFavoriteLinkShortcuts } from "./favorite-links-sync.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -43,6 +44,7 @@ let overlayWindow = null;
 let config = null;
 let dragController = null;
 let activeDisplayBounds = null;
+let dragfreeDataRoot = null;
 let configFilePath = null;
 let dragMonitorTimer = null;
 let overlayEventsEnabled = true;
@@ -148,7 +150,7 @@ async function appendDragFailRecords(errors) {
     return;
   }
   try {
-    const logDir = join(app.getPath("userData"), "dragfree", "logs");
+    const logDir = join(dragfreeDataRoot, "logs");
     await mkdir(logDir, { recursive: true });
     const filePath = join(logDir, DRAG_FAIL_LOG_FILE_NAME);
     const modeLabel = getInteractionMode() === "quick-open" ? "快开" : "拖拽";
@@ -169,7 +171,7 @@ async function appendDragFailRecords(errors) {
 
 async function initStartupLogger() {
   try {
-    const logDir = join(app.getPath("userData"), "dragfree", "logs");
+    const logDir = join(dragfreeDataRoot, "logs");
     await mkdir(logDir, { recursive: true });
     startupLogFilePath = join(logDir, "startup-profile.log");
     startupStartMs = Date.now();
@@ -188,7 +190,7 @@ async function syncHotzoneDebugLoggerFromConfig() {
     return;
   }
   try {
-    const logDir = join(app.getPath("userData"), "dragfree", "logs");
+    const logDir = join(dragfreeDataRoot, "logs");
     await mkdir(logDir, { recursive: true });
     const filePath = join(logDir, HOTZONE_DEBUG_LOG_NAME);
     if (!hotzoneDebugLogSessionOpened) {
@@ -1714,7 +1716,7 @@ async function showSaveDialogForHotzoneDisplay(saveOptions) {
 }
 
 function getHotzoneBackgroundLibraryPath() {
-  return join(app.getPath("userData"), "dragfree", HOTZONE_BACKGROUND_DIR);
+  return join(dragfreeDataRoot, HOTZONE_BACKGROUND_DIR);
 }
 
 async function importHotzoneBackgroundImage(sourcePath) {
@@ -2613,10 +2615,11 @@ function closeNewFolderWindow() {
 }
 
 async function bootstrap() {
+  dragfreeDataRoot = resolveDragfreeDataRootFromApp(app);
+  await migrateLegacyDragfreeDataIfNeeded(dragfreeDataRoot, app.getPath("userData"));
+  configFilePath = join(dragfreeDataRoot, "config.json");
   await initStartupLogger();
   logStartupStep("bootstrap:start");
-  const userDataPath = app.getPath("userData");
-  configFilePath = join(userDataPath, "dragfree", "config.json");
   logStartupStep("bootstrap:config-read:start", configFilePath);
   config = await readConfigFromFile(configFilePath);
   logStartupStep("bootstrap:config-read:done");
