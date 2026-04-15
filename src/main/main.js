@@ -30,6 +30,7 @@ import { inferAction, routeEntries } from "./file-router.js";
 import { getHotzoneRect } from "./hotzone.js";
 import { migrateLegacyDragfreeDataIfNeeded, resolveDragfreeDataRootFromApp } from "./app-data-root.js";
 import { getFavoriteLinksDir, syncFavoriteLinkShortcuts } from "./favorite-links-sync.js";
+import { computeCenteredHotzonePosition } from "./first-run-hotzone.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -2620,6 +2621,12 @@ async function bootstrap() {
   configFilePath = join(dragfreeDataRoot, "config.json");
   await initStartupLogger();
   logStartupStep("bootstrap:start");
+  let isFirstRun = false;
+  try {
+    await access(configFilePath, fsConstants.F_OK);
+  } catch (error) {
+    isFirstRun = error?.code === "ENOENT";
+  }
   logStartupStep("bootstrap:config-read:start", configFilePath);
   config = await readConfigFromFile(configFilePath);
   logStartupStep("bootstrap:config-read:done");
@@ -2634,6 +2641,33 @@ async function bootstrap() {
         getDisplayId(screen.getPrimaryDisplay())
     }
   });
+  if (isFirstRun) {
+    const primaryDisplay = screen.getPrimaryDisplay();
+    const displayId = getDisplayId(primaryDisplay);
+    const width = Math.max(sessionMinWidthPx, Number(config.hotzone?.widthPx) || 200);
+    const height = Math.max(sessionMinHeightPx, Number(config.hotzone?.heightPx) || 300);
+    const { x, y } = computeCenteredHotzonePosition(primaryDisplay.workArea, {
+      width,
+      height,
+      headerHeight: HOTZONE_HEADER_HEIGHT
+    });
+    config = mergeConfig({
+      ...config,
+      hotzone: {
+        ...config.hotzone,
+        displayId,
+        preferredDisplayId: displayId,
+        xPx: x,
+        yPx: y
+      }
+    });
+    markConfigDirty("first_run_center_hotzone");
+    try {
+      await flushRuntimeConfigToDisk("first_run_center_hotzone_flush");
+    } catch (error) {
+      console.warn("[dragFree] first run center hotzone flush failed:", error);
+    }
+  }
   updateSessionMinSize(config.hotzone);
   rememberDisplayBoundsSnapshot();
   await syncHotzoneDebugLoggerFromConfig();
