@@ -109,3 +109,12 @@
   - `47333db` fix(main)：macOS/Linux 托盘使用多倍率图标，逻辑尺寸 16×16。
   - `1dd138a` fix(main)：快开/拖拽面板与新建文件夹窗统一 `screen-saver` 置顶，热区刷新后弹窗仍高于钉住热区。
   - `a3638e2` fix(new-folder)：加高新建文件夹窗口并支持滚动与长路径折行，避免底部按钮被裁切。
+
+## v0.5.0（自 v0.4.1）
+
+- **版本变更**：`0.4.1 -> 0.5.0`（MINOR）。版本号在发布提交中与 `RELEASE_HISTORY.md` 一并更新（本说明不重复列出单独的版本号提升提交）。
+- **窗口内提交摘要**（自 `c1029df` 之后，不含仅维护 `RELEASE_HISTORY.md` / `COMMIT_HISTORY.md` / `AGENTS.md` 的提交）：
+  - `8fabef7` feat：更新版权声明与用户指南。
+  - `ed59830` fix(quick-open)：快开弹窗高度与拖拽弹窗统一。
+  - `383d483` chore(build)：打包元数据添加作者信息。
+  - `1e428f3` feat(main)：便携版可写数据与 exe 同级 `config` 目录（`PORTABLE_EXECUTABLE_DIR` 优先），日志/背景/常用文件夹快捷方式一并迁入；首次启动可从旧版 `AppData` 下 `dragfree` 目录迁移。
