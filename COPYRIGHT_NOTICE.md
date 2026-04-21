@@ -59,6 +59,6 @@ dragFree © 2026 詹怀远（星河小不）。保留所有权利。
 
 ## 10. 联系方式
 
-- 项目主页/发布页：<链接或说明>
-- 联系邮箱：<1488767@qq.com>
+- 项目主页/发布页：[【全网首发】免费Windows/MacOS文件拖拽管理工具，DragFree 0.5.0发布，随便拽，拽到起飞✈️-CSDN博客](https://blog.csdn.net/qq_15053769/article/details/160114802?sharetype=blogdetail&sharerId=160114802&sharerefer=PC&sharesource=qq_15053769&spm=1011.2480.3001.8118)
+- 联系邮箱：[1488767@qq.com](mailto:1488767@qq.com)
 
