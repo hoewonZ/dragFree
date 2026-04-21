@@ -3,6 +3,7 @@
   "name": "dragfree",
   "version": "0.5.1",
   "private": true,
+  "license": "MIT",
   "description": "Drag routing desktop app built with Electron",
   "main": "src/main/main.js",
   "type": "module",
@@ -26,6 +27,7 @@
     "files": [
       "src/**/*",
       "package.json",
+      "LICENSE",
       "RELEASE_HISTORY.md",
       "COPYRIGHT_NOTICE.md"
     ],
