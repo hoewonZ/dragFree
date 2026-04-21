@@ -9,7 +9,8 @@
   "scripts": {
     "start": "electron .",
     "test": "node --test",
-    "build:win": "electron-builder --win portable"
+    "build:win": "electron-builder --win portable",
+    "build:mac": "electron-builder --mac dir"
   },
   "devDependencies": {
     "electron": "^37.3.1",
@@ -43,6 +44,12 @@
       "signAndEditExecutable": false,
       "target": [
         "portable"
+      ]
+    },
+    "mac": {
+      "category": "public.app-category.utilities",
+      "target": [
+        "dir"
       ]
     }
   },
