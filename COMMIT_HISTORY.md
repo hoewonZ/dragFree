@@ -111,3 +111,4 @@
 ## 2026-04-21
 
 - `0838450` docs：更新版权声明中的项目主页与邮箱链接。
+- `63fd8cf` docs：README 精简说明并补充 Win/Mac 自用打包指引；`package.json` 增加 `build:mac`。
