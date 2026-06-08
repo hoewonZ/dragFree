@@ -1425,6 +1425,12 @@
     });
 
     editor.addEventListener("keydown", (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        event.stopPropagation();
+        void saveEditing();
+        return;
+      }
       if (event.key !== "Tab") {
         return;
       }
