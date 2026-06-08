@@ -113,3 +113,7 @@
 - `0838450` docs：更新版权声明中的项目主页与邮箱链接。
 - `63fd8cf` docs：README 精简说明并补充 Win/Mac 自用打包指引；`package.json` 增加 `build:mac`。
 - `a38a9b1` docs：版权声明改为 MIT 免费开源；新增 `LICENSE`；`package.json` 声明许可并纳入打包文件。
+
+## 2026-06-08
+
+- `5587f8d` feat(renderer)：文本编辑区支持 Ctrl+S 快捷保存，与对号按钮一致。
