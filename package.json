@@ -1,7 +1,7 @@
 {
   "author": "詹怀远 (星河小不)",
   "name": "dragfree",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "private": true,
   "license": "MIT",
   "description": "Drag routing desktop app built with Electron",

@@ -6,6 +6,15 @@
 > - **不列出** 仅修改 `RELEASE_HISTORY.md`、`COMMIT_HISTORY.md`、`AGENTS.md` 的维护性提交。
 > - 下列版本窗口按 **新版本在上、旧版本在下（倒序）** 排列；每个版本内的「窗口内提交」按 **时间由旧到新** 排列。
 
+## v0.5.2（自 v0.5.1）
+
+- **版本变更**：`0.5.1 -> 0.5.2`（PATCH）。版本号在发布提交中与 `RELEASE_HISTORY.md` 一并更新（本说明不重复列出单独的版本号提升提交）。
+- **窗口内提交摘要**（自 `023f1f1` 之后，不含仅维护 `RELEASE_HISTORY.md` / `COMMIT_HISTORY.md` / `AGENTS.md` 的提交）：
+  - `0838450` docs：更新版权声明中的项目主页与邮箱链接。
+  - `63fd8cf` docs：README 精简说明并补充 Win/Mac 自用打包指引。
+  - `a38a9b1` docs：版权声明改为 MIT 免费开源；新增 `LICENSE`。
+  - `5587f8d` feat(renderer)：文本编辑区支持 Ctrl+S 快捷保存，与对号按钮一致。
+
 ## v0.5.1（自 v0.5.0）
 
 - **版本变更**：`0.5.0 -> 0.5.1`（PATCH）。版本号在发布提交中与 `RELEASE_HISTORY.md` 一并更新（本说明不重复列出单独的版本号提升提交）。
